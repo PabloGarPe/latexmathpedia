@@ -18,6 +18,8 @@ export const queryKeys = {
     detail: (quizId: number) => ["quizzes", quizId] as const,
     attempt: (quizId: number) => ["quizzes", quizId, "attempt"] as const,
     questions: (quizId: number) => ["quizzes", quizId, "questions"] as const,
+    stats: (quizId: number) => ["quizzes", quizId, "stats"] as const,
+    leaderboard: (quizId: number, page: number, size: number) => ["quizzes", quizId, "leaderboard", page, size] as const,
   },
   questions: {
     options: (questionId: number) => ["questions", questionId, "options"] as const,
@@ -25,6 +27,7 @@ export const queryKeys = {
   attempts: {
     all: () => ["attempts"] as const,
     page: (page: number, size: number) => ["attempts", page, size] as const,
+    stats: () => ["attempts", "stats"] as const,
   },
   profile: {
     me: () => ["profile", "me"] as const,

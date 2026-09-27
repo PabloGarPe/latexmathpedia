@@ -505,6 +505,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/quiz/{id}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Obtiene las estadísticas de un cuestionario por su ID
+         * @description Requiere autenticación, pero no requiere rol ADMIN
+         */
+        get: operations["getUserStatsForQuiz"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/quiz/{id}/questions": {
         parameters: {
             query?: never;
@@ -517,6 +537,26 @@ export interface paths {
          * @description Requiere autenticación, pero no requiere rol ADMIN
          */
         get: operations["getQuizQuestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/quiz/{id}/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Obtiene la tabla de líderes de un cuestionario por su ID
+         * @description Requiere autenticación, pero no requiere rol ADMIN
+         */
+        get: operations["getLeaderboardForQuiz"];
         put?: never;
         post?: never;
         delete?: never;
@@ -734,6 +774,26 @@ export interface paths {
          * @description Obtiene los intentos de cuestionarios del usuario autenticado
          */
         get: operations["getMyAttempts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attempts/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Obtener mis estadísticas de cuestionarios
+         * @description Estadísticas agregadas de todos los intentos del usuario autenticado
+         */
+        get: operations["getMyStats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1426,6 +1486,68 @@ export interface components {
              */
             status?: "SUCCESS" | "ERROR";
         };
+        QuizAttemptStatsDto: {
+            /** Format: int32 */
+            totalAttempts?: number;
+            /** Format: double */
+            completionRate?: number;
+            /** Format: double */
+            accuracyPercentage?: number;
+            /** Format: double */
+            averageScore?: number;
+            /** Format: double */
+            bestScore?: number;
+        };
+        Pageable: {
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            sort?: string[];
+        };
+        LeaderboardEntryDto: {
+            /** Format: int64 */
+            userId?: number;
+            username?: string;
+            /** Format: double */
+            bestAdjustedScore?: number;
+            /** Format: int32 */
+            rank?: number;
+        };
+        PageLeaderboardEntryDto: {
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            size?: number;
+            content?: components["schemas"]["LeaderboardEntryDto"][];
+            /** Format: int32 */
+            number?: number;
+            sort?: components["schemas"]["SortObject"];
+            pageable?: components["schemas"]["PageableObject"];
+            /** Format: int32 */
+            numberOfElements?: number;
+            first?: boolean;
+            last?: boolean;
+            empty?: boolean;
+        };
+        PageableObject: {
+            unpaged?: boolean;
+            /** Format: int64 */
+            offset?: number;
+            sort?: components["schemas"]["SortObject"];
+            paged?: boolean;
+            /** Format: int32 */
+            pageNumber?: number;
+            /** Format: int32 */
+            pageSize?: number;
+        };
+        SortObject: {
+            unsorted?: boolean;
+            empty?: boolean;
+            sorted?: boolean;
+        };
         QuizAttemptDto: {
             /**
              * Format: int64
@@ -1497,13 +1619,6 @@ export interface components {
             role?: "USER" | "ADMIN";
             id?: string;
         };
-        Pageable: {
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-            sort?: string[];
-        };
         PageQuizAttemptDto: {
             /** Format: int32 */
             totalPages?: number;
@@ -1521,22 +1636,6 @@ export interface components {
             first?: boolean;
             last?: boolean;
             empty?: boolean;
-        };
-        PageableObject: {
-            /** Format: int64 */
-            offset?: number;
-            sort?: components["schemas"]["SortObject"];
-            paged?: boolean;
-            /** Format: int32 */
-            pageNumber?: number;
-            /** Format: int32 */
-            pageSize?: number;
-            unpaged?: boolean;
-        };
-        SortObject: {
-            empty?: boolean;
-            sorted?: boolean;
-            unsorted?: boolean;
         };
     };
     responses: never;
@@ -2726,6 +2825,47 @@ export interface operations {
             };
         };
     };
+    getUserStatsForQuiz: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID del cuestionario */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estadísticas de cuestionario obtenidas correctamente */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizAttemptStatsDto"];
+                };
+            };
+            /** @description No autorizado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizAttemptStatsDto"];
+                };
+            };
+            /** @description No existe ningún cuestionario con el ID proporcionado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizAttemptStatsDto"];
+                };
+            };
+        };
+    };
     getQuizQuestions: {
         parameters: {
             query?: never;
@@ -2763,6 +2903,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["QuestionDto"][];
+                };
+            };
+        };
+    };
+    getLeaderboardForQuiz: {
+        parameters: {
+            query: {
+                /** @description Parámetros de paginación */
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path: {
+                /** @description ID del cuestionario */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tabla de líderes obtenida correctamente */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageLeaderboardEntryDto"];
+                };
+            };
+            /** @description No autorizado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageLeaderboardEntryDto"];
+                };
+            };
+            /** @description No existe ningún cuestionario con el ID proporcionado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageLeaderboardEntryDto"];
                 };
             };
         };
@@ -3123,6 +3307,35 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PageQuizAttemptDto"];
+                };
+            };
+        };
+    };
+    getMyStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estadísticas del usuario autenticado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizAttemptStatsDto"];
+                };
+            };
+            /** @description Usuario no autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizAttemptStatsDto"];
                 };
             };
         };

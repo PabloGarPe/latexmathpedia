@@ -19,6 +19,9 @@ export type UpdateQuizDto = components["schemas"]["UpdateQuizDto"];
 export type QuizExportableDto = components["schemas"]["QuizExportableDto"];
 export type QuestionExportableDto = components["schemas"]["QuestionExportableDto"];
 export type OptionExportableDto = components["schemas"]["OptionExportableDto"];
+export type QuizAttemptStatsDto = components["schemas"]["QuizAttemptStatsDto"];
+export type LeaderboardEntryDto = components["schemas"]["LeaderboardEntryDto"];
+export type PageLeaderboardEntryDto = components["schemas"]["PageLeaderboardEntryDto"];
 
 export async function getPublicQuizzes() {
   const { data, error } = await apiClient.GET("/public/quiz");
@@ -122,5 +125,38 @@ export async function importQuiz(
     body,
   });
   if (error) throw new ApiError(response.status, "No se pudo importar el cuestionario");
+  return data;
+}
+
+export async function getQuizStats(id: number) {
+  const { data, error } = await apiClient.GET("/quiz/{id}/stats", {
+    params: { path: { id } },
+  });
+  if (error) throw error;
+  return data;
+}
+
+// Estadísticas agregadas de TODOS los intentos del usuario autenticado (distinto de
+// getQuizStats, que es el rendimiento del usuario en un quiz concreto).
+export async function getMyStats() {
+  const { data, error } = await apiClient.GET("/attempts/stats");
+  if (error) throw error;
+  return data;
+}
+
+export async function getQuizLeaderboard(id: number, page: number, size: number) {
+  const { data, error } = await apiClient.GET("/quiz/{id}/leaderboard", {
+    params: {
+      path: { id },
+      query: { pageable: { page, size } },
+    },
+    querySerializer: (query: { pageable?: { page?: number; size?: number } }) => {
+      const search = new URLSearchParams();
+      if (query.pageable?.page != null) search.set("page", String(query.pageable.page));
+      if (query.pageable?.size != null) search.set("size", String(query.pageable.size));
+      return search.toString();
+    },
+  });
+  if (error) throw error;
   return data;
 }
