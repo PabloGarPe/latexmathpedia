@@ -41,7 +41,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Mail, KeyRound, LogOut, Shield, UserRound, Sparkles } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { useMe, useUpdateMe } from "@/hooks/api/use-profile"
-import { useMyAttempts, usePublicQuizzes } from "@/hooks/api/use-quizzes"
+import { useMyAttempts, useMyStats, usePublicQuizzes } from "@/hooks/api/use-quizzes"
 import { formatDate } from "@/lib/utils"
 
 const updateNameSchema = z.object({
@@ -54,6 +54,49 @@ const STATUS_LABEL: Record<string, string> = {
   ACTIVE: "Activo",
   INACTIVE: "Inactivo",
   SUSPENDED: "Suspendido",
+}
+
+function MyStatsSection() {
+  const { data: stats, isLoading } = useMyStats()
+
+  if (isLoading || !stats) return null
+
+  const items = [
+    { label: "Intentos totales", value: stats.totalAttempts ?? 0 },
+    {
+      label: "Tasa de finalización",
+      value: stats.completionRate != null ? `${Math.round(stats.completionRate * 100)}%` : "-",
+    },
+    {
+      label: "Precisión media",
+      value: stats.accuracyPercentage != null ? `${Math.round(stats.accuracyPercentage * 100)}%` : "-",
+    },
+    {
+      label: "Puntuación media",
+      value: stats.averageScore != null ? stats.averageScore.toFixed(1) : "-",
+    },
+    {
+      label: "Mejor puntuación",
+      value: stats.bestScore != null ? stats.bestScore.toFixed(1) : "-",
+    },
+  ]
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Mis estadísticas</CardTitle>
+        <CardDescription>Rendimiento agregado en todos tus cuestionarios.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        {items.map((item) => (
+          <div key={item.label} className="space-y-1">
+            <p className="text-2xl font-bold">{item.value}</p>
+            <p className="text-xs text-muted-foreground">{item.label}</p>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
 }
 
 function AttemptsHistoryTab() {
@@ -402,7 +445,8 @@ export default function ProfilePage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="quizzes" className="mt-6">
+        <TabsContent value="quizzes" className="mt-6 space-y-6">
+          <MyStatsSection />
           <AttemptsHistoryTab />
         </TabsContent>
       </Tabs>

@@ -8,7 +8,10 @@ import {
   getPublicQuizzes,
   getQuiz,
   getQuizForAttempt,
+  getMyStats,
+  getQuizLeaderboard,
   getQuizQuestions,
+  getQuizStats,
   importQuiz,
   submitQuizAttempt,
   updateQuiz,
@@ -57,6 +60,30 @@ export function useMyAttempts(page: number, size = 10) {
   return useQuery({
     queryKey: queryKeys.attempts.page(page, size),
     queryFn: () => getMyAttempts(page, size),
+  });
+}
+
+export function useMyStats(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.attempts.stats(),
+    queryFn: getMyStats,
+    enabled,
+  });
+}
+
+export function useQuizStats(quizId: number | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.quizzes.stats(quizId ?? -1),
+    queryFn: () => getQuizStats(quizId as number),
+    enabled: quizId != null,
+  });
+}
+
+export function useQuizLeaderboard(quizId: number | null | undefined, page: number, size = 10) {
+  return useQuery({
+    queryKey: queryKeys.quizzes.leaderboard(quizId ?? -1, page, size),
+    queryFn: () => getQuizLeaderboard(quizId as number, page, size),
+    enabled: quizId != null,
   });
 }
 
