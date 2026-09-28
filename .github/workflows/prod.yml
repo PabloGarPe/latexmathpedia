@@ -34,9 +34,9 @@ jobs:
           context: .
           push: true
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
-            NEXT_PUBLIC_AUTH_MODE=${{ vars.NEXT_PUBLIC_AUTH_MODE }}
-            NEXT_PUBLIC_BASE_URL=${{ vars.NEXT_PUBLIC_BASE_URL }}
+            NEXT_PUBLIC_API_URL=https://api.mathtexpedia.es
+            NEXT_PUBLIC_AUTH_MODE=keycloak
+            NEXT_PUBLIC_BASE_URL=https://mathtexpedia.es
           tags: |
             ghcr.io/${{ steps.image.outputs.name }}:latest
             ghcr.io/${{ steps.image.outputs.name }}:${{ github.sha }}
