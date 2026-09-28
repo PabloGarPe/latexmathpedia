@@ -8,6 +8,7 @@ import PdfViewer from "@/components/pdf-viewer"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
 import { usePdfContent, usePdfs } from "@/hooks/api/use-pdfs"
 import { useToast } from "@/hooks/use-toast"
+import { formatPdfAuthors } from "@/lib/content/types"
 
 export default function PdfViewerPage() {
   const params = useParams<{ pdfId: string }>()
@@ -21,6 +22,7 @@ export default function PdfViewerPage() {
   // caché si se llega desde el feed o la ficha de asignatura).
   const { data: pdfs } = usePdfs()
   const pdf = pdfs?.find((p) => p.id === pdfId)
+  const authors = formatPdfAuthors(pdf?.author, pdf?.coauthors)
 
   const { data: content, isLoading, isError } = usePdfContent(pdfId, isAuthenticated)
 
@@ -51,6 +53,7 @@ export default function PdfViewerPage() {
           </Link>
         )}
         <h1 className="text-2xl font-bold tracking-tight">{pdf?.name ?? "Documento"}</h1>
+        {authors && <p className="text-sm text-muted-foreground">Por {authors}</p>}
         {pdf?.description && <p className="text-muted-foreground">{pdf.description}</p>}
       </header>
 
