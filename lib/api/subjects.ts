@@ -14,14 +14,17 @@ export type UpdateSubjectUnitDto = components["schemas"]["UpdateSubjectUnitDto"]
 // otros recursos (quizzes, profile) puedan usarla sin depender de este módulo.
 export { ApiError };
 
+// Estos 4 endpoints están bajo el tag "Asignaturas públicas" (api-docs.json): no requieren
+// autenticación. El backend los sirve bajo el prefijo /public/subject -- ojo, no confundir
+// con /subject/{id}/quizzes (más abajo), que sí exige sesión.
 export async function getSubjects() {
-  const { data, error } = await apiClient.GET("/subject");
+  const { data, error } = await apiClient.GET("/public/subject");
   if (error) throw error;
   return data;
 }
 
 export async function getSubject(id: number) {
-  const { data, error } = await apiClient.GET("/subject/{id}", {
+  const { data, error } = await apiClient.GET("/public/subject/{id}", {
     params: { path: { id } },
   });
   if (error) throw error;
@@ -29,7 +32,7 @@ export async function getSubject(id: number) {
 }
 
 export async function getSubjectUnits(subjectId: number) {
-  const { data, error } = await apiClient.GET("/subject/{id}/units", {
+  const { data, error } = await apiClient.GET("/public/subject/{id}/units", {
     params: { path: { id: subjectId } },
   });
   if (error) throw error;
@@ -37,7 +40,7 @@ export async function getSubjectUnits(subjectId: number) {
 }
 
 export async function getSubjectPdfs(subjectId: number) {
-  const { data, error } = await apiClient.GET("/subject/{id}/pdfs", {
+  const { data, error } = await apiClient.GET("/public/subject/{id}/pdfs", {
     params: { path: { id: subjectId } },
   });
   if (error) throw error;
