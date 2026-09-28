@@ -4,6 +4,7 @@ import { GalleryVerticalEnd } from "lucide-react"
 import { LoginForm } from "@/components/login-form.new"
 import Link from "next/link"
 import { useAuthRoute } from "@/hooks/use-protected-route"
+import { Suspense } from "react"
 
 export default function LoginPage() {
   // Redirigir si ya está autenticado
@@ -36,7 +37,9 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xl">
-            <LoginForm/>
+            <Suspense>
+              <LoginForm/>
+            </Suspense>
           </div>
         </div>
       </div>

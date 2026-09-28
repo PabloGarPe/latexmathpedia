@@ -1,5 +1,6 @@
 "use client";
-import { ArrowUpIcon, X, BotMessageSquare } from "lucide-react"
+import { ArrowUpIcon, X, BotMessageSquare, FileText, BookOpen, Link2 } from "lucide-react"
+import NextLink from "next/link"
 
 import {
     InputGroup,
@@ -11,12 +12,20 @@ import { useEffect, useRef, useState } from "react"
 import { useToast } from "@/hooks/use-toast";
 import { MessageContent } from "./message-content";
 import { Button } from "./ui/button";
-
+import { useSendChatMessage } from "@/hooks/api/use-chatbot";
+import type { ChatResource } from "@/lib/api/chatbot";
 
 interface Message {
     role: 'user' | 'assistant';
     content: string;
+    relevantResources?: ChatResource[];
 }
+
+const RESOURCE_ICON: Record<string, typeof FileText> = {
+    PDF: FileText,
+    BLOG_POST: BookOpen,
+    PAGE: Link2,
+};
 
 interface RateLimitData {
     dailyCount: number,
@@ -25,7 +34,6 @@ interface RateLimitData {
     minuteResetTime: number,
 }
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
 
 const getCurrentDate = (): string => {
     const now = new Date();
@@ -33,6 +41,7 @@ const getCurrentDate = (): string => {
 }
 
 export function ChatWidget() {
+    const sendChatMessage = useSendChatMessage();
     const [open, setOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
@@ -177,32 +186,27 @@ export function ChatWidget() {
         if (!input.trim() || isLoading) return;
 
         const userMessage: Message = { role: 'user', content: input };
+        const conversationHistory = messages.slice(-6).map(({ role, content }) => ({ role, content })); // Last 6 messages
         setMessages(prev => [...prev, userMessage]);
+        const messageToSend = input;
         setInput("");
         setIsLoading(true);
 
-        // Call API with cookie for session management
+        // Call API (el token, si hay sesión, lo inyecta apiClient solo)
         try {
-            const response = await fetch(`${apiUrl}/chatbot/chat`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    message: input,
-                    conversationHistory: messages.slice(-6), // Last 6 messages
-                }),
+            const data = await sendChatMessage.mutateAsync({
+                message: messageToSend,
+                conversationHistory,
             });
 
-            if (!response.ok) {
-                throw new Error("Network response was not ok");
+            if (data.status === "ERROR") {
+                throw new Error("El chatbot devolvió un error");
             }
 
-            const data = await response.json();
             const assistantMessage: Message = {
                 role: 'assistant',
-                content: data.response,
+                content: data.response ?? "",
+                relevantResources: data.relevantResources,
             };
 
             setMessages(prev => [...prev, assistantMessage]);
@@ -259,7 +263,7 @@ export function ChatWidget() {
                             messages.map((msg, idx) => (
                                 <div
                                     key={idx}
-                                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                    className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
                                 >
                                     <div
                                         className={`max-w-[80%] rounded-lg px-4 py-2 ${msg.role === 'user'
@@ -269,6 +273,36 @@ export function ChatWidget() {
                                     >
                                         <MessageContent content={msg.content} />
                                     </div>
+                                    {msg.relevantResources && msg.relevantResources.length > 0 && (
+                                        <div className="mt-1.5 max-w-[80%] space-y-1">
+                                            {msg.relevantResources.map((resource, resourceIdx) => {
+                                                const Icon = (resource.type && RESOURCE_ICON[resource.type]) || Link2;
+                                                const isInternal = resource.url?.startsWith("/");
+                                                const linkContent = (
+                                                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline">
+                                                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                                                        <span className="truncate">{resource.title}</span>
+                                                    </span>
+                                                );
+                                                if (!resource.url) return null;
+                                                return isInternal ? (
+                                                    <NextLink key={resourceIdx} href={resource.url} className="block">
+                                                        {linkContent}
+                                                    </NextLink>
+                                                ) : (
+                                                    <a
+                                                        key={resourceIdx}
+                                                        href={resource.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="block"
+                                                    >
+                                                        {linkContent}
+                                                    </a>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         )}

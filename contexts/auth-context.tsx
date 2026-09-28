@@ -1,210 +1,312 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, PropsWithChildren } from 'react';
+// AUTH: soporta dos modos, elegidos por NEXT_PUBLIC_AUTH_MODE (ver lib/env.ts y
+// .env.example). Ambos exponen exactamente la misma interfaz pública (`useAuth()`), así
+// que ningún componente necesita saber en qué modo está la app.
+//
+// - "mock" (por defecto): sin backend/Keycloak. Tres identidades locales fijas
+//   (admin/usuario/anónimo) alternables desde `nav-user.tsx`, persistidas en localStorage.
+//   Como no hay JWT real, las llamadas a endpoints protegidos del backend devolverán 401
+//   real aunque `isAuthenticated`/`isAdmin` sean `true` aquí — es un límite conocido y
+//   aceptado mientras no haya Keycloak.
+// - "keycloak": auth real vía Auth.js + Keycloak (ver auth.ts). El access token se
+//   sincroniza automáticamente con `lib/api/client.ts` para
+//   que todas las llamadas hechas con `apiClient` (TanStack Query) lleven el Bearer.
 
-type CredentialsDTO = {
-    email: string;
-    password: string;
+import { createContext, useContext, useCallback, useEffect, useMemo, useState, PropsWithChildren } from 'react';
+import { useRouter } from 'next/navigation';
+import { SessionProvider, signIn, signOut, useSession } from 'next-auth/react';
+import { AUTH_MODE } from '@/lib/env';
+import { setApiAccessToken } from '@/lib/api/client';
+
+type LoginOptions = {
+  // URL a la que volver tras autenticarse
+  redirectTo?: string;
+  // Alias del Identity Provider configurado en Keycloak (p. ej. 'google'); ignorado en mock
+  idpHint?: string;
+};
+
+export type MockIdentity = "admin" | "user" | "anonymous";
+
+type AuthContextValue = {
+  isAuthenticated: boolean;
+  loading: boolean;
+  isAdmin: boolean;
+  email: string;
+  displayName: string;
+  accessToken?: string;
+  login: (options?: LoginOptions) => Promise<void>;
+  register: (options?: Pick<LoginOptions, 'redirectTo'>) => Promise<void>;
+  changePassword: (options?: Pick<LoginOptions, 'redirectTo'>) => Promise<void>;
+  logout: () => Promise<void>;
+  checkAuth: () => Promise<void>;
+  authFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  // Solo tienen sentido en modo mock; en modo keycloak quedan undefined.
+  identity?: MockIdentity;
+  setIdentity?: (identity: MockIdentity) => void;
+};
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+// ---------------------------------------------------------------------------
+// Modo mock (T-13)
+// ---------------------------------------------------------------------------
+
+const MOCK_ACCOUNTS: Record<Exclude<MockIdentity, "anonymous">, { email: string; displayName: string }> = {
+  admin: { email: "admin@local.test", displayName: "Admin (local)" },
+  user: { email: "user@local.test", displayName: "Usuario (local)" },
+};
+
+const MOCK_IDENTITY_STORAGE_KEY = "mathtexpedia-mock-identity";
+
+function isMockIdentity(value: unknown): value is MockIdentity {
+  return value === "admin" || value === "user" || value === "anonymous";
 }
 
-const AuthContext = createContext({
-    isAuthenticated: false,
-    loading: true,
-    isAdmin: false,
-    email: '',
-    login: async (_credentials: CredentialsDTO) => false,
-    loginWithGoogle: async (_idToken: any) => false,
-    logout: async () => {},
-    checkAuth: async () => {},
-});
-
-export const AuthProvider = ({ children }: PropsWithChildren) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+function MockAuthProvider({ children }: PropsWithChildren) {
+  const router = useRouter();
+  const [identity, setIdentityState] = useState<MockIdentity>('anonymous');
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [email, setEmail] = useState('');
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-
-  // Función helper para crear opciones de fetch optimizadas para Safari
-  const createFetchOptions = (method: string, body?: any): RequestInit => {
-    const options: RequestInit = {
-      method,
-      mode: 'cors',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-      },
-      cache: 'no-store',
-    };
-
-    if (body) {
-      options.body = JSON.stringify(body);
-    }
-
-    return options;
-  };
-
-  const checkAuth = async () => {
+  useEffect(() => {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch(`${apiUrl}/auth/validate`, { 
-        ...createFetchOptions('GET'),
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (res.ok) {
-        const data = await res.json();
-        setIsAuthenticated(true);
-        setEmail(data.email);
-        await isAdminUser();
-      } else {
-        setIsAuthenticated(false);
-        setEmail('');
-        setIsAdmin(false);
+      const stored = localStorage.getItem(MOCK_IDENTITY_STORAGE_KEY);
+      if (isMockIdentity(stored)) {
+        setIdentityState(stored);
       }
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.warn('Auth check timed out - server may be slow');
-      } else {
-        console.error("Auth check error:", error);
-      }
-      setIsAuthenticated(false);
-      setEmail('');
-      setIsAdmin(false);
+      console.error('No se pudo leer la identidad mockeada de localStorage:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const login = async (credentials:CredentialsDTO) => {
-    if (
-      !credentials.email ||
-      !credentials.password ||
-      credentials.email.trim() === '' ||
-      credentials.password.trim() === ''
-    ) {
-      throw new Error('Email and password are required');
-    }
-
-    try {
-      const response = await fetch(`${apiUrl}/auth/login`, createFetchOptions('POST', credentials));
-
-      if (!response.ok) {
-        checkError(response.status);
-      }
-
-      // Importante: Esperar un poco para que Safari procese la cookie
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      setIsAuthenticated(true);
-      await isAdminUser();
-      await checkAuth();
-      return true;
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-  };
-
-  const loginWithGoogle = async (idToken: any) => {
-    try {
-      const response = await fetch(`${apiUrl}/auth/google-login`, createFetchOptions('POST', { idToken }));
-      if (!response.ok) {
-        checkError(response.status);
-      }
-      // Importante: Esperar un poco para que Safari procese la cookie
-      await new Promise(resolve => setTimeout(resolve, 300));
-      setIsAuthenticated(true);
-      await isAdminUser();
-      await checkAuth();
-      return true;
-    } catch (error) {
-      console.error('Google Login error:', error);
-      throw error;
-    }
-  }
-
-  const checkError = (error: any) => {
-    switch (error) {
-          case 480:
-            throw new Error('Email inválido. Por favor, introduce un email correcto.');
-          case 481:
-            throw new Error('Usuario no encontrado. Revisa tus credenciales.');
-          case 483:
-            throw new Error('Contraseña incorrecta. Inténtalo de nuevo.');
-          case 484:
-            throw new Error('El email ya está en uso. Prueba con otro.');
-          case 485:
-            throw new Error('Error en la verificación del email. Prueba de nuevo.');
-          case 486:
-            throw new Error('La contraseña es demasiado débil. Usa al menos 6 caracteres.');
-          case 490:
-            throw new Error('Error en la autenticación. Pruebe de nuevo.');
-          case 500:
-            throw new Error('Error del servidor. Por favor, inténtalo más tarde.');
-          default:
-            throw new Error('Error desconocido. Por favor, inténtalo de nuevo.');
-        }
-  }
-
-  const logout = async () => {
-    try {
-      await fetch(`${apiUrl}/auth/logout`, createFetchOptions('POST'));
-      
-      // Esperar un poco para que Safari procese el logout
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      setIsAuthenticated(false);
-      setEmail('');
-      setIsAdmin(false);
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Aún así limpiar el estado local
-      setIsAuthenticated(false);
-      setEmail('');
-      setIsAdmin(false);
-    }
-  };
-
-  const isAdminUser = async () => {
-    try {
-      const response = await fetch(`${apiUrl}/auth/is-admin`, createFetchOptions('GET'));
-      
-      if (response.ok) {
-        const data = await response.json();
-        setIsAdmin(data);
-        return data;
-      } else {
-        setIsAdmin(false);
-        return false;
-      }
-    } catch (error) {
-      console.error("isAdmin check error:", error);
-      setIsAdmin(false);
-      return false;
-    }
-  };
-
-  useEffect(() => {
-    checkAuth();
   }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{ isAuthenticated, loading, isAdmin, email, login, loginWithGoogle, logout, checkAuth }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const setIdentity = useCallback((next: MockIdentity) => {
+    setIdentityState(next);
+    try {
+      localStorage.setItem(MOCK_IDENTITY_STORAGE_KEY, next);
+    } catch (error) {
+      console.error('No se pudo persistir la identidad mockeada en localStorage:', error);
+    }
+  }, []);
+
+  const isAuthenticated = identity !== 'anonymous';
+  const isAdmin = identity === 'admin';
+  const email = identity === 'anonymous' ? '' : MOCK_ACCOUNTS[identity].email;
+  const displayName = identity === 'anonymous' ? '' : MOCK_ACCOUNTS[identity].displayName;
+
+  // No hay backend/Keycloak real detrás: entrar/registrarse simplemente adopta la
+  // identidad de prueba "usuario" (usa el selector "Modo de prueba" del menú de usuario
+  // para pasar a admin) y navega como lo haría un login real.
+  const login = useCallback(
+    async ({ redirectTo = '/dashboard' }: LoginOptions = {}) => {
+      setIdentity('user');
+      router.push(redirectTo);
+    },
+    [setIdentity, router]
   );
-};
+
+  const register = useCallback(
+    async ({ redirectTo = '/dashboard' }: Pick<LoginOptions, 'redirectTo'> = {}) => {
+      setIdentity('user');
+      router.push(redirectTo);
+    },
+    [setIdentity, router]
+  );
+
+  const changePassword = useCallback(async () => {
+    // No-op: en mock no hay contraseña real que cambiar.
+  }, []);
+
+  const logout = useCallback(async () => {
+    setIdentity('anonymous');
+    router.push('/dashboard');
+  }, [setIdentity, router]);
+
+  const checkAuth = useCallback(async () => {
+    // No-op: el mock no tiene sesión de servidor que revalidar.
+  }, []);
+
+  const authFetch = useCallback(
+    (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+    []
+  );
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      isAuthenticated,
+      loading,
+      isAdmin,
+      email,
+      displayName,
+      identity,
+      setIdentity,
+      login,
+      register,
+      changePassword,
+      logout,
+      checkAuth,
+      authFetch,
+    }),
+    [
+      isAuthenticated,
+      loading,
+      isAdmin,
+      email,
+      displayName,
+      identity,
+      setIdentity,
+      login,
+      register,
+      changePassword,
+      logout,
+      checkAuth,
+      authFetch,
+    ]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+// ---------------------------------------------------------------------------
+// Modo keycloak (T-10/T-11/T-12)
+// ---------------------------------------------------------------------------
+
+function KeycloakAuthState({ children }: PropsWithChildren) {
+  const { data: session, status, update } = useSession();
+
+  // Si Keycloak rechazó el refresh token la sesión ya no es válida
+  const isAuthenticated = status === 'authenticated' && !session?.error;
+  const accessToken = isAuthenticated ? session?.accessToken : undefined;
+
+  // Sincroniza el cliente API (TanStack Query) con el access token vigente aquí, en el
+  // cuerpo del render, en vez de en un useEffect: los efectos de un hijo (p. ej. la query de
+  // TanStack Query que dispara un fetch nada más montar) pueden ejecutarse antes que el
+  // efecto de este componente padre dentro del mismo commit, dejando una ventana en la que
+  // esa petición sale sin Authorization. El render, en cambio, siempre ocurre de padres a
+  // hijos, así que esto llega antes que cualquier efecto (propio o de los hijos).
+  setApiAccessToken(accessToken);
+
+  const login = useCallback(
+    async ({ redirectTo = '/dashboard', idpHint }: LoginOptions = {}) => {
+      await signIn('keycloak', { redirectTo }, idpHint ? { kc_idp_hint: idpHint } : undefined);
+    },
+    []
+  );
+
+  // Provider que abre directamente el formulario de registro de Keycloak (ver auth.ts)
+  const register = useCallback(
+    async ({ redirectTo = '/dashboard' }: Pick<LoginOptions, 'redirectTo'> = {}) => {
+      await signIn('keycloak-register', { redirectTo });
+    },
+    []
+  );
+
+  // Application Initiated Action: Keycloak muestra el formulario de cambio de
+  // contraseña y vuelve a la app al terminar
+  const changePassword = useCallback(
+    async ({ redirectTo = '/dashboard/profile' }: Pick<LoginOptions, 'redirectTo'> = {}) => {
+      await signIn('keycloak', { redirectTo }, { kc_action: 'UPDATE_PASSWORD' });
+    },
+    []
+  );
+
+  const logout = useCallback(async () => {
+    setApiAccessToken(undefined);
+    await signOut({ redirect: false });
+  }, []);
+
+  const checkAuth = useCallback(async () => {
+    await update();
+  }, [update]);
+
+  // fetch que envía el JWT de Keycloak como 'Authorization: Bearer' al backend. Se
+  // mantiene para los componentes que aún no se han migrado a `lib/api/*` (TanStack
+  // Query ya usa `lib/api/client.ts`, que se sincroniza solo vía el efecto de arriba).
+  const authFetch = useCallback(
+    async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const withToken = (token?: string) => {
+        const headers = new Headers(init.headers);
+        if (token) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
+        return fetch(input, { ...init, headers });
+      };
+
+      const response = await withToken(accessToken);
+      if (response.status !== 401 || !accessToken) {
+        return response;
+      }
+
+      // El token del cliente puede haber caducado: pedir la sesión otra vez hace
+      // que el servidor lo renueve con el refresh token, y se reintenta una vez
+      const refreshed = await update();
+      if (!refreshed?.accessToken || refreshed.error || refreshed.accessToken === accessToken) {
+        return response;
+      }
+      return withToken(refreshed.accessToken);
+    },
+    [accessToken, update]
+  );
+
+  const isAdmin = isAuthenticated && (session?.isAdmin ?? false);
+  const email = isAuthenticated ? session?.user?.email ?? '' : '';
+  const displayName = isAuthenticated ? session?.user?.name ?? '' : '';
+  const loading = status === 'loading';
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      isAuthenticated,
+      loading,
+      isAdmin,
+      email,
+      displayName,
+      accessToken,
+      login,
+      register,
+      changePassword,
+      logout,
+      checkAuth,
+      authFetch,
+    }),
+    [
+      isAuthenticated,
+      loading,
+      isAdmin,
+      email,
+      displayName,
+      accessToken,
+      login,
+      register,
+      changePassword,
+      logout,
+      checkAuth,
+      authFetch,
+    ]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+function KeycloakAuthProvider({ children }: PropsWithChildren) {
+  return (
+    // Refrescar la sesión periódicamente para que el access token no caduque en el cliente
+    <SessionProvider refetchInterval={4 * 60} refetchOnWindowFocus>
+      <KeycloakAuthState>{children}</KeycloakAuthState>
+    </SessionProvider>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Selector de modo
+// ---------------------------------------------------------------------------
+
+export const AuthProvider = ({ children }: PropsWithChildren) =>
+  AUTH_MODE === 'keycloak' ? (
+    <KeycloakAuthProvider>{children}</KeycloakAuthProvider>
+  ) : (
+    <MockAuthProvider>{children}</MockAuthProvider>
+  );
 
 export const useAuth = () => {
   const context = useContext(AuthContext);

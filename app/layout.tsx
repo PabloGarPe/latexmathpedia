@@ -3,9 +3,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/auth-context";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "react-hot-toast";
 import { Analytics } from "@vercel/analytics/next";
-import { PowerUserProvider } from "@/components/power-user-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -156,10 +156,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <PowerUserProvider />
-            {children}
-          </AuthProvider>
+          <QueryProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </QueryProvider>
         </ThemeProvider>
         <Toaster
           position="bottom-right"

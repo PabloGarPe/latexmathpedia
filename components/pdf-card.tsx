@@ -1,18 +1,22 @@
-import { CalendarIcon, FileIcon } from "lucide-react";
+import { CalendarIcon, FileIcon, UserRound } from "lucide-react";
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 type PDFCardProps = {
     title: string;
-    url: string;
+    href: string;
     date: string;
-    tag?: string;
+    subjectName?: string;
+    subjectUnitName?: string;
+    // Ya formateado ("Autor, con Coautor y Coautor"); vacío si el PDF no tiene autores.
+    authors?: string;
 }
 
-function PDFCard({ title, url, date, tag }: PDFCardProps) {
+function PDFCard({ title, href, date, subjectName, subjectUnitName, authors }: PDFCardProps) {
     const { isAuthenticated } = useAuth();
     const toast = useToast();
     const router = useRouter();
@@ -64,8 +68,8 @@ function PDFCard({ title, url, date, tag }: PDFCardProps) {
             'bg-pink-100 dark:bg-pink-900',
         ];
 
-        // Usar el tag si está disponible, de lo contrario usar el título
-        const textToUse = tag || title;
+        // Usar la asignatura si está disponible, de lo contrario usar el título
+        const textToUse = subjectName || title;
         const index = textToUse.charCodeAt(0) % colors.length;
         return colors[index];
     };
@@ -74,7 +78,7 @@ function PDFCard({ title, url, date, tag }: PDFCardProps) {
         if (!isAuthenticated) {
             e.preventDefault();
             toast.error("Debes iniciar sesión para acceder a los archivos PDF. Los blogs son de acceso libre.");
-            router.push('/auth/login');
+            router.push(`/auth/login?redirect=${encodeURIComponent(href)}`);
         }
     }
 
@@ -98,6 +102,28 @@ function PDFCard({ title, url, date, tag }: PDFCardProps) {
             <div className="flex flex-1 flex-col p-4">
                 <h3 className="mb-2 line-clamp-2 text-base font-medium">{title}</h3>
 
+                {(subjectName || subjectUnitName) && (
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                        {subjectName && (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                {subjectName}
+                            </span>
+                        )}
+                        {subjectUnitName && (
+                            <span className="text-xs bg-secondary/10 text-primary px-2 py-0.5 rounded-full">
+                                {subjectUnitName}
+                            </span>
+                        )}
+                    </div>
+                )}
+
+                {authors && (
+                    <div className="mb-2 flex items-start gap-1.5 text-sm text-muted-foreground">
+                        <UserRound className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        <span className="line-clamp-2">{authors}</span>
+                    </div>
+                )}
+
                 <div className="mb-4 flex items-center text-sm text-muted-foreground">
                     <div className="flex items-center gap-1.5 mr-4">
                         <CalendarIcon className="h-3.5 w-3.5" />
@@ -113,9 +139,7 @@ function PDFCard({ title, url, date, tag }: PDFCardProps) {
                             className="w-full cursor-pointer"
                             asChild
                         >
-                            <a href={url} target="_blank" rel="noopener noreferrer">
-                                Ver PDF
-                            </a>
+                            <Link href={href}>Ver PDF</Link>
                         </Button>
                     ) : (
                         <Button

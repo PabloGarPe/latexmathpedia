@@ -7,7 +7,6 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { FilterProvider } from "@/contexts/filter-context"
 import { SearchProvider } from "@/contexts/search-context"
 import { ChatWidget } from "@/components/chat-widget"
 
@@ -19,22 +18,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="[--header-height:calc(--spacing(14))]">
       <SearchProvider>
-        <FilterProvider>
-          <SidebarProvider className="flex flex-col min-h-screen">
-            <SiteHeader />
-            <div className="flex flex-1">
-              <AppSidebar />
-              <SidebarInset className="flex flex-col">
-                <div className="flex-1">
-                  {children}
-                </div>
-                <MainFooter />
-              </SidebarInset>
-            </div>
-          </SidebarProvider>
+        <SidebarProvider className="flex flex-col min-h-screen">
+          <SiteHeader />
+          <div className="flex flex-1">
+            <AppSidebar />
+            <SidebarInset className="flex flex-col">
+              <div className="flex-1">
+                {children}
+              </div>
+              <MainFooter />
+            </SidebarInset>
+          </div>
+        </SidebarProvider>
 
-          <ChatWidget />
-        </FilterProvider>
+        <ChatWidget />
       </SearchProvider>
     </div>
   )

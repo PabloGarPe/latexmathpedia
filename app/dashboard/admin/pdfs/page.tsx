@@ -1,138 +1,89 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { AlertCircleIcon, Check, CheckCircle2Icon, ChevronsUpDown, Search } from "lucide-react"
+import { useEffect, useState } from "react"
+import { AlertCircleIcon, Search } from "lucide-react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import PDFAccordionCard from "@/components/ui/PDFAccordionCard"
-import { cn } from "@/lib/utils"
+import { SubjectUnitPicker } from "@/components/ui/subject-unit-picker"
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { renameCategory } from "@/lib/utils"
+  AuthorEmailsField,
+  authorsSchema,
+  emptyAuthors,
+  toAuthorEmails,
+} from "@/components/ui/author-emails-field"
 import { useToast } from "@/hooks/use-toast";
 import { useAdminRoute } from "@/hooks/use-protected-route"
+import { useCreatePdf, usePdfs } from "@/hooks/api/use-pdfs"
+import { pdfMutationErrorMessage } from "@/lib/api/pdfs"
 
-const categories = {
-  "Matemáticas": [
-    "Análisis y Cálculo",
-    "Álgebra y Geometría",
-    "Topología",
-    "Probabilidad y Estadística",
-    "Ecuaciones Diferenciales y Métodos Numéricos",
-    "Optimización y Programación Matemática"
-  ],
-  "Software": [
-    "Fundamentos y Algoritmos",
-    "Estructuras, Computación y Lenguajes",
-    "Arquitectura y Sistemas",
-    "Ingeniería del Software",
-    "Web e Interfaces",
-    "Bases de Datos",
-    "Redes y Seguridad"
-  ]
+const createPdfSchema = z
+  .object({
+    name: z.string().min(1, "El título es obligatorio"),
+    // FileList del <input type="file">; z.custom para no referenciar FileList en SSR.
+    file: z
+      .custom<FileList>()
+      .refine((files) => files?.length === 1, "Selecciona un fichero PDF")
+      .refine((files) => files?.[0]?.type === "application/pdf", "El fichero debe ser un PDF"),
+    description: z.string().optional(),
+    subjectId: z.number().nullable(),
+    subjectUnitId: z.number().nullable(),
+    authors: authorsSchema,
+  })
+  .refine((data) => data.subjectId != null, {
+    message: "Selecciona una asignatura",
+    path: ["subjectId"],
+  })
+
+type CreatePdfFormValues = z.infer<typeof createPdfSchema>
+
+const emptyFormValues: CreatePdfFormValues = {
+  name: "",
+  file: undefined as unknown as FileList,
+  description: "",
+  subjectId: null,
+  subjectUnitId: null,
+  authors: emptyAuthors,
 }
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-
-type PDFFetchResponse = {
-  pdf_id: string;
-  pdf_link: string;
-  pdf_last_time_edit: string;
-  pdf_description: string;
-  pdf_name: string;
-  pdf_tag: string;
-}
-
-
-export default function WelcomePage() {
+export default function AdminPdfsPage() {
   const toast = useToast();
-  const [title, setTitle] = useState("");
-  const [pdfUrl, setPdfUrl] = useState("");
-
-  const [categoryOpen, setCategoryOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("");
-
-  const [subcategoryOpen, setSubcategoryOpen] = useState(false);
-  const [selectedSubcategory, setSelectedSubcategory] = useState("");
-
-  const [existingPDFs, setExistingPDFs] = useState<Array<{
-    id: string;
-    link: string;
-    lastEdited: string;
-    description: string;
-    name: string;
-    pdfTag?: string;
-  }>>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filteredPDFs, setFilteredPDFs] = useState<Array<{
-    id: string;
-    link: string;
-    lastEdited: string;
-    description: string;
-    name: string;
-    pdfTag?: string;
-  }>>([]);
+  const [searchTerm, setSearchTerm] = useState("")
 
   // Proteger esta ruta de administración
   const { isAuthenticated, isAdmin, loading: authLoading } = useAdminRoute();
 
-  async function fetchExistingPDFs() {
-    try {
-      const response = await fetch(`${apiUrl}/pdfs`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Error al obtener los PDFs existentes');
-      }
+  const { data: pdfs, isLoading: pdfsLoading, isError: pdfsError } = usePdfs(isAuthenticated && isAdmin)
+  const createPdf = useCreatePdf()
 
-      const data = await response.json();
-
-      const pdfs = data.map((item: PDFFetchResponse) => ({
-        id: item.pdf_id,
-        link: item.pdf_link,
-        lastEdited: new Date(item.pdf_last_time_edit).toLocaleDateString("es-ES", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
-        description: item.pdf_description,
-        name: item.pdf_name,
-        pdfTag: item.pdf_tag
-      }));
-      return pdfs;
-    } catch (error) {
-      toast.error("Error al obtener los PDFs existentes.")
-      return [];
-    }
-  }
-
-  const fetchAndSetPDFs = async () => {
-    const pdfs = await fetchExistingPDFs();
-    setExistingPDFs(pdfs || []);
-    setFilteredPDFs(pdfs || []);
-  };
-  
-  // Cargar PDFs cuando el componente se monta y está autenticado y es admin
   useEffect(() => {
-    if (isAuthenticated && isAdmin && !authLoading) {
-      fetchAndSetPDFs();
+    if (pdfsError) {
+      toast.error("Error al cargar los PDFs.")
     }
-  }, [isAuthenticated, isAdmin, authLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfsError])
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm<CreatePdfFormValues>({
+    resolver: zodResolver(createPdfSchema),
+    defaultValues: emptyFormValues,
+  })
+
+  const subjectIdValue = watch("subjectId")
+  const subjectUnitIdValue = watch("subjectUnitId")
 
   // Mostrar loading mientras se verifica la autenticación
   if (authLoading) {
@@ -148,66 +99,37 @@ export default function WelcomePage() {
     return null;
   }
 
-  const handleSearch = (searchText: string) => {
-    setSearchTerm(searchText);
-    
-    // Si no hay PDFs existentes, no hacemos nada
-    if (!existingPDFs || existingPDFs.length === 0) {
-      setFilteredPDFs([]);
-      return;
-    }
-    
-    // Si el término de búsqueda está vacío, mostramos todos los PDFs
-    if (!searchText.trim()) {
-      setFilteredPDFs(existingPDFs);
-      return;
-    }
-    
-    // Filtramos los PDFs basados en el término de búsqueda
-    const filtered = existingPDFs.filter(pdf => 
-      (pdf.name && pdf.name.toLowerCase().includes(searchText.toLowerCase())) ||
-      (pdf.pdfTag && pdf.pdfTag.toLowerCase().includes(searchText.toLowerCase())) ||
-      (pdf.description && pdf.description.toLowerCase().includes(searchText.toLowerCase()))
-    );
-    
-    setFilteredPDFs(filtered);
-  };
+  const filteredPdfs = (pdfs ?? []).filter((pdf) => {
+    if (!searchTerm.trim()) return true
+    const term = searchTerm.toLowerCase()
+    return (
+      pdf.name?.toLowerCase().includes(term) ||
+      pdf.description?.toLowerCase().includes(term) ||
+      pdf.subject?.name?.toLowerCase().includes(term) ||
+      pdf.subjectUnit?.name?.toLowerCase().includes(term) ||
+      pdf.author?.toLowerCase().includes(term) ||
+      pdf.coauthors?.some((coauthor) => coauthor.toLowerCase().includes(term))
+    )
+  })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const onSubmit = async (values: CreatePdfFormValues) => {
     try {
-      const response = await fetch(`${apiUrl}/pdfs/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      await createPdf.mutateAsync({
+        data: {
+          name: values.name,
+          description: values.description || undefined,
+          subjectId: values.subjectId as number,
+          subjectUnitId: values.subjectUnitId,
+          authorEmails: toAuthorEmails(values.authors),
         },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: title,
-          link: pdfUrl,
-          pdfTag: renameCategory(selectedSubcategory),
-          description: ""
-        })
-      });
-
-      if (response.ok) {
-        toast.success("PDF creado exitosamente.");
-
-        setTitle("");
-        setPdfUrl("");
-        setSelectedCategory("");
-        setSelectedSubcategory("");
-
-        fetchAndSetPDFs();
-      } else {
-        toast.error("Error al crear el PDF.");
-      }
+        file: values.file[0],
+      })
+      toast.success("PDF creado exitosamente.");
+      reset(emptyFormValues)
     } catch (error) {
-      toast.error("Error al crear el PDF.");
+      toast.error(pdfMutationErrorMessage(error, "Error al crear el PDF."));
     }
   };
-
 
   return (
     <div className="p-8 w-full mx-auto">
@@ -219,7 +141,7 @@ export default function WelcomePage() {
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-6">
               <div className="grid gap-2">
                 <Label htmlFor="title">Título del documento</Label>
@@ -227,141 +149,64 @@ export default function WelcomePage() {
                   id="title"
                   placeholder="Ej: Teorema de Pitágoras - Demostración y aplicaciones"
                   className="w-full"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  {...register("name")}
                 />
+                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="pdfUrl">Enlace al PDF</Label>
+                <Label htmlFor="pdfFile">Fichero PDF</Label>
                 <Input
-                  id="pdfUrl"
-                  placeholder="https://ejemplo.com/archivo.pdf"
-                  className="w-full"
-                  value={pdfUrl}
-                  onChange={(e) => setPdfUrl(e.target.value)}
+                  id="pdfFile"
+                  type="file"
+                  accept="application/pdf"
+                  className="w-full cursor-pointer"
+                  {...register("file")}
                 />
+                {errors.file && <p className="text-sm text-destructive">{errors.file.message}</p>}
               </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="description">Descripción (opcional)</Label>
+                <Input id="description" className="w-full" {...register("description")} />
+              </div>
+
+              <AuthorEmailsField
+                control={control}
+                register={register}
+                errors={errors.authors}
+                idPrefix="new-pdf"
+              />
 
               <Separator className="my-4" />
 
-              {/* Campos de categoría y subcategoría en fila para pantallas grandes */}
-              <div className="md:flex md:flex-row md:gap-6">
-                <div className="flex-1 grid gap-2 mb-4 md:mb-0">
-                  <Label htmlFor="category">Categoría</Label>
-                  <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="category"
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={categoryOpen}
-                        className="w-full justify-between cursor-pointer"
-                      >
-                        {selectedCategory || "Selecciona una categoría"}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Buscar categoría..." />
-                        <CommandList>
-                          <CommandEmpty>No se encontraron categorías.</CommandEmpty>
-                          <CommandGroup>
-                            {Object.keys(categories).map((category) => (
-                              <CommandItem
-                                key={category}
-                                value={category}
-                                onSelect={(value) => {
-                                  setSelectedCategory(value);
-                                  setSelectedSubcategory("");
-                                  setCategoryOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    selectedCategory === category ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {category}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="flex-1 grid gap-2">
-                  <Label htmlFor="subcategory">Subcategoría</Label>
-                  <Popover
-                    open={subcategoryOpen && !!selectedCategory}
-                    onOpenChange={setSubcategoryOpen}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="subcategory"
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={subcategoryOpen}
-                        className="w-full justify-between cursor-pointer"
-                        disabled={!selectedCategory}
-                      >
-                        {selectedSubcategory || (selectedCategory ? "Selecciona una subcategoría" : "Primero selecciona una categoría")}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Buscar subcategoría..." />
-                        <CommandList>
-                          <CommandEmpty>No se encontraron subcategorías.</CommandEmpty>
-                          <CommandGroup>
-                            {selectedCategory && categories[selectedCategory as keyof typeof categories].map((subcategory) => (
-                              <CommandItem
-                                key={subcategory}
-                                value={subcategory}
-                                onSelect={(value) => {
-                                  setSelectedSubcategory(value);
-                                  setSubcategoryOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    selectedSubcategory === subcategory ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {subcategory}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
+              <SubjectUnitPicker
+                subjectId={subjectIdValue ?? null}
+                subjectUnitId={subjectUnitIdValue ?? null}
+                onSubjectChange={(id) => {
+                  setValue("subjectId", id, { shouldValidate: true })
+                  setValue("subjectUnitId", null)
+                }}
+                onSubjectUnitChange={(id) => setValue("subjectUnitId", id)}
+              />
+              {errors.subjectId && (
+                <p className="text-sm text-destructive">{errors.subjectId.message}</p>
+              )}
             </div>
           </form>
         </CardContent>
 
         <CardFooter className="flex justify-end gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="cursor-pointer"
-            onClick={() => {
-              setTitle("");
-              setPdfUrl("");
-              setSelectedCategory("");
-              setSelectedSubcategory("");
-            }}
+            onClick={() => reset(emptyFormValues)}
           >
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} className="cursor-pointer">Subir PDF</Button>
+          <Button onClick={handleSubmit(onSubmit)} className="cursor-pointer" disabled={isSubmitting}>
+            Subir PDF
+          </Button>
         </CardFooter>
       </Card>
 
@@ -376,16 +221,16 @@ export default function WelcomePage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar documentos por título, categoría o subcategoría..."
+                placeholder="Buscar documentos por título, asignatura, tema o autor..."
                 className="w-full pl-10"
                 value={searchTerm}
-                onChange={(e) => handleSearch(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
               {searchTerm && (
                 <Button
                   variant="ghost"
                   className="absolute right-0 top-0 h-full rounded-l-none px-3"
-                  onClick={() => handleSearch("")}
+                  onClick={() => setSearchTerm("")}
                 >
                   <span className="sr-only">Borrar</span>
                   <span>×</span>
@@ -393,29 +238,12 @@ export default function WelcomePage() {
               )}
             </div>
             <div className="text-sm text-muted-foreground">
-              {filteredPDFs && filteredPDFs.length > 0 ? (
-                filteredPDFs.map((pdf) => (
-                  <PDFAccordionCard
-                    key={pdf.id}
-                    pdf={pdf}
-                    onUpdate={(updatedPdf) => {
-                      if (!existingPDFs) return;
-                      // Actualizar el PDF en el estado local
-                      const updatedPDFs = existingPDFs.map(item =>
-                        item.id === updatedPdf.id ? updatedPdf : item
-                      );
-                      setExistingPDFs(updatedPDFs);
-                      handleSearch(searchTerm); // Reaplica el filtro actual
-                    }}
-                    onDelete={(pdfId) => {
-                      if (!existingPDFs) return;
-                      // Eliminar el PDF del estado local
-                      const updatedPDFs = existingPDFs.filter(item => item.id !== pdfId);
-                      setExistingPDFs(updatedPDFs);
-                      handleSearch(searchTerm); // Reaplica el filtro actual
-                    }}
-                  />
-                ))
+              {pdfsLoading ? (
+                <p>Cargando PDFs...</p>
+              ) : pdfsError ? (
+                <p className="text-destructive">No se pudieron cargar los PDFs. Inténtalo de nuevo.</p>
+              ) : filteredPdfs.length > 0 ? (
+                filteredPdfs.map((pdf) => <PDFAccordionCard key={pdf.id} pdf={pdf} />)
               ) : searchTerm ? (
                 <div className="text-center py-6">
                   <AlertCircleIcon className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-2" />
@@ -423,15 +251,11 @@ export default function WelcomePage() {
                   <p className="text-sm text-muted-foreground mt-1">Intenta con otro término de búsqueda</p>
                 </div>
               ) : (
-                <p>No hay PDFs existentes. Haz clic en &quot;Ver PDFS&quot; para cargar los documentos.</p>
+                <p>No hay PDFs existentes todavía.</p>
               )}
             </div>
           </div>
         </CardContent>
-
-        <CardFooter className="flex justify-end gap-2">
-          <Button onClick={fetchAndSetPDFs} className="cursor-pointer">Ver PDFS</Button>
-        </CardFooter>
       </Card>
     </div>
   )

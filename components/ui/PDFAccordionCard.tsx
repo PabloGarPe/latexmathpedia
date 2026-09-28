@@ -1,160 +1,129 @@
 "use client"
 
 import { useState } from "react"
-import { Check, ChevronsUpDown, Edit, Trash, ChevronDown, ChevronUp } from "lucide-react"
+import { ChevronDown, ChevronUp, Trash } from "lucide-react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { cn } from "@/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { SubjectUnitPicker } from "@/components/ui/subject-unit-picker"
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+  AuthorEmailsField,
+  authorsSchema,
+  emptyAuthors,
+  toAuthorEmails,
+} from "@/components/ui/author-emails-field"
 import { useToast } from "@/hooks/use-toast"
-import { renameCategory, renameCategoryInverted } from "@/lib/utils";
+import { useDeletePdf, useUpdatePdf } from "@/hooks/api/use-pdfs"
+import { pdfMutationErrorMessage, type PDFDto } from "@/lib/api/pdfs"
+import { formatPdfAuthors } from "@/lib/content/types"
+import { formatDate as formatLastEdited } from "@/lib/utils"
 
-const categories = {
-  "Matemáticas": [
-    "Análisis y Cálculo",
-    "Álgebra y Geometría",
-    "Topología",
-    "Probabilidad y Estadística",
-    "Ecuaciones Diferenciales y Métodos Numéricos",
-    "Optimización y Programación Matemática"
-  ],
-  "Software": [
-    "Fundamentos y Algoritmos",
-    "Estructuras, Computación y Lenguajes",
-    "Arquitectura y Sistemas",
-    "Ingeniería del Software",
-    "Bases de Datos",
-    "Redes y Seguridad",
-    "Web e Interfaces"
-  ]
-}
+const updatePdfSchema = z
+  .object({
+    name: z.string().min(1, "El título es obligatorio"),
+    // Opcional: sin fichero, el back conserva el contenido actual.
+    file: z
+      .custom<FileList>()
+      .optional()
+      .refine(
+        (files) => !files?.length || files[0].type === "application/pdf",
+        "El fichero debe ser un PDF",
+      ),
+    description: z.string().optional(),
+    subjectId: z.number().nullable(),
+    subjectUnitId: z.number().nullable(),
+    authors: authorsSchema,
+  })
+  .refine((data) => data.subjectId != null, {
+    message: "Selecciona una asignatura",
+    path: ["subjectId"],
+  })
 
-type PDFProps = {
-  id: string;
-  link: string;
-  lastEdited: string;
-  description: string;
-  name: string;
-  pdfTag?: string; // Código de categoría que viene de la base de datos
-}
+type UpdatePdfFormValues = z.infer<typeof updatePdfSchema>
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-
-// Función para identificar la categoría principal a partir de la subcategoría
-const getCategoryFromSubcategory = (subcategory: string): string => {
-  for (const [category, subcategories] of Object.entries(categories)) {
-    if (subcategories.includes(subcategory)) {
-      return category;
-    }
-  }
-  return "";
-}
-
-const PDFAccordionCard = ({
-  pdf,
-  onUpdate,
-  onDelete
-}: {
-  pdf: PDFProps,
-  onUpdate?: (updatedPdf: PDFProps) => void,
-  onDelete?: (pdfId: string) => void
-}) => {
+function PDFAccordionCard({ pdf }: { pdf: PDFDto }) {
   const [isOpen, setIsOpen] = useState(false)
-  const [pdfData, setPdfData] = useState<PDFProps>(pdf)
-  const toast = useToast();
+  const toast = useToast()
+  const updatePdf = useUpdatePdf()
+  const deletePdf = useDeletePdf()
 
-  // Si existe un pdfTag, convertimos el código a nombre de subcategoría
-  const initialSubcategory = pdf.pdfTag ? renameCategoryInverted(pdf.pdfTag) : "";
-  // Determinamos la categoría principal basada en la subcategoría
-  const initialCategory = initialSubcategory ? getCategoryFromSubcategory(initialSubcategory) : "";
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm<UpdatePdfFormValues>({
+    resolver: zodResolver(updatePdfSchema),
+    defaultValues: {
+      name: pdf.name ?? "",
+      description: pdf.description ?? "",
+      subjectId: pdf.subject?.id ?? null,
+      subjectUnitId: pdf.subjectUnit?.id ?? null,
+      // PDFDto solo trae nombres de autores y el back pide emails (y los sustituye enteros en
+      // cada update), así que hay que volver a introducirlos al editar.
+      authors: emptyAuthors,
+    },
+  })
 
-  const [categoryOpen, setCategoryOpen] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory)
+  const currentAuthors = formatPdfAuthors(pdf.author, pdf.coauthors)
 
-  const [subcategoryOpen, setSubcategoryOpen] = useState(false)
-  const [selectedSubcategory, setSelectedSubcategory] = useState(initialSubcategory)
+  const subjectIdValue = watch("subjectId")
+  const subjectUnitIdValue = watch("subjectUnitId")
 
-  // Función para actualizar campos individuales
-  const handleInputChange = (field: keyof PDFProps, value: string) => {
-    setPdfData(prev => ({ ...prev, [field]: value }))
-  }
-
-  const handleUpdate = async () => {
-    toast.info("Actualizando PDF...");
-    // Actualizar el pdfData con el pdfTag antes de enviarlo
-    const updatedPdf = {
-      ...pdfData,
-      pdfTag: selectedSubcategory ? renameCategory(selectedSubcategory) : undefined
-    };
+  const onSubmit = async (values: UpdatePdfFormValues) => {
+    if (pdf.id == null) return
 
     try {
-      const response = await fetch(`${apiUrl}/pdfs/update?pdfId=${pdfData.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
+      await updatePdf.mutateAsync({
+        pdfId: pdf.id,
+        data: {
+          name: values.name,
+          description: values.description || undefined,
+          subjectId: values.subjectId as number,
+          subjectUnitId: values.subjectUnitId,
+          authorEmails: toAuthorEmails(values.authors),
         },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: updatedPdf.name,
-          link: updatedPdf.link,
-          pdfTag: updatedPdf.pdfTag,
-          description: updatedPdf.description,
-        })
-      });
-
-      if (response.ok) {
-        toast.success("PDF actualizado correctamente.");
-        if (onUpdate) {
-          onUpdate(updatedPdf);
-        }
-      } else {
-        toast.error("Error al actualizar el PDF.");
-      }
+        file: values.file?.[0],
+      })
+      toast.success("PDF actualizado correctamente.")
+      setIsOpen(false)
     } catch (error) {
-      toast.error("Error al actualizar el PDF.");
-    } finally {
-      setIsOpen(false);
+      toast.error(pdfMutationErrorMessage(error, "Error al actualizar el PDF."))
     }
   }
 
   const handleDelete = async () => {
-    toast.info("Eliminando PDF...");
+    if (pdf.id == null) return
 
+    toast.info("Eliminando PDF...")
     try {
-      const response = await fetch(`${apiUrl}/pdfs/delete?pdfName=${pdf.name}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        toast.success("PDF eliminado correctamente.");
-        if (onDelete) {
-          onDelete(pdf.id);
-        }
-      } else {
-        toast.error("Error al eliminar el PDF.");
-      }
+      await deletePdf.mutateAsync(pdf.id)
+      toast.success("PDF eliminado correctamente.")
     } catch (error) {
-      toast.error("Error al eliminar el PDF.");
+      toast.error("Error al eliminar el PDF.")
     }
   }
 
@@ -168,23 +137,55 @@ const PDFAccordionCard = ({
         <div className="flex-col">
           <div className="flex items-center space-x-3">
             <div className="font-medium">{pdf.name}</div>
-            <div className="text-xs text-muted-foreground">Última edición: {pdf.lastEdited}</div>
+            <div className="text-xs text-muted-foreground">
+              Última edición: {formatLastEdited(pdf.lastTimeEdited)}
+            </div>
           </div>
-          {selectedCategory && selectedSubcategory && (
+          <div className="text-xs text-muted-foreground mt-1">
+            {currentAuthors ? `Autores: ${currentAuthors}` : "Sin autores asignados"}
+          </div>
+          {(pdf.subject?.name || pdf.subjectUnit?.name) && (
             <div className="flex mt-1 items-center space-x-2">
-              <div className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                {selectedCategory}
-              </div>
-              <div className="text-xs bg-secondary/10 text-primary px-2 py-0.5 rounded-full">
-                {selectedSubcategory}
-              </div>
+              {pdf.subject?.name && (
+                <div className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  {pdf.subject.name}
+                </div>
+              )}
+              {pdf.subjectUnit?.name && (
+                <div className="text-xs bg-secondary/10 text-primary px-2 py-0.5 rounded-full">
+                  {pdf.subjectUnit.name}
+                </div>
+              )}
             </div>
           )}
         </div>
         <div className="flex space-x-2">
-          <Button variant="ghost" size="sm" onClick={handleDelete} className="cursor-pointer">
-            <Trash className="h-4 w-4" />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="cursor-pointer"
+                disabled={deletePdf.isPending}
+              >
+                <Trash className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar este PDF?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="cursor-pointer">Cancelar</AlertDialogCancel>
+                <AlertDialogAction className="cursor-pointer" onClick={handleDelete}>
+                  Eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="cursor-pointer">
               {isOpen ? (
@@ -199,148 +200,81 @@ const PDFAccordionCard = ({
 
       <CollapsibleContent>
         <Separator />
-        <div className="p-4 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
           <div className="grid gap-2">
-            <Label htmlFor="title">Título del documento</Label>
-            <Input
-              id="title"
-              value={pdfData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              className="w-full"
-            />
+            <Label htmlFor={`title-${pdf.id}`}>Título del documento</Label>
+            <Input id={`title-${pdf.id}`} className="w-full" {...register("name")} />
+            {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="pdfUrl">Enlace al PDF</Label>
+            <Label htmlFor={`pdfFile-${pdf.id}`}>Reemplazar fichero (opcional)</Label>
             <Input
-              id="pdfUrl"
-              value={pdfData.link}
-              onChange={(e) => handleInputChange('link', e.target.value)}
-              className="w-full"
+              id={`pdfFile-${pdf.id}`}
+              type="file"
+              accept="application/pdf"
+              className="w-full cursor-pointer"
+              {...register("file")}
             />
+            {errors.file && <p className="text-sm text-destructive">{errors.file.message}</p>}
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="description">Descripción</Label>
-            <Input
-              id="description"
-              value={pdfData.description || ""}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              className="w-full"
+            <Label htmlFor={`description-${pdf.id}`}>Descripción</Label>
+            <Input id={`description-${pdf.id}`} className="w-full" {...register("description")} />
+          </div>
+
+          <div className="grid gap-2">
+            <AuthorEmailsField
+              control={control}
+              register={register}
+              errors={errors.authors}
+              idPrefix={`pdf-${pdf.id}`}
             />
+            <p className="text-xs text-muted-foreground">
+              {currentAuthors
+                ? `Autores actuales: ${currentAuthors}. `
+                : "Este PDF todavía no tiene autores. "}
+              Al guardar se sustituyen por los emails indicados.
+            </p>
           </div>
 
           <Separator className="my-4" />
 
-          {/* Campos de categoría y subcategoría */}
-          <div className="md:flex md:flex-row md:gap-6">
-            <div className="flex-1 grid gap-2 mb-4 md:mb-0">
-              <Label htmlFor="category">Categoría</Label>
-              <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="category"
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={categoryOpen}
-                    className="w-full justify-between cursor-pointer"
-                  >
-                    {selectedCategory || "Selecciona una categoría"}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar categoría..." />
-                    <CommandList>
-                      <CommandEmpty>No se encontraron categorías.</CommandEmpty>
-                      <CommandGroup>
-                        {Object.keys(categories).map((category) => (
-                          <CommandItem
-                            key={category}
-                            value={category}
-                            onSelect={(value) => {
-                              setSelectedCategory(value);
-                              setSelectedSubcategory(""); // Reset subcategory
-                              setCategoryOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedCategory === category ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {category}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="flex-1 grid gap-2">
-              <Label htmlFor="subcategory">Subcategoría</Label>
-              <Popover
-                open={subcategoryOpen && !!selectedCategory}
-                onOpenChange={setSubcategoryOpen}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    id="subcategory"
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={subcategoryOpen}
-                    className="w-full justify-between cursor-pointer"
-                    disabled={!selectedCategory}
-                  >
-                    {selectedSubcategory || (selectedCategory ? "Selecciona una subcategoría" : "Primero selecciona una categoría")}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar subcategoría..." />
-                    <CommandList>
-                      <CommandEmpty>No se encontraron subcategorías.</CommandEmpty>
-                      <CommandGroup>
-                        {selectedCategory && categories[selectedCategory as keyof typeof categories].map((subcategory) => (
-                          <CommandItem
-                            key={subcategory}
-                            value={subcategory}
-                            onSelect={(value) => {
-                              setSelectedSubcategory(value);
-                              setSubcategoryOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedSubcategory === subcategory ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {subcategory}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
+          <SubjectUnitPicker
+            subjectId={subjectIdValue ?? null}
+            subjectUnitId={subjectUnitIdValue ?? null}
+            onSubjectChange={(id) => {
+              setValue("subjectId", id, { shouldValidate: true })
+              setValue("subjectUnitId", null)
+            }}
+            onSubjectUnitChange={(id) => setValue("subjectUnitId", id)}
+          />
+          {errors.subjectId && (
+            <p className="text-sm text-destructive">{errors.subjectId.message}</p>
+          )}
 
           <div className="flex justify-end space-x-2 mt-6">
-            <Button variant="outline" onClick={() => setIsOpen(false)} className="cursor-pointer">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset()
+                setIsOpen(false)
+              }}
+              className="cursor-pointer"
+            >
               Cancelar
             </Button>
-            <Button onClick={handleUpdate} className="cursor-pointer">
+            <Button
+              type="submit"
+              className="cursor-pointer"
+              disabled={isSubmitting || updatePdf.isPending}
+            >
               Actualizar PDF
             </Button>
           </div>
-        </div>
+        </form>
       </CollapsibleContent>
     </Collapsible>
   )

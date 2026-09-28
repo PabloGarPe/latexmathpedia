@@ -29,10 +29,17 @@ function Admin () {
                     </a>
                 </div>
                 <div className="bg-card border rounded-lg p-6">
-                    <h2 className="text-xl font-semibold mb-4">Gestión de Usuarios</h2>
-                    <p className="text-muted-foreground mb-4">Administra los usuarios y sus permisos</p>
-                    <a href="/dashboard/admin/users" className="text-primary hover:underline">
-                        Ir a Usuarios →
+                    <h2 className="text-xl font-semibold mb-4">Gestión de Asignaturas</h2>
+                    <p className="text-muted-foreground mb-4">Administra las asignaturas y sus temas</p>
+                    <a href="/dashboard/admin/subjects" className="text-primary hover:underline">
+                        Ir a Asignaturas →
+                    </a>
+                </div>
+                <div className="bg-card border rounded-lg p-6">
+                    <h2 className="text-xl font-semibold mb-4">Gestión de Cuestionarios</h2>
+                    <p className="text-muted-foreground mb-4">Administra los cuestionarios, preguntas y opciones</p>
+                    <a href="/dashboard/admin/quizzes" className="text-primary hover:underline">
+                        Ir a Cuestionarios →
                     </a>
                 </div>
             </div>

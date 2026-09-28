@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label"
 import { Mail, MessageSquare, Github, Instagram, Twitter } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-hot-toast"
-
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+import { useSendMail } from "@/hooks/api/use-mail";
 
 export default function ContactUsPage() {
+    const sendMail = useSendMail();
     const [formData, setFormData] = useState({
         name: "",
         email: "",
@@ -30,29 +30,19 @@ export default function ContactUsPage() {
         e.preventDefault()
         setIsSubmitting(true)
 
-        const fromDataToSend = {
-            from: formData.email,
-            subject: `[MathTexPedia] ${formData.subject}`,
-            body: `Nombre: ${formData.name}\nEmail: ${formData.email}\n\nMensaje:\n${formData.message}`
-        }
-        await fetch(`${apiUrl}/mail/send`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(fromDataToSend),
-        }).then((response) => {
-            if (response.ok) {
-                toast.success("Mensaje enviado con éxito. ¡Gracias por contactarnos!")
-                setFormData({ name: "", email: "", subject: "", message: "" })
-            } else {
-                toast.error("Error al enviar el mensaje. Por favor, intenta nuevamente.")
-            }
-        }).catch(() => {
+        try {
+            await sendMail.mutateAsync({
+                from: formData.email,
+                subject: `[MathTexPedia] ${formData.subject}`,
+                body: `Nombre: ${formData.name}\nEmail: ${formData.email}\n\nMensaje:\n${formData.message}`,
+            })
+            toast.success("Mensaje enviado con éxito. ¡Gracias por contactarnos!")
+            setFormData({ name: "", email: "", subject: "", message: "" })
+        } catch (error) {
             toast.error("Error al enviar el mensaje. Por favor, intenta nuevamente.")
-        }).finally(() => {
+        } finally {
             setIsSubmitting(false)
-        })
+        }
     }
 
     return (
