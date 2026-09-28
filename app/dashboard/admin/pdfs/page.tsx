@@ -12,9 +12,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator"
 import PDFAccordionCard from "@/components/ui/PDFAccordionCard"
 import { SubjectUnitPicker } from "@/components/ui/subject-unit-picker"
+import {
+  AuthorEmailsField,
+  authorsSchema,
+  emptyAuthors,
+  toAuthorEmails,
+} from "@/components/ui/author-emails-field"
 import { useToast } from "@/hooks/use-toast";
 import { useAdminRoute } from "@/hooks/use-protected-route"
 import { useCreatePdf, usePdfs } from "@/hooks/api/use-pdfs"
+import { pdfMutationErrorMessage } from "@/lib/api/pdfs"
 
 const createPdfSchema = z
   .object({
@@ -27,6 +34,7 @@ const createPdfSchema = z
     description: z.string().optional(),
     subjectId: z.number().nullable(),
     subjectUnitId: z.number().nullable(),
+    authors: authorsSchema,
   })
   .refine((data) => data.subjectId != null, {
     message: "Selecciona una asignatura",
@@ -41,6 +49,7 @@ const emptyFormValues: CreatePdfFormValues = {
   description: "",
   subjectId: null,
   subjectUnitId: null,
+  authors: emptyAuthors,
 }
 
 export default function AdminPdfsPage() {
@@ -66,6 +75,7 @@ export default function AdminPdfsPage() {
     watch,
     setValue,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CreatePdfFormValues>({
     resolver: zodResolver(createPdfSchema),
@@ -96,7 +106,9 @@ export default function AdminPdfsPage() {
       pdf.name?.toLowerCase().includes(term) ||
       pdf.description?.toLowerCase().includes(term) ||
       pdf.subject?.name?.toLowerCase().includes(term) ||
-      pdf.subjectUnit?.name?.toLowerCase().includes(term)
+      pdf.subjectUnit?.name?.toLowerCase().includes(term) ||
+      pdf.author?.toLowerCase().includes(term) ||
+      pdf.coauthors?.some((coauthor) => coauthor.toLowerCase().includes(term))
     )
   })
 
@@ -108,13 +120,14 @@ export default function AdminPdfsPage() {
           description: values.description || undefined,
           subjectId: values.subjectId as number,
           subjectUnitId: values.subjectUnitId,
+          authorEmails: toAuthorEmails(values.authors),
         },
         file: values.file[0],
       })
       toast.success("PDF creado exitosamente.");
       reset(emptyFormValues)
     } catch (error) {
-      toast.error("Error al crear el PDF.");
+      toast.error(pdfMutationErrorMessage(error, "Error al crear el PDF."));
     }
   };
 
@@ -157,6 +170,13 @@ export default function AdminPdfsPage() {
                 <Label htmlFor="description">Descripción (opcional)</Label>
                 <Input id="description" className="w-full" {...register("description")} />
               </div>
+
+              <AuthorEmailsField
+                control={control}
+                register={register}
+                errors={errors.authors}
+                idPrefix="new-pdf"
+              />
 
               <Separator className="my-4" />
 
@@ -201,7 +221,7 @@ export default function AdminPdfsPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar documentos por título, asignatura o tema..."
+                placeholder="Buscar documentos por título, asignatura, tema o autor..."
                 className="w-full pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

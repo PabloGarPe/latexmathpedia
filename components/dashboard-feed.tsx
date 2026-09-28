@@ -102,7 +102,11 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
   // mismo. Aquí solo queda la búsqueda como filtro.
   const pdfsToShow = useMemo(() => {
     if (!isSearching) return allPdfs;
-    return allPdfs.filter((pdf) => normalizeText(pdf.title).includes(normalizedSearch));
+    return allPdfs.filter((pdf) =>
+      [pdf.title, pdf.author ?? "", ...pdf.coauthors].some((text) =>
+        normalizeText(text).includes(normalizedSearch),
+      ),
+    );
   }, [allPdfs, isSearching, normalizedSearch]);
 
   const quizzesToShow = useMemo(() => {

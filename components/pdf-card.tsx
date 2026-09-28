@@ -1,4 +1,4 @@
-import { CalendarIcon, FileIcon } from "lucide-react";
+import { CalendarIcon, FileIcon, UserRound } from "lucide-react";
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,9 +12,11 @@ type PDFCardProps = {
     date: string;
     subjectName?: string;
     subjectUnitName?: string;
+    // Ya formateado ("Autor, con Coautor y Coautor"); vacío si el PDF no tiene autores.
+    authors?: string;
 }
 
-function PDFCard({ title, href, date, subjectName, subjectUnitName }: PDFCardProps) {
+function PDFCard({ title, href, date, subjectName, subjectUnitName, authors }: PDFCardProps) {
     const { isAuthenticated } = useAuth();
     const toast = useToast();
     const router = useRouter();
@@ -112,6 +114,13 @@ function PDFCard({ title, href, date, subjectName, subjectUnitName }: PDFCardPro
                                 {subjectUnitName}
                             </span>
                         )}
+                    </div>
+                )}
+
+                {authors && (
+                    <div className="mb-2 flex items-start gap-1.5 text-sm text-muted-foreground">
+                        <UserRound className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        <span className="line-clamp-2">{authors}</span>
                     </div>
                 )}
 

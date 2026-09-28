@@ -13,6 +13,8 @@ export type DisplayPdf = {
   subjectUnitId?: number;
   subjectName?: string;
   subjectUnitName?: string;
+  author?: string;
+  coauthors: string[];
 };
 
 // Unión discriminada que homogeneiza los tres tipos de recurso que hoy mezcla el feed
@@ -34,5 +36,16 @@ export function toDisplayPdf(pdf: components["schemas"]["PDFDto"], fallbackId: n
     subjectUnitId: pdf.subjectUnit?.id,
     subjectName: pdf.subject?.name,
     subjectUnitName: pdf.subjectUnit?.name,
+    author: pdf.author ?? undefined,
+    coauthors: pdf.coauthors ?? [],
   };
+}
+
+const listFormat = new Intl.ListFormat("es", { style: "long", type: "conjunction" });
+
+// "Ada Lovelace" · "Ada Lovelace, con Alan Turing y Grace Hopper". PDFs antiguos sin autores
+// asignados traen author null -> cadena vacía (el llamador no pinta nada).
+export function formatPdfAuthors(author?: string | null, coauthors: string[] = []): string {
+  if (!author) return "";
+  return coauthors.length > 0 ? `${author}, con ${listFormat.format(coauthors)}` : author;
 }
