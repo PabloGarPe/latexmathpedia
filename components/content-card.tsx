@@ -2,7 +2,7 @@ import PDFCard from "@/components/pdf-card";
 import BlogCard from "@/components/blog-card";
 import { QuizCard } from "@/components/quiz-card";
 import { CONTENT_TYPES } from "@/lib/content/registry";
-import type { ContentItem } from "@/lib/content/types";
+import { formatPdfAuthors, type ContentItem } from "@/lib/content/types";
 import { formatDate } from "@/lib/utils";
 
 // Insignia de tipo (icono + texto corto) compartida por los 3 tipos de tarjeta, para que
@@ -33,6 +33,7 @@ export function ContentCard({ item }: { item: ContentItem }) {
           date={formatDate(item.data.lastTimeEdited)}
           subjectName={item.data.subjectName}
           subjectUnitName={item.data.subjectUnitName}
+          authors={formatPdfAuthors(item.data.author, item.data.coauthors)}
         />
       )}
       {item.kind === "quiz" && <QuizCard quiz={item.data} />}

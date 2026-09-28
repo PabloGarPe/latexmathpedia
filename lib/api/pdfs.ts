@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
+import { ApiError } from "@/lib/api/errors";
 
 export type PDFDto = components["schemas"]["PDFDto"];
 export type CreatePDFDto = components["schemas"]["CreatePDFDto"];
@@ -35,21 +36,21 @@ function toPdfFormData(data: CreatePDFDto | UpdatePDFDto, file?: File) {
 }
 
 export async function createPdf(data: CreatePDFDto, file: File) {
-  const { data: created, error } = await apiClient.POST("/pdf/create", {
+  const { data: created, error, response } = await apiClient.POST("/pdf/create", {
     body: { data, file: file as unknown as string },
     bodySerializer: () => toPdfFormData(data, file),
   });
-  if (error) throw error;
+  if (error) throw new ApiError(response.status, "No se pudo crear el PDF");
   return created;
 }
 
 export async function updatePdf(pdfId: number, data: UpdatePDFDto, file?: File) {
-  const { data: updated, error } = await apiClient.PUT("/pdf/update/{pdfId}", {
+  const { data: updated, error, response } = await apiClient.PUT("/pdf/update/{pdfId}", {
     params: { path: { pdfId } },
     body: { data, file: file as unknown as string | undefined },
     bodySerializer: () => toPdfFormData(data, file),
   });
-  if (error) throw error;
+  if (error) throw new ApiError(response.status, "No se pudo actualizar el PDF");
   return updated;
 }
 
@@ -58,4 +59,20 @@ export async function deletePdf(pdfId: number) {
     params: { path: { pdfId } },
   });
   if (error) throw error;
+}
+
+// El back responde a los errores de create/update con el cuerpo vacío, así que solo el
+// status distingue los casos (ver descripciones de 400/404/409 en api-docs.json).
+export function pdfMutationErrorMessage(error: unknown, fallback: string): string {
+  if (!(error instanceof ApiError)) return fallback;
+  switch (error.status) {
+    case 400:
+      return "Datos no válidos: revisa los autores (repetidos o email con varios usuarios) y el fichero.";
+    case 404:
+      return "Algún email de autor no corresponde a ningún usuario, o la asignatura/tema ya no existe.";
+    case 409:
+      return "Ya existe un PDF con ese nombre.";
+    default:
+      return fallback;
+  }
 }

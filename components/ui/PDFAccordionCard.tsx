@@ -26,9 +26,16 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { SubjectUnitPicker } from "@/components/ui/subject-unit-picker"
+import {
+  AuthorEmailsField,
+  authorsSchema,
+  emptyAuthors,
+  toAuthorEmails,
+} from "@/components/ui/author-emails-field"
 import { useToast } from "@/hooks/use-toast"
 import { useDeletePdf, useUpdatePdf } from "@/hooks/api/use-pdfs"
-import type { PDFDto } from "@/lib/api/pdfs"
+import { pdfMutationErrorMessage, type PDFDto } from "@/lib/api/pdfs"
+import { formatPdfAuthors } from "@/lib/content/types"
 import { formatDate as formatLastEdited } from "@/lib/utils"
 
 const updatePdfSchema = z
@@ -45,6 +52,7 @@ const updatePdfSchema = z
     description: z.string().optional(),
     subjectId: z.number().nullable(),
     subjectUnitId: z.number().nullable(),
+    authors: authorsSchema,
   })
   .refine((data) => data.subjectId != null, {
     message: "Selecciona una asignatura",
@@ -65,6 +73,7 @@ function PDFAccordionCard({ pdf }: { pdf: PDFDto }) {
     watch,
     setValue,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<UpdatePdfFormValues>({
     resolver: zodResolver(updatePdfSchema),
@@ -73,8 +82,13 @@ function PDFAccordionCard({ pdf }: { pdf: PDFDto }) {
       description: pdf.description ?? "",
       subjectId: pdf.subject?.id ?? null,
       subjectUnitId: pdf.subjectUnit?.id ?? null,
+      // PDFDto solo trae nombres de autores y el back pide emails (y los sustituye enteros en
+      // cada update), así que hay que volver a introducirlos al editar.
+      authors: emptyAuthors,
     },
   })
+
+  const currentAuthors = formatPdfAuthors(pdf.author, pdf.coauthors)
 
   const subjectIdValue = watch("subjectId")
   const subjectUnitIdValue = watch("subjectUnitId")
@@ -90,13 +104,14 @@ function PDFAccordionCard({ pdf }: { pdf: PDFDto }) {
           description: values.description || undefined,
           subjectId: values.subjectId as number,
           subjectUnitId: values.subjectUnitId,
+          authorEmails: toAuthorEmails(values.authors),
         },
         file: values.file?.[0],
       })
       toast.success("PDF actualizado correctamente.")
       setIsOpen(false)
     } catch (error) {
-      toast.error("Error al actualizar el PDF.")
+      toast.error(pdfMutationErrorMessage(error, "Error al actualizar el PDF."))
     }
   }
 
@@ -125,6 +140,9 @@ function PDFAccordionCard({ pdf }: { pdf: PDFDto }) {
             <div className="text-xs text-muted-foreground">
               Última edición: {formatLastEdited(pdf.lastTimeEdited)}
             </div>
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {currentAuthors ? `Autores: ${currentAuthors}` : "Sin autores asignados"}
           </div>
           {(pdf.subject?.name || pdf.subjectUnit?.name) && (
             <div className="flex mt-1 items-center space-x-2">
@@ -204,6 +222,21 @@ function PDFAccordionCard({ pdf }: { pdf: PDFDto }) {
           <div className="grid gap-2">
             <Label htmlFor={`description-${pdf.id}`}>Descripción</Label>
             <Input id={`description-${pdf.id}`} className="w-full" {...register("description")} />
+          </div>
+
+          <div className="grid gap-2">
+            <AuthorEmailsField
+              control={control}
+              register={register}
+              errors={errors.authors}
+              idPrefix={`pdf-${pdf.id}`}
+            />
+            <p className="text-xs text-muted-foreground">
+              {currentAuthors
+                ? `Autores actuales: ${currentAuthors}. `
+                : "Este PDF todavía no tiene autores. "}
+              Al guardar se sustituyen por los emails indicados.
+            </p>
           </div>
 
           <Separator className="my-4" />

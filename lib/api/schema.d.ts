@@ -94,7 +94,7 @@ export interface paths {
         get?: never;
         /**
          * Actualiza un PDF existente
-         * @description multipart/form-data con la parte 'data' (JSON) y, opcionalmente, la parte 'file' si se quiere reemplazar el contenido. Requiere rol ADMIN
+         * @description multipart/form-data con la parte 'data' (JSON) y, opcionalmente, la parte 'file' si se quiere reemplazar el contenido. 'data.authorEmails' sustituye por completo a los autores actuales: el primero es el autor principal (obligatorio) y el resto, coautores (opcionales). Requiere rol ADMIN
          */
         put: operations["updatePDF"];
         post?: never;
@@ -279,7 +279,7 @@ export interface paths {
         put?: never;
         /**
          * Crea un nuevo PDF en el catálogo
-         * @description multipart/form-data con la parte 'data' (JSON) y la parte 'file' (PDF). Requiere rol ADMIN
+         * @description multipart/form-data con la parte 'data' (JSON) y la parte 'file' (PDF). En 'data.authorEmails' se indican los emails de los autores: el primero es el autor principal (obligatorio) y el resto, coautores (opcionales). Requiere rol ADMIN
          */
         post: operations["createPDF"];
         delete?: never;
@@ -691,7 +691,7 @@ export interface paths {
         };
         /**
          * Lista el catálogo de PDFs
-         * @description Solo metadatos; el contenido se obtiene autenticado en GET /pdf/{pdfId}/content
+         * @description Solo metadatos (incluidos el nombre del autor y los de los coautores); el contenido se obtiene autenticado en GET /pdf/{pdfId}/content
          */
         get: operations["getPDFs"];
         put?: never;
@@ -1110,6 +1110,14 @@ export interface components {
              * @description Identificador de la unidad temática a la que pertenece el PDF. En caso de que el PDF sea general para toda la asignatura, este campo puede ser nulo.
              */
             subjectUnitId?: number | null;
+            /**
+             * @description Emails de los usuarios autores. El primero es el autor principal (obligatorio); el resto, coautores (opcionales)
+             * @example [
+             *       "autor@mathtexpedia.es",
+             *       "coautor@mathtexpedia.es"
+             *     ]
+             */
+            authorEmails: string[];
         };
         PDFDto: {
             /** Format: int64 */
@@ -1120,6 +1128,18 @@ export interface components {
             description?: string;
             subject?: components["schemas"]["SubjectDto"];
             subjectUnit?: components["schemas"]["SubjectUnitDto"];
+            /**
+             * @description Nombre del autor principal. Nulo en PDFs antiguos que aún no tienen autores asignados
+             * @example Ada Lovelace
+             */
+            author?: string | null;
+            /**
+             * @description Nombres de los coautores, en el orden en que se indicaron. Vacío si no hay coautores
+             * @example [
+             *       "Alan Turing"
+             *     ]
+             */
+            coauthors?: string[];
         };
         /** @description Datos de la opción a actualizar */
         UpdateOptionDto: {
@@ -1421,6 +1441,14 @@ export interface components {
             subjectUnitId?: number | null;
             /** @description Descripción opcional del contenido del PDF */
             description?: string;
+            /**
+             * @description Emails de los usuarios autores. El primero es el autor principal (obligatorio); el resto, coautores (opcionales)
+             * @example [
+             *       "autor@mathtexpedia.es",
+             *       "coautor@mathtexpedia.es"
+             *     ]
+             */
+            authorEmails: string[];
         };
         /** @description Datos de la opción a crear */
         CreateOptionDto: {
@@ -1912,7 +1940,7 @@ export interface operations {
                     "*/*": components["schemas"]["PDFDto"];
                 };
             };
-            /** @description Datos inválidos o fichero no válido */
+            /** @description Datos inválidos, fichero no válido, lista de autores vacía, emails de autores repetidos o email asociado a más de un usuario */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -1930,7 +1958,7 @@ export interface operations {
                     "*/*": components["schemas"]["PDFDto"];
                 };
             };
-            /** @description No existe el PDF, la asignatura o el tema indicados */
+            /** @description No existe el PDF, la asignatura, el tema o algún usuario con los emails de autor indicados */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2439,7 +2467,7 @@ export interface operations {
                     "*/*": components["schemas"]["PDFDto"];
                 };
             };
-            /** @description Datos inválidos o fichero no válido */
+            /** @description Datos inválidos, fichero no válido, lista de autores vacía, emails de autores repetidos o email asociado a más de un usuario */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2457,7 +2485,7 @@ export interface operations {
                     "*/*": components["schemas"]["PDFDto"];
                 };
             };
-            /** @description No existe la asignatura o el tema indicados */
+            /** @description No existe la asignatura, el tema o algún usuario con los emails de autor indicados */
             404: {
                 headers: {
                     [name: string]: unknown;
