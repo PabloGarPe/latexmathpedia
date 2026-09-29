@@ -108,7 +108,7 @@ export default function AdminPdfsPage() {
       pdf.subject?.name?.toLowerCase().includes(term) ||
       pdf.subjectUnit?.name?.toLowerCase().includes(term) ||
       pdf.author?.toLowerCase().includes(term) ||
-      pdf.coauthors?.some((coauthor) => coauthor.toLowerCase().includes(term))
+      pdf.coauthors?.some((coauthor) => coauthor?.toLowerCase().includes(term))
     )
   })
 
