@@ -120,6 +120,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
           return token;
         }
 
+        // Un refresh ya fallido no se reintenta: el refresh token está muerto y cada
+        // petición volvería a golpear Keycloak. El cliente ve session.error y pide re-login.
+        if (token.error) {
+          return token;
+        }
+
         if (!token.refreshToken) {
           return { ...token, error: "RefreshTokenError" };
         }

@@ -37,7 +37,8 @@ export function toDisplayPdf(pdf: components["schemas"]["PDFDto"], fallbackId: n
     subjectName: pdf.subject?.name,
     subjectUnitName: pdf.subjectUnit?.name,
     author: pdf.author ?? undefined,
-    coauthors: pdf.coauthors ?? [],
+    // El backend puede colar nulls en la lista aunque el contrato diga string[]
+    coauthors: (pdf.coauthors ?? []).filter((c): c is string => typeof c === "string" && c.trim() !== ""),
   };
 }
 
@@ -45,7 +46,8 @@ const listFormat = new Intl.ListFormat("es", { style: "long", type: "conjunction
 
 // "Ada Lovelace" · "Ada Lovelace, con Alan Turing y Grace Hopper". PDFs antiguos sin autores
 // asignados traen author null -> cadena vacía (el llamador no pinta nada).
-export function formatPdfAuthors(author?: string | null, coauthors: string[] = []): string {
+export function formatPdfAuthors(author?: string | null, coauthors: (string | null)[] = []): string {
   if (!author) return "";
-  return coauthors.length > 0 ? `${author}, con ${listFormat.format(coauthors)}` : author;
+  const names = coauthors.filter((c): c is string => typeof c === "string" && c.trim() !== "");
+  return names.length > 0 ? `${author}, con ${listFormat.format(names)}` : author;
 }
