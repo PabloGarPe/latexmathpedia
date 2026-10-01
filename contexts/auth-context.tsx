@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation';
 import { SessionProvider, signIn, signOut, useSession } from 'next-auth/react';
 import { AUTH_MODE } from '@/lib/env';
 import { setApiAccessToken } from '@/lib/api/client';
+import { useSyncUserAccount } from '@/hooks/api/use-profile';
 
 type LoginOptions = {
   // URL a la que volver tras autenticarse
@@ -253,6 +254,9 @@ function KeycloakAuthState({ children }: PropsWithChildren) {
   const email = isAuthenticated ? session?.user?.email ?? '' : '';
   const displayName = isAuthenticated ? session?.user?.name ?? '' : '';
   const loading = status === 'loading';
+
+  // Al iniciar sesión o registrarse, asegura que exista el UserAccount en el backend
+  useSyncUserAccount(isAuthenticated ? email || undefined : undefined, displayName);
 
   const value = useMemo<AuthContextValue>(
     () => ({
