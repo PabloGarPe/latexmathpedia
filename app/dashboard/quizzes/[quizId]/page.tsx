@@ -37,23 +37,36 @@ function QuizStatsSection({ quizId }: { quizId: number }) {
 
   if (isLoading || !stats) return null
 
+  // Con 0 intentos el backend devuelve el resto de valores a 0: no se muestran.
+  if (!stats.totalAttempts) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Tus estadísticas</CardTitle>
+          <CardDescription>Aún no has intentado este cuestionario.</CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
+
+  // bestScore/averageScore van sobre 10; completionRate/accuracyPercentage ya son porcentajes (0-100).
   const items = [
-    { label: "Intentos totales", value: stats.totalAttempts ?? 0 },
+    { label: "Intentos totales", value: stats.totalAttempts },
     {
       label: "Tasa de finalización",
-      value: stats.completionRate != null ? `${Math.round(stats.completionRate * 100)}%` : "-",
+      value: stats.completionRate != null ? `${Math.round(stats.completionRate)}%` : "-",
     },
     {
       label: "Precisión media",
-      value: stats.accuracyPercentage != null ? `${Math.round(stats.accuracyPercentage * 100)}%` : "-",
+      value: stats.accuracyPercentage != null ? `${Math.round(stats.accuracyPercentage)}%` : "-",
     },
     {
       label: "Puntuación media",
-      value: stats.averageScore != null ? stats.averageScore.toFixed(1) : "-",
+      value: stats.averageScore != null ? `${stats.averageScore.toFixed(1)}/10` : "-",
     },
     {
       label: "Mejor puntuación",
-      value: stats.bestScore != null ? stats.bestScore.toFixed(1) : "-",
+      value: stats.bestScore != null ? `${stats.bestScore.toFixed(1)}/10` : "-",
     },
   ]
 
@@ -97,7 +110,7 @@ function QuizLeaderboardSection({ quizId }: { quizId: number }) {
               <TableRow>
                 <TableHead>#</TableHead>
                 <TableHead>Usuario</TableHead>
-                <TableHead>Puntuación</TableHead>
+                <TableHead title="Mejor puntuación con penalización por reintentos">Puntuación ajustada</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

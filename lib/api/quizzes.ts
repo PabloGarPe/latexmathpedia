@@ -128,6 +128,9 @@ export async function importQuiz(
   return data;
 }
 
+// Estadísticas DEL USUARIO AUTENTICADO en este quiz (no globales). Con totalAttempts === 0 el
+// resto de valores son 0. Es la fuente del "mejor puntuación" de la ficha; no hace falta traer
+// el histórico (/quiz/{id}/attempts, también solo propio y sin paginar).
 export async function getQuizStats(id: number) {
   const { data, error } = await apiClient.GET("/quiz/{id}/stats", {
     params: { path: { id } },

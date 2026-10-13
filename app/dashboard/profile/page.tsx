@@ -65,19 +65,19 @@ function MyStatsSection() {
     { label: "Intentos totales", value: stats.totalAttempts ?? 0 },
     {
       label: "Tasa de finalización",
-      value: stats.completionRate != null ? `${Math.round(stats.completionRate * 100)}%` : "-",
+      value: stats.completionRate != null ? `${Math.round(stats.completionRate)}%` : "-",
     },
     {
       label: "Precisión media",
-      value: stats.accuracyPercentage != null ? `${Math.round(stats.accuracyPercentage * 100)}%` : "-",
+      value: stats.accuracyPercentage != null ? `${Math.round(stats.accuracyPercentage)}%` : "-",
     },
     {
       label: "Puntuación media",
-      value: stats.averageScore != null ? stats.averageScore.toFixed(1) : "-",
+      value: stats.averageScore != null ? `${stats.averageScore.toFixed(1)}/10` : "-",
     },
     {
       label: "Mejor puntuación",
-      value: stats.bestScore != null ? stats.bestScore.toFixed(1) : "-",
+      value: stats.bestScore != null ? `${stats.bestScore.toFixed(1)}/10` : "-",
     },
   ]
 

@@ -416,8 +416,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Obtiene las estadísticas de un cuestionario por su ID
-         * @description Requiere autenticación, pero no requiere rol ADMIN
+         * Obtiene mis estadísticas de un cuestionario
+         * @description Estadísticas agregadas de los intentos del usuario autenticado en este cuestionario (totalAttempts, bestScore sobre 10, etc.). Si totalAttempts es 0 el usuario aún no lo ha intentado y el resto de valores son 0. Requiere autenticación, pero no requiere rol ADMIN
          */
         get: operations["getUserStatsForQuiz"];
         put?: never;
@@ -496,8 +496,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Obtiene los intentos de un cuestionario por su ID
-         * @description Requiere autenticación, pero no requiere rol ADMIN
+         * Obtiene mis intentos de un cuestionario
+         * @description Devuelve únicamente los intentos del usuario autenticado en este cuestionario, ordenados del más reciente al más antiguo; nunca los de otros usuarios. Para mostrar solo la mejor puntuación o saber si ya lo ha intentado, usar GET /quiz/{id}/stats. Requiere autenticación, pero no requiere rol ADMIN
          */
         get: operations["getAttemptsForQuiz"];
         put?: never;
@@ -1503,15 +1503,35 @@ export interface components {
             status?: "SUCCESS" | "ERROR";
         };
         QuizAttemptStatsDto: {
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Número de intentos del usuario autenticado; 0 significa que aún no ha intentado el cuestionario
+             * @example 3
+             */
             totalAttempts?: number;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Porcentaje de intentos sin preguntas sin responder
+             * @example 100
+             */
             completionRate?: number;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Porcentaje de aciertos sobre las preguntas respondidas
+             * @example 75
+             */
             accuracyPercentage?: number;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Puntuación media sobre 10
+             * @example 6.5
+             */
             averageScore?: number;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Mejor puntuación sobre 10 (0 si no hay intentos)
+             * @example 8
+             */
             bestScore?: number;
         };
         Pageable: {
