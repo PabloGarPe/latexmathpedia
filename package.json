@@ -51,7 +51,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@tailwindcss/typography": "^0.5.19",
+    "@tailwindcss/typography": "^0.5.20",
     "@tanstack/react-query-devtools": "^5.104.0",
     "@types/node": "^25",
     "@types/react": "^19",
