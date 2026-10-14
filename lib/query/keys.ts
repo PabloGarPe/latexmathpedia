@@ -12,6 +12,11 @@ export const queryKeys = {
   pdfs: {
     all: () => ["pdfs"] as const,
     content: (pdfId: number) => ["pdfs", pdfId, "content"] as const,
+    // Hileras del feed. "top" es prefijo de "top/me": invalidar ["pdfs","top"] cubre ambas.
+    recent: (limit: number) => ["pdfs", "recent", limit] as const,
+    top: (limit: number) => ["pdfs", "top", limit] as const,
+    // Lleva el email del usuario en la clave para no servir la caché de otra sesión.
+    topMe: (userKey: string, limit: number) => ["pdfs", "top", "me", userKey, limit] as const,
   },
   quizzes: {
     all: () => ["quizzes"] as const,

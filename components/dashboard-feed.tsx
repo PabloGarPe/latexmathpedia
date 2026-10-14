@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ContentCard from "@/components/content-card";
+import PdfRows from "@/components/pdf-rows";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSearch } from "@/contexts/search-context"; // Importar el contexto de búsqueda
 import { useToast } from "@/hooks/use-toast";
@@ -178,6 +179,13 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
         </div>
 
         <TabsContent value="all">
+          {/* Hileras solo en la vista general; al buscar se muestran los resultados planos. */}
+          {!isSearching && (
+            <div className="mt-4 space-y-8">
+              <PdfRows />
+              <h3 className="text-xl font-semibold">Explorar todo</h3>
+            </div>
+          )}
           <ContentGrid
             items={allItems}
             isLoading={loadingByTab.all}
