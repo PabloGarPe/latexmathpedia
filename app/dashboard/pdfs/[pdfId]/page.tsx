@@ -6,7 +6,7 @@ import { useParams } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import PdfViewer from "@/components/pdf-viewer"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
-import { usePdfContent, usePdfs } from "@/hooks/api/use-pdfs"
+import { useInvalidatePdfViews, usePdfContent, usePdfs } from "@/hooks/api/use-pdfs"
 import { useToast } from "@/hooks/use-toast"
 import { formatPdfAuthors } from "@/lib/content/types"
 
@@ -25,6 +25,15 @@ export default function PdfViewerPage() {
   const authors = formatPdfAuthors(pdf?.author, pdf?.coauthors)
 
   const { data: content, isLoading, isError } = usePdfContent(pdfId, isAuthenticated)
+
+  // Abrir el PDF suma una vista: al llegar el binario se marcan como obsoletos el viewCount
+  // y las hileras del feed, para que al volver se refresquen (si no, lo hace el staleTime).
+  const invalidatePdfViews = useInvalidatePdfViews()
+  const hasContent = content != null
+  useEffect(() => {
+    if (hasContent) invalidatePdfViews()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasContent, pdfId])
 
   useEffect(() => {
     if (isError) toast.error("Error al cargar el PDF.")
