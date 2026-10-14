@@ -416,8 +416,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Obtiene las estadísticas de un cuestionario por su ID
-         * @description Requiere autenticación, pero no requiere rol ADMIN
+         * Obtiene mis estadísticas de un cuestionario
+         * @description Estadísticas agregadas de los intentos del usuario autenticado en este cuestionario (totalAttempts, bestScore sobre 10, etc.). Si totalAttempts es 0 el usuario aún no lo ha intentado y el resto de valores son 0. Requiere autenticación, pero no requiere rol ADMIN
          */
         get: operations["getUserStatsForQuiz"];
         put?: never;
@@ -496,8 +496,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Obtiene los intentos de un cuestionario por su ID
-         * @description Requiere autenticación, pero no requiere rol ADMIN
+         * Obtiene mis intentos de un cuestionario
+         * @description Devuelve únicamente los intentos del usuario autenticado en este cuestionario, ordenados del más reciente al más antiguo; nunca los de otros usuarios. Para mostrar solo la mejor puntuación o saber si ya lo ha intentado, usar GET /quiz/{id}/stats. Requiere autenticación, pero no requiere rol ADMIN
          */
         get: operations["getAttemptsForQuiz"];
         put?: never;
@@ -670,6 +670,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/pdf/top": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * PDFs más vistos en general
+         * @description Ordenados de más a menos vistas contando todas las aperturas de todos los usuarios. Solo incluye PDFs con al menos una vista. Pensado para la hilera 'Lo más visto' del feed
+         */
+        get: operations["getTopViewedPDFs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/pdf/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * PDFs nuevos o actualizados recientemente
+         * @description Del más reciente al más antiguo según la fecha de última edición. Pensado para la hilera 'Novedades' del feed
+         */
+        get: operations["getRecentPDFs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/pdf/no-link": {
         parameters: {
             query?: never;
@@ -679,7 +719,7 @@ export interface paths {
         };
         /**
          * Lista el catálogo de PDFs
-         * @description Solo metadatos (incluidos el nombre del autor y los de los coautores); el contenido se obtiene autenticado en GET /pdf/{pdfId}/content
+         * @description Solo metadatos (incluidos el nombre del autor, los de los coautores y el número de vistas); el contenido se obtiene autenticado en GET /pdf/{pdfId}/content
          */
         get: operations["getPDFs"];
         put?: never;
@@ -722,6 +762,26 @@ export interface paths {
          * @description Devuelve el binario (application/pdf) servido desde el back, pensado para renderizarlo con pdf.js. Nunca se expone la URL de S3.
          */
         get: operations["getPDF"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pdf/top/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * PDFs más vistos por el usuario autenticado
+         * @description Ordenados de más a menos aperturas hechas por el usuario del token. Si aún no ha visto ningún PDF devuelve una lista vacía (el front puede ocultar la hilera). 'viewCount' de cada PDF sigue siendo el total general
+         */
+        get: operations["getMyTopViewedPDFs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1128,6 +1188,12 @@ export interface components {
              *     ]
              */
             coauthors?: string[];
+            /**
+             * Format: int64
+             * @description Número total de veces que se ha abierto el PDF (todos los usuarios; cada apertura cuenta, aunque sea del mismo usuario). 0 si nunca se ha visto
+             * @example 42
+             */
+            viewCount?: number;
         };
         /** @description Datos de la opción a actualizar */
         UpdateOptionDto: {
@@ -1503,15 +1569,35 @@ export interface components {
             status?: "SUCCESS" | "ERROR";
         };
         QuizAttemptStatsDto: {
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Número de intentos del usuario autenticado; 0 significa que aún no ha intentado el cuestionario
+             * @example 3
+             */
             totalAttempts?: number;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Porcentaje de intentos sin preguntas sin responder
+             * @example 100
+             */
             completionRate?: number;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Porcentaje de aciertos sobre las preguntas respondidas
+             * @example 75
+             */
             accuracyPercentage?: number;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Puntuación media sobre 10
+             * @example 6.5
+             */
             averageScore?: number;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Mejor puntuación sobre 10 (0 si no hay intentos)
+             * @example 8
+             */
             bestScore?: number;
         };
         Pageable: {
@@ -3183,6 +3269,52 @@ export interface operations {
             };
         };
     };
+    getTopViewedPDFs: {
+        parameters: {
+            query?: {
+                /** @description Máximo de PDFs a devolver (por defecto 10, máximo 20) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PDFDto"][];
+                };
+            };
+        };
+    };
+    getRecentPDFs: {
+        parameters: {
+            query?: {
+                /** @description Máximo de PDFs a devolver (por defecto 10, máximo 20) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PDFDto"][];
+                };
+            };
+        };
+    };
     getPDFs: {
         parameters: {
             query?: never;
@@ -3251,6 +3383,38 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+        };
+    };
+    getMyTopViewedPDFs: {
+        parameters: {
+            query?: {
+                /** @description Máximo de PDFs a devolver (por defecto 10, máximo 20) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista de PDFs (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PDFDto"][];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PDFDto"][];
                 };
             };
         };

@@ -1,6 +1,7 @@
-import { CalendarIcon, FileIcon, UserRound } from "lucide-react";
+import { CalendarIcon, EyeIcon, FileIcon, UserRound } from "lucide-react";
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from "@/hooks/use-toast";
+import { formatCompactCount } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -14,9 +15,11 @@ type PDFCardProps = {
     subjectUnitName?: string;
     // Ya formateado ("Autor, con Coautor y Coautor"); vacío si el PDF no tiene autores.
     authors?: string;
+    // Vistas totales (todos los usuarios); se muestra en compacto a partir de 1000.
+    viewCount?: number;
 }
 
-function PDFCard({ title, href, date, subjectName, subjectUnitName, authors }: PDFCardProps) {
+function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, viewCount = 0 }: PDFCardProps) {
     const { isAuthenticated } = useAuth();
     const toast = useToast();
     const router = useRouter();
@@ -128,6 +131,14 @@ function PDFCard({ title, href, date, subjectName, subjectUnitName, authors }: P
                     <div className="flex items-center gap-1.5 mr-4">
                         <CalendarIcon className="h-3.5 w-3.5" />
                         <span className="text-sm">{date}</span>
+                    </div>
+                    <div
+                        className="flex items-center gap-1.5"
+                        title={`${viewCount} ${viewCount === 1 ? "vista" : "vistas"}`}
+                    >
+                        <EyeIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span className="text-sm">{formatCompactCount(viewCount)}</span>
+                        <span className="sr-only">{viewCount === 1 ? "vista" : "vistas"}</span>
                     </div>
                 </div>
 
