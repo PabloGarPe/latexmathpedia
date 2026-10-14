@@ -86,8 +86,8 @@ function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, vie
     }
 
     return (
-        <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md">
-            <div className={`relative h-36 w-full overflow-hidden grid place-items-center ${generateBackgroundColor()} rounded-t-lg pdf-card-preview`}>
+        <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+            <div className={`relative h-36 w-full overflow-hidden grid place-items-center ${generateBackgroundColor()} pdf-card-preview`}>
                 <div className="flex flex-col items-center justify-center text-center p-4 h-full w-full">
                     <FileIcon className="mb-2 h-6 w-6" />
                     {titleParts.main && (
@@ -127,8 +127,8 @@ function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, vie
                     </div>
                 )}
 
-                <div className="mb-4 flex items-center text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1.5 mr-4">
+                <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
                         <CalendarIcon className="h-3.5 w-3.5" />
                         <span className="text-sm">{date}</span>
                     </div>
@@ -137,7 +137,7 @@ function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, vie
                         title={`${viewCount} ${viewCount === 1 ? "vista" : "vistas"}`}
                     >
                         <EyeIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span className="text-sm">{formatCompactCount(viewCount)}</span>
+                        <span className="text-sm tabular-nums">{formatCompactCount(viewCount)}</span>
                         <span className="sr-only">{viewCount === 1 ? "vista" : "vistas"}</span>
                     </div>
                 </div>
