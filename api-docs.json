@@ -1638,11 +1638,71 @@
         }
       }
     },
+    "/public/pdf/top": {
+      "get": {
+        "tags": ["PDFs públicos"],
+        "summary": "PDFs más vistos en general",
+        "description": "Ordenados de más a menos vistas contando todas las aperturas de todos los usuarios. Solo incluye PDFs con al menos una vista. Pensado para la hilera 'Lo más visto' del feed",
+        "operationId": "getTopViewedPDFs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de PDFs a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PDFDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/pdf/recent": {
+      "get": {
+        "tags": ["PDFs públicos"],
+        "summary": "PDFs nuevos o actualizados recientemente",
+        "description": "Del más reciente al más antiguo según la fecha de última edición. Pensado para la hilera 'Novedades' del feed",
+        "operationId": "getRecentPDFs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de PDFs a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PDFDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/public/pdf/no-link": {
       "get": {
         "tags": ["PDFs públicos"],
         "summary": "Lista el catálogo de PDFs",
-        "description": "Solo metadatos (incluidos el nombre del autor y los de los coautores); el contenido se obtiene autenticado en GET /pdf/{pdfId}/content",
+        "description": "Solo metadatos (incluidos el nombre del autor, los de los coautores y el número de vistas); el contenido se obtiene autenticado en GET /pdf/{pdfId}/content",
         "operationId": "getPDFs",
         "responses": {
           "200": {
@@ -1703,6 +1763,47 @@
             "description": "No existe ningún PDF con ese id",
             "content": {
               "*/*": { "schema": { "type": "string", "format": "binary" } }
+            }
+          }
+        }
+      }
+    },
+    "/pdf/top/me": {
+      "get": {
+        "tags": ["PDFs"],
+        "summary": "PDFs más vistos por el usuario autenticado",
+        "description": "Ordenados de más a menos aperturas hechas por el usuario del token. Si aún no ha visto ningún PDF devuelve una lista vacía (el front puede ocultar la hilera). 'viewCount' de cada PDF sigue siendo el total general",
+        "operationId": "getMyTopViewedPDFs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de PDFs a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de PDFs (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PDFDto" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PDFDto" }
+                }
+              }
             }
           }
         }
@@ -2220,6 +2321,12 @@
             "description": "Nombres de los coautores, en el orden en que se indicaron. Vacío si no hay coautores",
             "example": ["Alan Turing"],
             "items": { "type": "string" }
+          },
+          "viewCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Número total de veces que se ha abierto el PDF (todos los usuarios; cada apertura cuenta, aunque sea del mismo usuario). 0 si nunca se ha visto",
+            "example": 42
           }
         }
       },
@@ -2435,6 +2542,18 @@
             "format": "double",
             "description": "Puntuación obtenida en el intento de cuestionario",
             "example": 85.5
+          },
+          "adjustedScore": {
+            "type": "number",
+            "format": "double",
+            "description": "Puntuación ponderada según el número de intento; es la que cuenta para el leaderboard",
+            "example": 6.0
+          },
+          "attemptNumber": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de intento del usuario en este cuestionario (1 = primer intento)",
+            "example": 2
           },
           "totalQuestions": {
             "type": "integer",
@@ -2852,6 +2971,18 @@
             "format": "double",
             "description": "Puntaje obtenido en el intento de quiz",
             "example": 85.5
+          },
+          "adjustedScore": {
+            "type": "number",
+            "format": "double",
+            "description": "Puntaje ponderado según el número de intento; es el que cuenta para el leaderboard",
+            "example": 6.0
+          },
+          "attemptNumber": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de intento del usuario en este quiz (1 = primer intento)",
+            "example": 2
           },
           "totalQuestions": {
             "type": "integer",
