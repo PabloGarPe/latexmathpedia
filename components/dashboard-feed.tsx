@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ContentCard from "@/components/content-card";
+import { PageContainer } from "@/components/page-shell";
 import PdfExplorer from "@/components/pdf-explorer";
 import PdfRows from "@/components/pdf-rows";
 import QuizExplorer from "@/components/quiz-explorer";
@@ -160,7 +161,7 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
     : TAB_LABEL[activeTab];
 
   return (
-    <div className="p-8 max-w-325 mx-auto">
+    <PageContainer>
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabKey)}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
           <h2 className="text-2xl font-bold">{pageTitle}</h2>
@@ -200,7 +201,7 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
           />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageContainer>
   );
 }
 
