@@ -138,7 +138,6 @@ export function PdfEditForm({
         <div className="grid gap-2">
           <AuthorEmailsField
             control={control}
-            register={register}
             errors={errors.authors}
             idPrefix="edit-pdf"
           />
@@ -146,7 +145,7 @@ export function PdfEditForm({
             {currentAuthors
               ? `Autores actuales: ${currentAuthors}. `
               : "Este PDF todavía no tiene autores. "}
-            Al guardar se sustituyen por los emails indicados.
+            Al guardar se sustituyen por los que elijas aquí.
           </p>
         </div>
 

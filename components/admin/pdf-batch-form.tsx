@@ -15,6 +15,7 @@ import {
   AuthorEmailsField,
   authorsSchema,
   emptyAuthors,
+  ownAuthorsSchema,
   toAuthorEmails,
 } from "@/components/ui/author-emails-field"
 import { formatFileSize, isPdfFile } from "@/components/admin/pdf-file-picker"
@@ -24,18 +25,6 @@ import { useToast } from "@/hooks/use-toast"
 import { useCreatePdf } from "@/hooks/api/use-pdfs"
 import { pdfMutationErrorMessage } from "@/lib/api/pdfs"
 import { cn } from "@/lib/utils"
-
-// Autores propios de un fichero: lista vacía = usa los del lote.
-const ownAuthorsSchema = z
-  .array(
-    z.object({
-      email: z.string().trim().min(1, "El email es obligatorio").email("Debe ser un email válido"),
-    }),
-  )
-  .refine(
-    (authors) => new Set(authors.map((a) => a.email.trim().toLowerCase())).size === authors.length,
-    "Hay emails de autor repetidos",
-  )
 
 const itemSchema = z.object({
   key: z.string(),
@@ -152,6 +141,8 @@ export function PdfBatchForm({
   const createPdf = useCreatePdf()
   const [uploads, setUploads] = useState<Record<string, UploadState>>({})
   const [uploading, setUploading] = useState(false)
+  // Ficheros con el editor de autores propios abierto (aunque aún no tengan ninguno).
+  const [customAuthors, setCustomAuthors] = useState<Record<string, boolean>>({})
 
   const {
     register,
@@ -271,12 +262,7 @@ export function PdfBatchForm({
           <p className="text-xs text-muted-foreground">
             El tema se aplica a todos los ficheros de la lista; después puedes cambiarlo en cada uno.
           </p>
-          <AuthorEmailsField
-            control={control}
-            register={register}
-            errors={errors.authors}
-            idPrefix="batch"
-          />
+          <AuthorEmailsField control={control} errors={errors.authors} idPrefix="batch" />
         </section>
 
         <Separator />
@@ -347,21 +333,27 @@ export function PdfBatchForm({
                     </div>
                   </div>
 
-                  {ownAuthors.length > 0 ? (
+                  {ownAuthors.length > 0 || customAuthors[field.key] ? (
                     <div className="space-y-2 rounded-md bg-muted/40 p-3">
                       <AuthorEmailsField
                         control={control}
-                        register={register}
                         errors={itemErrors?.authors}
                         idPrefix={`item-${field.id}`}
                         name={`items.${index}.authors`}
                       />
+                      {ownAuthors.length === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Sin autores propios se usarán los del lote.
+                        </p>
+                      )}
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="cursor-pointer"
-                        onClick={() => setValue(`items.${index}.authors`, [])}
+                        onClick={() => {
+                          setValue(`items.${index}.authors`, [])
+                          setCustomAuthors((prev) => ({ ...prev, [field.key]: false }))
+                        }}
                       >
                         Usar los autores del lote
                       </Button>
@@ -372,7 +364,11 @@ export function PdfBatchForm({
                       variant="link"
                       size="sm"
                       className="h-auto cursor-pointer p-0 text-xs"
-                      onClick={() => setValue(`items.${index}.authors`, [{ email: "" }])}
+                      onClick={() => {
+                        // Se parte de los autores del lote para retocarlos, no desde cero.
+                        setValue(`items.${index}.authors`, getValues("authors"))
+                        setCustomAuthors((prev) => ({ ...prev, [field.key]: true }))
+                      }}
                     >
                       Autores distintos a los del lote
                     </Button>
