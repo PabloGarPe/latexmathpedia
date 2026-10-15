@@ -2543,6 +2543,18 @@
             "description": "Puntuación obtenida en el intento de cuestionario",
             "example": 85.5
           },
+          "adjustedScore": {
+            "type": "number",
+            "format": "double",
+            "description": "Puntuación ponderada según el número de intento; es la que cuenta para el leaderboard",
+            "example": 6.0
+          },
+          "attemptNumber": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de intento del usuario en este cuestionario (1 = primer intento)",
+            "example": 2
+          },
           "totalQuestions": {
             "type": "integer",
             "format": "int32",
@@ -2959,6 +2971,18 @@
             "format": "double",
             "description": "Puntaje obtenido en el intento de quiz",
             "example": 85.5
+          },
+          "adjustedScore": {
+            "type": "number",
+            "format": "double",
+            "description": "Puntaje ponderado según el número de intento; es el que cuenta para el leaderboard",
+            "example": 6.0
+          },
+          "attemptNumber": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de intento del usuario en este quiz (1 = primer intento)",
+            "example": 2
           },
           "totalQuestions": {
             "type": "integer",

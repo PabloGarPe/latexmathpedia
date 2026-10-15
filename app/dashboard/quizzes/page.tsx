@@ -29,7 +29,12 @@ export default function QuizzesPage() {
   return (
     <div className="p-8 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">Cuestionarios</h1>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Cuestionarios</h1>
+          <p className="text-sm text-muted-foreground">
+            Practica, mide tu nivel y compite en la tabla de líderes.
+          </p>
+        </div>
         <Select value={subjectFilter} onValueChange={setSubjectFilter}>
           <SelectTrigger className="w-[240px]">
             <SelectValue placeholder="Filtrar por asignatura" />
@@ -48,7 +53,7 @@ export default function QuizzesPage() {
       {isLoading ? (
         <p className="text-muted-foreground">Cargando cuestionarios...</p>
       ) : filteredQuizzes.length > 0 ? (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredQuizzes.map((quiz) => (
             <QuizCard key={quiz.id} quiz={quiz} />
           ))}
