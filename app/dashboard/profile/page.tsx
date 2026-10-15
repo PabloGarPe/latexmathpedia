@@ -127,7 +127,11 @@ function AttemptsHistoryTab() {
             <TableHeader>
               <TableRow>
                 <TableHead>Cuestionario</TableHead>
-                <TableHead>Puntuación</TableHead>
+                <TableHead>Intento</TableHead>
+                <TableHead>Nota</TableHead>
+                <TableHead title="Puntuación ponderada por el número de intento; es la que cuenta para el ranking">
+                  Ranking
+                </TableHead>
                 <TableHead>Fecha</TableHead>
                 <TableHead />
               </TableRow>
@@ -135,7 +139,7 @@ function AttemptsHistoryTab() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">
+                  <TableCell colSpan={6} className="text-center">
                     Cargando intentos...
                   </TableCell>
                 </TableRow>
@@ -147,10 +151,10 @@ function AttemptsHistoryTab() {
                         ? quizNameById.get(attempt.quizId) ?? `Cuestionario #${attempt.quizId}`
                         : "-"}
                     </TableCell>
-                    <TableCell>
-                      {attempt.score != null && attempt.totalQuestions != null
-                        ? `${attempt.score}/${attempt.totalQuestions}`
-                        : "-"}
+                    <TableCell>{attempt.attemptNumber != null ? `#${attempt.attemptNumber}` : "-"}</TableCell>
+                    <TableCell>{attempt.score != null ? `${attempt.score.toFixed(1)}/10` : "-"}</TableCell>
+                    <TableCell className="font-medium">
+                      {attempt.adjustedScore != null ? attempt.adjustedScore.toFixed(1) : "-"}
                     </TableCell>
                     <TableCell>{formatDate(attempt.submittedAt)}</TableCell>
                     <TableCell>
@@ -167,7 +171,7 @@ function AttemptsHistoryTab() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     Todavía no has hecho ningún cuestionario.
                   </TableCell>
                 </TableRow>
