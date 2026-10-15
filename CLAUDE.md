@@ -27,6 +27,7 @@ Puntos clave a tener presente:
 - Contrato del backend documentado en `api-docs.json` (OpenAPI 3.1, servidor `http://localhost:8081`); es la fuente de verdad, y `lib/api/schema.d.ts` se genera de ahí (`npm run api:types`, no editar a mano).
 - Los DTOs son **camelCase y planos** (`PDFDto`, `SubjectDto`, `QuizDto`…).
 - Auth: dos modos por `NEXT_PUBLIC_AUTH_MODE` (`mock` por defecto, `keycloak` para producción/real) detrás de la misma interfaz `useAuth()` — ver `contexts/auth-context.tsx`.
+- Las pantallas de Keycloak (login/registro/recuperar contraseña) se ven con un tema propio que vive en el **repo del backend** (`keycloak/themes/mathtexpedia`, solo CSS + textos; copia los tokens de `app/globals.css` y `public/logo.png`, así que si cambia el diseño hay que actualizarlo allí). El frontend sigue redirigiendo a Keycloak: no hay formularios de credenciales propios.
 - La categorización usa las entidades **Subject / SubjectUnit** del backend (no tags hardcodeados).
 - Peticiones de mejora/aclaración al backend no se documentan en este repo: se abren como issues en `PabloGarPe/mathtexpedia-backend`.
 
