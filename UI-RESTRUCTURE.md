@@ -424,16 +424,29 @@ Todos son compatibles con el `components.json` ya configurado (`style: new-york`
   matchea el filtro/búsqueda activos, ordenado por fecha descendente; no se ha añadido
   paginación (fuera de alcance de esta ronda).
 
-**Hileras del feed y vistas de PDF: ✅ HECHO.**
-- `PDFDto.viewCount` (total de aperturas de todos los usuarios) se muestra como badge con ojo
-  en `pdf-card.tsx`, compacto desde 1000 (`formatCompactCount`: "1,2k").
-- `components/pdf-rows.tsx`: carruseles horizontales Novedades (`/public/pdf/recent`), Lo más
-  visto (`/public/pdf/top`) y Tus más vistos (`/pdf/top/me`, solo con sesión), en la pestaña
-  "Todo" cuando no se está buscando. Cada hilera es su propia `useQuery` (`staleTime` 2 min);
-  skeleton mientras carga, fallo aislado con "Reintentar", y se oculta si llega vacía. La
-  personal lleva el email en la query key y también se oculta si falla (en mock el back da 401).
-- Al llegar el binario en `/dashboard/pdfs/[pdfId]` se invalidan `["pdfs", ...]` (salvo
-  `content`) y `["subjects", ...]` (`useInvalidatePdfViews`), para refrescar `viewCount` y las hileras.
+**Hileras del feed, vistas de PDF e intentos de cuestionario: ✅ HECHO.** *(Sustituye lo de
+arriba sobre la pestaña "Todo", los filtros globales y la insignia de tipo: ya no existen.)*
+- **Pestañas: PDFs (por defecto) / Cuestionarios / Blog.** Se quitó "Todo", y con ella la
+  insignia de tipo de `content-card.tsx` (ya no se mezclan tipos en una rejilla). La búsqueda
+  de la cabecera filtra solo la pestaña activa y oculta las hileras. Solo se piden los datos de
+  la pestaña activa; dentro de ella, primero las hileras y, cuando resuelven, el catálogo
+  completo (`dashboard-feed.tsx`).
+- `PDFDto.viewCount` / `QuizDto.attemptCount` (totales de todos los usuarios; los intentos
+  cuentan envíos, no personas) salen como badge compacto desde 1000 (`formatCompactCount`:
+  "1,2k") en `pdf-card.tsx` y `quiz-card.tsx`.
+- `components/feed-row.tsx`: carrusel horizontal genérico (scroll-snap, skeleton, fallo aislado
+  con "Reintentar", se oculta si llega vacío). Lo usan `pdf-rows.tsx` (Novedades
+  `/public/pdf/recent`, Lo más visto `/public/pdf/top`, Tus más vistos `/pdf/top/me` solo con
+  sesión y oculta si falla) y `quiz-rows.tsx` (Novedades `/public/quiz/recent`, Los más hechos
+  `/public/quiz/top`; vacía hasta el primer intento). Cada hilera es su propia `useQuery`
+  (`staleTime` 2 min).
+- "Explorar todo" de cada pestaña (`pdf-explorer.tsx`, `quiz-explorer.tsx`): catálogo completo
+  con filtros en cliente por asignatura y tema (+ dificultad en cuestionarios) y orden por
+  recientes / más vistos|hechos / nombre. Lógica y selectores comunes en
+  `catalog-filters.tsx`; las opciones salen de los propios datos.
+- Invalidación: al llegar el binario de un PDF se invalida `["pdfs", ...]` (salvo `content`) y
+  `["subjects", ...]` (`useInvalidatePdfViews`); tras enviar un intento, `["quizzes", ...]`
+  (salvo `attempt`), `["attempts"]` y `["subjects", ...]` (`useSubmitQuizAttempt`).
 
 **Cierre de cabos sueltos (T-05, §4 "Blogs" → enlace único, punto 7 "AlertDialog en todo el
 admin"): ✅ HECHO.**

@@ -21,18 +21,20 @@ export const PDF_ROW_LIMIT = 10;
 // Las hileras públicas cambian despacio: 2 min de staleTime evita refetch al cambiar de pestaña.
 const ROW_STALE_TIME = 2 * 60 * 1000;
 
-export function useRecentPdfs(limit = PDF_ROW_LIMIT) {
+export function useRecentPdfs(limit = PDF_ROW_LIMIT, enabled = true) {
   return useQuery({
     queryKey: queryKeys.pdfs.recent(limit),
     queryFn: () => getRecentPdfs(limit),
+    enabled,
     staleTime: ROW_STALE_TIME,
   });
 }
 
-export function useTopPdfs(limit = PDF_ROW_LIMIT) {
+export function useTopPdfs(limit = PDF_ROW_LIMIT, enabled = true) {
   return useQuery({
     queryKey: queryKeys.pdfs.top(limit),
     queryFn: () => getTopPdfs(limit),
+    enabled,
     staleTime: ROW_STALE_TIME,
   });
 }

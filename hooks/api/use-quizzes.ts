@@ -7,6 +7,8 @@ import {
   getMyAttempts,
   getPublicQuizzes,
   getQuiz,
+  getRecentQuizzes,
+  getTopQuizzes,
   getQuizForAttempt,
   getMyStats,
   getQuizLeaderboard,
@@ -21,6 +23,29 @@ import {
   type UpdateQuizDto,
 } from "@/lib/api/quizzes";
 import { queryKeys } from "@/lib/query/keys";
+
+export const QUIZ_ROW_LIMIT = 10;
+
+// Las hileras públicas cambian despacio: 2 min de staleTime evita refetch al cambiar de pestaña.
+const ROW_STALE_TIME = 2 * 60 * 1000;
+
+export function useRecentQuizzes(limit = QUIZ_ROW_LIMIT, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.quizzes.recent(limit),
+    queryFn: () => getRecentQuizzes(limit),
+    enabled,
+    staleTime: ROW_STALE_TIME,
+  });
+}
+
+export function useTopQuizzes(limit = QUIZ_ROW_LIMIT, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.quizzes.top(limit),
+    queryFn: () => getTopQuizzes(limit),
+    enabled,
+    staleTime: ROW_STALE_TIME,
+  });
+}
 
 export function usePublicQuizzes(enabled = true) {
   return useQuery({
@@ -50,8 +75,16 @@ export function useSubmitQuizAttempt(quizId: number) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: SubmitQuizAttemptDto) => submitQuizAttempt(quizId, body),
+    // El intento ya está guardado cuando responde el back, así que refrescar ahora trae el
+    // attemptCount actualizado sin carrera. Se excluye ["quizzes", id, "attempt"]: está activo
+    // en la pantalla de resultado y volver a pedirlo cambiaría las preguntas bajo los pies.
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.attempts.all() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.quizzes.all(),
+        predicate: (query) => query.queryKey[2] !== "attempt",
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all() });
     },
   });
 }

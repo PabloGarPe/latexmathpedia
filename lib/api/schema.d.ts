@@ -660,8 +660,51 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lista todos los cuestionarios */
+        /**
+         * Lista todos los cuestionarios
+         * @description Incluye el número de intentos (attemptCount) de cada cuestionario
+         */
         get: operations["getAllQuizzes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/quiz/top": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cuestionarios más hechos en general
+         * @description Ordenados de más a menos intentos contando los envíos de todos los usuarios. Solo incluye cuestionarios con al menos un intento. Pensado para la hilera 'Los más hechos'
+         */
+        get: operations["getMostAttemptedQuizzes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/quiz/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cuestionarios nuevos o actualizados recientemente
+         * @description Del más reciente al más antiguo según la fecha de última edición. Pensado para la hilera 'Novedades'
+         */
+        get: operations["getRecentQuizzes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1078,6 +1121,12 @@ export interface components {
             subject?: components["schemas"]["SubjectDto"];
             /** @description Tema al que pertenece el cuestionario */
             subjectUnit?: components["schemas"]["SubjectUnitDto"];
+            /**
+             * Format: int64
+             * @description Número total de veces que se ha hecho el cuestionario (todos los usuarios; cada envío cuenta, aunque sea del mismo usuario). 0 si nadie lo ha hecho
+             * @example 128
+             */
+            readonly attemptCount?: number;
         };
         /** @description Datos de la pregunta a actualizar */
         UpdateQuestionDto: {
@@ -3276,6 +3325,52 @@ export interface operations {
     getAllQuizzes: {
         parameters: {
             query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizDto"][];
+                };
+            };
+        };
+    };
+    getMostAttemptedQuizzes: {
+        parameters: {
+            query?: {
+                /** @description Máximo de cuestionarios a devolver (por defecto 10, máximo 20) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizDto"][];
+                };
+            };
+        };
+    };
+    getRecentQuizzes: {
+        parameters: {
+            query?: {
+                /** @description Máximo de cuestionarios a devolver (por defecto 10, máximo 20) */
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
