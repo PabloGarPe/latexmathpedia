@@ -5,9 +5,12 @@ import { CONTENT_TYPES } from "@/lib/content/registry";
 import { formatPdfAuthors, type ContentItem } from "@/lib/content/types";
 import { formatDate } from "@/lib/utils";
 
-export function ContentCard({ item }: { item: ContentItem }) {
+// `actions`: controles de gestión del admin (modo edición), superpuestos en la esquina
+// superior izquierda de la tarjeta -- la derecha la usa la insignia de dificultad de los quizzes.
+export function ContentCard({ item, actions }: { item: ContentItem; actions?: React.ReactNode }) {
   return (
     <div className="relative h-full">
+      {actions && <div className="absolute left-3 top-3 z-10">{actions}</div>}
       {item.kind === "pdf" && (
         <PDFCard
           title={item.data.title}

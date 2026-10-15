@@ -61,7 +61,16 @@ export async function getQuizForAttempt(id: number) {
     params: { path: { id } },
   });
   if (error || !response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar la información del cuestionario");
-  return data;
+  // El back no ordena por `position`: se aplica aquí para que el orden que fija el editor sea el que ve quien lo hace.
+  const byPosition = <T extends { position?: number }>(items: T[]) =>
+    [...items].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  return {
+    ...data,
+    questions: byPosition(data.questions ?? []).map((question) => ({
+      ...question,
+      options: byPosition(question.options ?? []),
+    })),
+  };
 }
 
 export async function submitQuizAttempt(id: number, body: SubmitQuizAttemptDto) {

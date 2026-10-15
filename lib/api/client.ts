@@ -14,6 +14,11 @@ export function setApiAccessToken(token: string | undefined) {
   currentAccessToken = token;
 }
 
+// Para las peticiones que no pasan por apiClient (subidas con progreso, ver lib/api/pdfs.ts).
+export function getApiAccessToken() {
+  return currentAccessToken;
+}
+
 apiClient.use({
   onRequest({ request }) {
     if (currentAccessToken) {

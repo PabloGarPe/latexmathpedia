@@ -87,8 +87,7 @@ para Subjects/PDFs/Quizzes.
 /dashboard/contact/*  /dashboard/legal/*    (ya existen, sin cambios)
 
 /dashboard/admin                            Índice del panel (tarjetas por sección)
-/dashboard/admin/subjects                   CRUD Asignaturas + Temas
-/dashboard/admin/pdfs                       CRUD PDFs (adaptado a Subject/Unit)
+/dashboard/admin/pdfs                       Tabla global de PDFs (buscar, filtrar, subir, editar, borrar)
 /dashboard/admin/quizzes                    Listado de cuestionarios (+ crear, + importar)
 /dashboard/admin/quizzes/[quizId]           Editor de cuestionario (metadatos + preguntas + opciones)
 ```
@@ -132,7 +131,6 @@ Blog                            → /dashboard/blog
 Soporte / Feedback               (igual que hoy)
 ──────────────────────────
 [si isAdmin] Panel de Admin
-  Asignaturas   → /dashboard/admin/subjects
   PDFs          → /dashboard/admin/pdfs
   Cuestionarios → /dashboard/admin/quizzes
 ──────────────────────────
@@ -279,17 +277,23 @@ fecha, enlace a "Ver detalle". Necesita **paginación** (el endpoint ya pagina v
 Se amplía el grid de 2 tarjetas actual a 4: **PDFs, Asignaturas, Cuestionarios, Usuarios**
 (mismo patrón visual que ya existe, solo más tarjetas).
 
-### 7.2 Asignaturas y Temas (`/dashboard/admin/subjects`) — nuevo
+### 7.2 Asignaturas, Temas y contenido — "Modo edición" en la vista normal
 
-Sigue el mismo patrón ya validado en `PDFAccordionCard.tsx`/`admin/pdfs/page.tsx`:
-formulario de alta arriba (nombre + descripción) y, debajo, cada asignatura existente como
-una tarjeta expandible (`Collapsible`/`Accordion`) con:
-- Campos editables inline (nombre, descripción) + botón guardar/borrar (con
-  **confirmación** — ver gap de UX en §7.5).
-- Dentro, la lista de **Temas** de esa asignatura, cada uno editable (nombre, posición) y
-  borrable, más un formulario para añadir un tema nuevo.
-- El borrado de asignatura/tema con conflicto (409 si tiene temas/PDFs asociados) debe
-  mostrarse como error claro, no como fallo silencioso (`toast.error` ya es el patrón usado).
+`/dashboard/admin/subjects` se eliminó: asignaturas y temas se gestionan donde se ven. Un
+interruptor **"Modo edición"** (solo admin; `contexts/edit-mode-context.tsx`, se recuerda en
+localStorage) muestra, sobre las vistas normales, los controles de gestión; apagado, el admin
+ve lo mismo que un alumno.
+- **Catálogo** (`/dashboard/subjects`): "Nueva asignatura" y menú ⋯ (editar/eliminar) por tarjeta.
+- **Ficha** (`/dashboard/subjects/[id]`): editar/eliminar la asignatura, "Añadir tema",
+  renombrar/eliminar/**reordenar por arrastre** (`@dnd-kit`) cada tema, y por tema (y "General")
+  "Añadir PDF" / "Añadir cuestionario"; cada tarjeta de PDF/quiz lleva un menú ⋯.
+- Orden de los temas: el back guarda `position` pero **no ordena** por ella, así que
+  `getSubjectUnits` los ordena en el cliente (`sortUnits`: posición y luego id). Al soltar tras
+  arrastrar se reescriben las posiciones 1..N solo de los temas que cambian
+  (`useReorderSubjectUnits`, optimista). `UpdateSubjectUnitDto.position` es un `int` obligatorio
+  (omitido llega como 0), por eso renombrar reenvía siempre la posición.
+- Conflictos 409: tema con PDFs asociados o asignatura con temas no se pueden borrar; se avisa
+  en la confirmación y con un `toast.error`.
 
 ### 7.3 Cuestionarios (`/dashboard/admin/quizzes`, `/dashboard/admin/quizzes/[quizId]`) — nuevo
 
@@ -315,13 +319,18 @@ Esta es la pieza de admin más grande y nueva.
   formulario gigante, y que los guardados sean granulares (`PATCH` por pregunta/opción vía
   mutaciones de TanStack Query) en vez de "guardar todo el quiz" de una vez.
 
-### 7.4 PDFs (`/dashboard/admin/pdfs`) — adaptar, no rehacer
+### 7.4 PDFs — panel lateral único + tabla global
 
-La UX actual (buscador, combobox de categoría/subcategoría, tarjetas expandibles) se
-mantiene tal cual; solo cambia la **fuente de datos** de los combobox: en vez del objeto
-`categories` hardcodeado, se listan `Subject` y, al elegir uno, sus `SubjectUnit`
-(`useSubjects()`/`useSubjectUnits()`, los mismos hooks que usa la sidebar y la ficha de
-asignatura — una sola fuente de verdad para toda la app).
+- **Panel lateral** (`components/admin/pdf-sheet.tsx`), compartido por la ficha de asignatura y
+  `/dashboard/admin/pdfs`:
+  - *Crear*: arrastrar **varios PDFs** a una cola. Asignatura, tema y autores se ponen una vez
+    para el lote; cada fichero tiene su título (autocompletado del nombre del fichero), descripción,
+    tema y, si hace falta, autores propios. Subida secuencial con barra de progreso por fichero
+    (XHR en `lib/api/pdfs.ts`: `fetch` no informa del progreso) y reintento de los fallidos.
+  - *Editar*: un único PDF, fichero opcional. Los autores se vuelven a escribir como emails
+    (`PDFDto` no los devuelve; cambio previsto en el back).
+- **Tabla global** (`/dashboard/admin/pdfs`): buscador, filtros por asignatura y tema (incluido
+  "General (sin tema)"), orden por fecha/vistas/nombre, y menú ⋯ por fila.
 
 ### 7.5 Usuarios — eliminado
 

@@ -12,6 +12,7 @@ import {
   updatePdf,
   type CreatePDFDto,
   type UpdatePDFDto,
+  type UploadProgress,
 } from "@/lib/api/pdfs";
 import { useAuth } from "@/contexts/auth-context";
 import { queryKeys } from "@/lib/query/keys";
@@ -98,7 +99,8 @@ function useInvalidatePdfQueries() {
 export function useCreatePdf() {
   const invalidate = useInvalidatePdfQueries();
   return useMutation({
-    mutationFn: ({ data, file }: { data: CreatePDFDto; file: File }) => createPdf(data, file),
+    mutationFn: ({ data, file, onProgress }: { data: CreatePDFDto; file: File; onProgress?: UploadProgress }) =>
+      createPdf(data, file, onProgress),
     onSuccess: invalidate,
   });
 }
@@ -106,8 +108,17 @@ export function useCreatePdf() {
 export function useUpdatePdf() {
   const invalidate = useInvalidatePdfQueries();
   return useMutation({
-    mutationFn: ({ pdfId, data, file }: { pdfId: number; data: UpdatePDFDto; file?: File }) =>
-      updatePdf(pdfId, data, file),
+    mutationFn: ({
+      pdfId,
+      data,
+      file,
+      onProgress,
+    }: {
+      pdfId: number;
+      data: UpdatePDFDto;
+      file?: File;
+      onProgress?: UploadProgress;
+    }) => updatePdf(pdfId, data, file, onProgress),
     onSuccess: invalidate,
   });
 }

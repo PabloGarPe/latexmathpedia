@@ -63,7 +63,12 @@ async function loadPageText(
   const result: PageText = {
     text,
     spans,
-    convert: (rect) => viewport.convertToViewportRectangle(rect),
+    // pdf.js 6.4 quitó convertToViewportRectangle; convertToViewportPoint existe en todas.
+    convert: ([x0, y0, x1, y1]) => {
+      const [ax, ay] = viewport.convertToViewportPoint(x0, y0);
+      const [bx, by] = viewport.convertToViewportPoint(x1, y1);
+      return [ax, ay, bx, by];
+    },
     size: { width: viewport.width, height: viewport.height },
   };
   cache.set(pageIndex, result);

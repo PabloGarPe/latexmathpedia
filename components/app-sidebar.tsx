@@ -85,12 +85,6 @@ const dataAdminPanel = {
       isActive: false,
     },
     {
-      title: "Asignaturas",
-      url: "/dashboard/admin/subjects",
-      icon: BookOpen,
-      isActive: false,
-    },
-    {
       title: "Cuestionarios",
       url: "/dashboard/admin/quizzes",
       icon: ClipboardList,

@@ -1,142 +1,31 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { Plus, Trash } from "lucide-react"
+import { arrayMove } from "@dnd-kit/sortable"
+import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, ListChecks, Pencil, Trash } from "lucide-react"
+import { ConfirmDialog } from "@/components/admin/confirm-dialog"
+import { QuestionCard } from "@/components/admin/quiz-editor/question-card"
+import { QuestionComposer } from "@/components/admin/quiz-editor/question-composer"
+import { questionIssue, sortByPosition } from "@/components/admin/quiz-editor/constants"
+import { SortableList } from "@/components/admin/quiz-editor/sortable"
+import { QuizFormDialog } from "@/components/admin/quiz-form-dialog"
+import { PageContainer } from "@/components/page-shell"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Accordion } from "@/components/ui/accordion"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { SubjectUnitPicker } from "@/components/ui/subject-unit-picker"
-import { QUIZ_DIFFICULTIES, DIFFICULTY_LABEL } from "@/components/ui/quiz-difficulty-badge"
-import {
-  QuestionAccordionItem,
-  QUESTION_TYPES,
-  QUESTION_TYPE_LABEL,
-} from "@/components/ui/QuizQuestionAccordion"
-import { useToast } from "@/hooks/use-toast"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { QuizDifficultyBadge } from "@/components/ui/quiz-difficulty-badge"
+import { useDeleteQuiz, useQuiz, useQuizQuestions } from "@/hooks/api/use-quizzes"
+import { useQuestionsOptions, useReorderQuestions } from "@/hooks/api/use-questions"
 import { useAdminRoute } from "@/hooks/use-protected-route"
-import { useDeleteQuiz, useQuiz, useQuizQuestions, useUpdateQuiz } from "@/hooks/api/use-quizzes"
-import { useCreateQuestion, useUpdateQuestion } from "@/hooks/api/use-questions"
-import type { QuestionDto } from "@/lib/api/questions"
-import { conflictMessage } from "@/lib/api/errors"
+import { useToast } from "@/hooks/use-toast"
 
-const updateQuizSchema = z
-  .object({
-    name: z.string().min(1, "El nombre es obligatorio"),
-    description: z.string().optional(),
-    difficulty: z.enum(QUIZ_DIFFICULTIES),
-    subjectId: z.number().nullable(),
-    subjectUnitId: z.number().nullable(),
-  })
-  .refine((data) => data.subjectId != null, {
-    message: "Selecciona una asignatura",
-    path: ["subjectId"],
-  })
-
-type UpdateQuizFormValues = z.infer<typeof updateQuizSchema>
-
-const createQuestionSchema = z.object({
-  text: z.string().min(1, "El texto es obligatorio"),
-  type: z.enum(QUESTION_TYPES),
-  explanation: z.string().optional(),
-})
-
-type CreateQuestionFormValues = z.infer<typeof createQuestionSchema>
-
-function CreateQuestionForm({ quizId, nextPosition }: { quizId: number; nextPosition: number }) {
-  const toast = useToast()
-  const createQuestion = useCreateQuestion()
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<CreateQuestionFormValues>({
-    resolver: zodResolver(createQuestionSchema),
-    defaultValues: { text: "", type: "MULTIPLE_CHOICE", explanation: "" },
-  })
-
-  const typeValue = watch("type")
-
-  const onSubmit = async (values: CreateQuestionFormValues) => {
-    try {
-      await createQuestion.mutateAsync({
-        quizId,
-        body: {
-          quizId,
-          text: values.text,
-          type: values.type,
-          explanation: values.explanation || undefined,
-          position: nextPosition,
-        },
-      })
-      toast.success("Pregunta añadida.")
-      reset({ text: "", type: "MULTIPLE_CHOICE", explanation: "" })
-    } catch (error) {
-      toast.error(conflictMessage(error, "No se pudo añadir la pregunta."))
-    }
-  }
-
+function FullPageSpinner() {
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 rounded-md border p-4">
-      <h4 className="text-sm font-semibold">Añadir pregunta</h4>
-      <div className="grid gap-2">
-        <Label htmlFor="new-question-text">Texto</Label>
-        <Textarea id="new-question-text" {...register("text")} />
-        {errors.text && <p className="text-sm text-destructive">{errors.text.message}</p>}
-      </div>
-      <div className="grid gap-2 sm:w-64">
-        <Label>Tipo</Label>
-        <Select value={typeValue} onValueChange={(value) => setValue("type", value as CreateQuestionFormValues["type"])}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {QUESTION_TYPES.map((type) => (
-              <SelectItem key={type} value={type}>
-                {QUESTION_TYPE_LABEL[type]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="new-question-explanation">Explicación (opcional)</Label>
-        <Textarea id="new-question-explanation" {...register("explanation")} />
-      </div>
-      <Button type="submit" className="cursor-pointer" disabled={isSubmitting || createQuestion.isPending}>
-        <Plus className="h-4 w-4" />
-        Añadir pregunta
-      </Button>
-    </form>
+    <div className="flex min-h-[400px] items-center justify-center">
+      <div className="h-32 w-32 animate-spin rounded-full border-b-2 border-gray-900"></div>
+    </div>
   )
 }
 
@@ -147,72 +36,54 @@ export default function QuizEditorPage() {
   const toast = useToast()
 
   const { isAuthenticated, isAdmin, loading: authLoading } = useAdminRoute()
-  const { data: quiz, isLoading: quizLoading } = useQuiz(isAuthenticated && isAdmin ? quizId : null)
-  const { data: questions, isLoading: questionsLoading } = useQuizQuestions(
-    isAuthenticated && isAdmin ? quizId : null
-  )
-  const updateQuiz = useUpdateQuiz()
+  const enabled = isAuthenticated && isAdmin
+  const { data: quiz, isLoading: quizLoading } = useQuiz(enabled ? quizId : null)
+  const { data: questions, isLoading: questionsLoading } = useQuizQuestions(enabled ? quizId : null)
   const deleteQuiz = useDeleteQuiz()
-  const reorderQuestion = useUpdateQuestion()
+  const reorderQuestions = useReorderQuestions()
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<UpdateQuizFormValues>({
-    resolver: zodResolver(updateQuizSchema),
-    values: {
-      name: quiz?.name ?? "",
-      description: quiz?.description ?? "",
-      difficulty: (quiz?.difficulty as UpdateQuizFormValues["difficulty"]) ?? "EASY",
-      subjectId: quiz?.subject?.id ?? null,
-      subjectUnitId: quiz?.subjectUnit?.id ?? null,
-    },
-  })
-
-  const subjectIdValue = watch("subjectId")
-  const subjectUnitIdValue = watch("subjectUnitId")
-  const difficultyValue = watch("difficulty")
-
-  const sortedQuestions = useMemo(
-    () => [...(questions ?? [])].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
-    [questions]
+  const sortedQuestions = useMemo(() => sortByPosition(questions ?? []), [questions])
+  const questionIds = useMemo(
+    () => sortedQuestions.flatMap((question) => (question.id != null ? [question.id] : [])),
+    [sortedQuestions],
   )
+  const { byQuestion, isLoading: optionsLoading } = useQuestionsOptions(questionIds)
 
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    )
-  }
+  const [openIds, setOpenIds] = useState<number[]>([])
+  const [editingQuiz, setEditingQuiz] = useState(false)
+  const [deletingQuiz, setDeletingQuiz] = useState(false)
+  // Arrastrar una pregunta abierta es incómodo (es muy alta): al empezar se pliegan y al soltar se restauran.
+  const openBeforeDrag = useRef<number[] | null>(null)
 
-  if (!isAuthenticated || !isAdmin) {
-    return null
-  }
-
+  if (authLoading) return <FullPageSpinner />
+  if (!isAuthenticated || !isAdmin) return null
   if (quizLoading || !quiz) {
     return <p className="p-8 text-muted-foreground">Cargando cuestionario...</p>
   }
 
-  const onSubmitMetadata = async (values: UpdateQuizFormValues) => {
-    try {
-      await updateQuiz.mutateAsync({
-        id: quizId,
-        body: {
-          name: values.name,
-          description: values.description || undefined,
-          difficulty: values.difficulty,
-          subjectId: values.subjectId as number,
-          subjectUnitId: values.subjectUnitId,
-        },
-      })
-      toast.success("Cuestionario actualizado.")
-    } catch (error) {
-      toast.error(conflictMessage(error, "No se pudo actualizar el cuestionario."))
-    }
+  const issues = sortedQuestions.flatMap((question, index) => {
+    const issue = question.id != null ? questionIssue(byQuestion.get(question.id)) : null
+    return issue ? [{ question, number: index + 1, issue }] : []
+  })
+  const checked = !questionsLoading && !optionsLoading
+  const readyCount = sortedQuestions.length - issues.length
+  const nextPosition = sortedQuestions.reduce((max, question) => Math.max(max, question.position ?? 0), 0) + 1
+
+  const focusQuestion = (id: number) => {
+    setOpenIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+    requestAnimationFrame(() =>
+      document.getElementById(`question-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    )
+  }
+
+  const handleReorder = (activeId: string, overId: string) => {
+    const from = sortedQuestions.findIndex((question) => String(question.id) === activeId)
+    const to = sortedQuestions.findIndex((question) => String(question.id) === overId)
+    if (from < 0 || to < 0) return
+    reorderQuestions.mutate(
+      { quizId, questions: arrayMove(sortedQuestions, from, to) },
+      { onError: () => toast.error("No se pudo guardar el nuevo orden de las preguntas.") },
+    )
   }
 
   const handleDeleteQuiz = async () => {
@@ -220,182 +91,193 @@ export default function QuizEditorPage() {
       await deleteQuiz.mutateAsync(quizId)
       toast.success("Cuestionario eliminado.")
       router.push("/dashboard/admin/quizzes")
-    } catch (error) {
+    } catch {
       toast.error("No se pudo eliminar el cuestionario.")
     }
   }
 
-  // Igual que en QuizQuestionAccordion.tsx: las dos escrituras van en secuencia (no en
-  // paralelo) y la segunda se deshace si falla, para no dejar dos preguntas con la misma
-  // posición si una de las dos peticiones falla.
-  const handleMoveQuestion = async (question: QuestionDto, direction: -1 | 1) => {
-    const index = sortedQuestions.findIndex((q) => q.id === question.id)
-    const neighbor = sortedQuestions[index + direction]
-    if (!neighbor || question.id == null || neighbor.id == null) return
-    try {
-      await reorderQuestion.mutateAsync({
-        id: question.id,
-        quizId,
-        body: {
-          text: question.text ?? "",
-          type: question.type as "MULTIPLE_CHOICE" | "TRUE_FALSE",
-          explanation: question.explanation ?? undefined,
-          position: neighbor.position,
-          quizId,
-        },
-      })
-      try {
-        await reorderQuestion.mutateAsync({
-          id: neighbor.id,
-          quizId,
-          body: {
-            text: neighbor.text ?? "",
-            type: neighbor.type as "MULTIPLE_CHOICE" | "TRUE_FALSE",
-            explanation: neighbor.explanation ?? undefined,
-            position: question.position,
-            quizId,
-          },
-        })
-      } catch (innerError) {
-        await reorderQuestion.mutateAsync({
-          id: question.id,
-          quizId,
-          body: {
-            text: question.text ?? "",
-            type: question.type as "MULTIPLE_CHOICE" | "TRUE_FALSE",
-            explanation: question.explanation ?? undefined,
-            position: question.position,
-            quizId,
-          },
-        })
-        throw innerError
-      }
-    } catch (error) {
-      toast.error("No se pudo reordenar la pregunta.")
-    }
-  }
-
-  const nextQuestionPosition =
-    sortedQuestions.reduce((max, q) => Math.max(max, q.position ?? 0), 0) + 1
-
   return (
-    <div className="p-8 w-full max-w-3xl mx-auto space-y-8">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold">Editar cuestionario</h1>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" className="cursor-pointer" disabled={deleteQuiz.isPending}>
-              <Trash className="h-4 w-4" />
-              Eliminar cuestionario
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Eliminar este cuestionario?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción no se puede deshacer y eliminará también sus preguntas y opciones.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="cursor-pointer">Cancelar</AlertDialogCancel>
-              <AlertDialogAction className="cursor-pointer" onClick={handleDeleteQuiz}>
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+    <PageContainer className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          href="/dashboard/admin/quizzes"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Cuestionarios
+        </Link>
+        <Button variant="outline" size="sm" className="cursor-pointer" asChild>
+          <Link href={`/dashboard/quizzes/${quizId}`}>
+            <Eye className="h-4 w-4" />
+            Ver como alumno
+          </Link>
+        </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Datos del cuestionario</CardTitle>
-          <CardDescription>Nombre, descripción, dificultad y ubicación en el catálogo.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmitMetadata)} className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="quiz-name">Nombre</Label>
-              <Input id="quiz-name" {...register("name")} />
-              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+      <header className="relative overflow-hidden rounded-2xl border bg-linear-to-br from-purple-500/15 via-fuchsia-500/10 to-transparent p-6 sm:p-8 dark:from-purple-500/25 dark:via-fuchsia-500/10">
+        <ListChecks className="pointer-events-none absolute -right-4 -top-4 h-40 w-40 rotate-12 text-purple-500/10" />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <QuizDifficultyBadge difficulty={quiz.difficulty} />
+              {quiz.subject?.name && (
+                <span className="rounded-full bg-background/70 px-2.5 py-0.5 text-xs">{quiz.subject.name}</span>
+              )}
+              {quiz.subjectUnit?.name && (
+                <span className="rounded-full bg-background/70 px-2.5 py-0.5 text-xs text-muted-foreground">
+                  {quiz.subjectUnit.name}
+                </span>
+              )}
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="quiz-description">Descripción</Label>
-              <Input id="quiz-description" {...register("description")} />
-            </div>
-            <div className="grid gap-2 sm:w-64">
-              <Label>Dificultad</Label>
-              <Select
-                value={difficultyValue}
-                onValueChange={(value) => setValue("difficulty", value as UpdateQuizFormValues["difficulty"])}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {QUIZ_DIFFICULTIES.map((difficulty) => (
-                    <SelectItem key={difficulty} value={difficulty}>
-                      {DIFFICULTY_LABEL[difficulty]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <h1 className="text-3xl font-bold tracking-tight">{quiz.name}</h1>
+            {quiz.description && <p className="max-w-prose text-muted-foreground">{quiz.description}</p>}
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="outline" size="sm" className="cursor-pointer bg-background/80 backdrop-blur" onClick={() => setEditingQuiz(true)}>
+              <Pencil className="h-4 w-4" />
+              Editar datos
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="cursor-pointer bg-background/80 text-destructive backdrop-blur hover:text-destructive"
+              onClick={() => setDeletingQuiz(true)}
+            >
+              <Trash className="h-4 w-4" />
+              <span className="sr-only">Eliminar cuestionario</span>
+            </Button>
+          </div>
+        </div>
+      </header>
 
-            <Separator />
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-lg font-semibold">Preguntas</h2>
+            <p className="text-xs text-muted-foreground">Arrastra el asa para reordenarlas</p>
+          </div>
 
-            <SubjectUnitPicker
-              subjectId={subjectIdValue ?? null}
-              subjectUnitId={subjectUnitIdValue ?? null}
-              onSubjectChange={(id) => {
-                setValue("subjectId", id, { shouldValidate: true })
-                setValue("subjectUnitId", null)
-              }}
-              onSubjectUnitChange={(id) => setValue("subjectUnitId", id)}
-            />
-            {errors.subjectId && <p className="text-sm text-destructive">{errors.subjectId.message}</p>}
-
-            <div className="flex justify-end">
-              <Button type="submit" className="cursor-pointer" disabled={isSubmitting || updateQuiz.isPending}>
-                Guardar cambios
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Preguntas</CardTitle>
-          <CardDescription>
-            Cada pregunta puede expandirse para editar su texto, tipo, explicación y opciones.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
           {questionsLoading ? (
-            <p className="text-sm text-muted-foreground">Cargando preguntas...</p>
-          ) : sortedQuestions.length > 0 ? (
-            <Accordion type="multiple">
-              {sortedQuestions.map((question, index) => (
-                <QuestionAccordionItem
-                  key={question.id}
-                  quizId={quizId}
-                  question={question}
-                  isFirst={index === 0}
-                  isLast={index === sortedQuestions.length - 1}
-                  onMoveUp={() => handleMoveQuestion(question, -1)}
-                  onMoveDown={() => handleMoveQuestion(question, 1)}
-                />
+            <div className="space-y-3">
+              {[0, 1, 2].map((key) => (
+                <div key={key} className="h-20 animate-pulse rounded-xl bg-muted" />
               ))}
-            </Accordion>
+            </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Este cuestionario todavía no tiene preguntas.</p>
+            sortedQuestions.length > 0 && (
+              <SortableList
+                ids={questionIds}
+                onDragStart={() => {
+                  openBeforeDrag.current = openIds
+                  setOpenIds([])
+                }}
+                onDragFinish={() => {
+                  if (openBeforeDrag.current) setOpenIds(openBeforeDrag.current)
+                  openBeforeDrag.current = null
+                }}
+                onReorder={handleReorder}
+              >
+                <div className="space-y-3">
+                  {sortedQuestions.map((question, index) => (
+                    <QuestionCard
+                      key={question.id}
+                      quizId={quizId}
+                      question={question}
+                      index={index + 1}
+                      options={question.id != null ? byQuestion.get(question.id) : undefined}
+                      open={question.id != null && openIds.includes(question.id)}
+                      onOpenChange={(open) =>
+                        setOpenIds((prev) =>
+                          open ? [...prev, question.id as number] : prev.filter((id) => id !== question.id),
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+              </SortableList>
+            )
           )}
 
-          <Separator />
+          {!questionsLoading && (
+            <QuestionComposer
+              // Se remonta al cambiar de cuestionario; abierto de entrada si aún no hay preguntas.
+              key={quizId}
+              quizId={quizId}
+              nextPosition={nextPosition}
+              defaultOpen={sortedQuestions.length === 0}
+            />
+          )}
+        </section>
 
-          <CreateQuestionForm quizId={quizId} nextPosition={nextQuestionPosition} />
-        </CardContent>
-      </Card>
-    </div>
+        <Card className="lg:sticky lg:top-20">
+          <CardHeader>
+            <CardTitle className="text-base">Revisión</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {sortedQuestions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Añade al menos una pregunta para que el cuestionario se pueda hacer.
+              </p>
+            ) : !checked ? (
+              <p className="text-sm text-muted-foreground">Comprobando las preguntas...</p>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      {issues.length === 0 ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      )}
+                      {issues.length === 0 ? "Todo listo" : "Hay preguntas por completar"}
+                    </span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {readyCount}/{sortedQuestions.length}
+                    </span>
+                  </div>
+                  <Progress
+                    value={(readyCount / sortedQuestions.length) * 100}
+                    className="h-1.5 bg-purple-500/20 [&>div]:bg-purple-500"
+                  />
+                </div>
+
+                {issues.length > 0 && (
+                  <ul className="space-y-1.5">
+                    {issues.map(({ question, number, issue }) => (
+                      <li key={question.id}>
+                        <button
+                          type="button"
+                          onClick={() => focusQuestion(question.id as number)}
+                          className="flex w-full cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60"
+                        >
+                          <span className="mt-0.5 flex h-5 min-w-5 shrink-0 items-center justify-center rounded bg-amber-500/15 px-1 text-xs font-bold tabular-nums text-amber-700 dark:text-amber-300">
+                            {number}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="line-clamp-1 font-medium">{question.text}</span>
+                            <span className="text-xs text-muted-foreground">{issue}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <QuizFormDialog open={editingQuiz} onOpenChange={setEditingQuiz} quiz={quiz} />
+
+      <ConfirmDialog
+        open={deletingQuiz}
+        onOpenChange={setDeletingQuiz}
+        title={`¿Eliminar "${quiz.name}"?`}
+        description="Esta acción no se puede deshacer y eliminará también sus preguntas y opciones."
+        onConfirm={handleDeleteQuiz}
+      />
+    </PageContainer>
   )
 }

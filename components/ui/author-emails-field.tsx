@@ -40,6 +40,9 @@ type AuthorEmailsFieldProps<T extends AuthorsFieldValues> = {
   register: UseFormRegister<T>
   errors?: FieldErrors<AuthorsFieldValues>["authors"]
   idPrefix: string
+  // Ruta de la lista dentro del formulario ("authors" por defecto; p. ej. "items.0.authors"
+  // para los autores propios de un fichero de la cola de subida).
+  name?: string
 }
 
 export function AuthorEmailsField<T extends AuthorsFieldValues>(props: AuthorEmailsFieldProps<T>) {
@@ -47,7 +50,8 @@ export function AuthorEmailsField<T extends AuthorsFieldValues>(props: AuthorEma
   const control = props.control as unknown as Control<AuthorsFieldValues>
   const register = props.register as unknown as UseFormRegister<AuthorsFieldValues>
   const { errors, idPrefix } = props
-  const { fields, append, remove } = useFieldArray({ control, name: "authors" })
+  const name = (props.name ?? "authors") as "authors"
+  const { fields, append, remove } = useFieldArray({ control, name })
 
   return (
     <div className="grid gap-3">
@@ -72,7 +76,7 @@ export function AuthorEmailsField<T extends AuthorsFieldValues>(props: AuthorEma
                 type="email"
                 placeholder={index === 0 ? "autor@ejemplo.com" : "coautor@ejemplo.com"}
                 className="w-full"
-                {...register(`authors.${index}.email`)}
+                {...register(`${name}.${index}.email`)}
               />
               {index > 0 && (
                 <Button

@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { PageContainer } from "@/components/page-shell"
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
@@ -75,7 +76,7 @@ export default function QuizAttemptPage() {
       Math.abs(result.score - result.adjustedScore) > 0.05
 
     return (
-      <div className="p-4 sm:p-8 max-w-2xl mx-auto space-y-6">
+      <PageContainer className="max-w-3xl space-y-6">
         <Card className="overflow-hidden">
           <div className="bg-linear-to-br from-purple-500/20 via-fuchsia-500/10 to-transparent px-6 py-8 text-center dark:from-purple-500/30">
             <p className="text-sm text-muted-foreground">Resultado de &quot;{quiz.name}&quot;</p>
@@ -175,13 +176,13 @@ export default function QuizAttemptPage() {
             </Card>
           )
         })}
-      </div>
+      </PageContainer>
     )
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-2xl mx-auto space-y-6">
-      <div className="sticky top-0 z-10 -mx-4 space-y-2 border-b bg-background/90 px-4 py-3 backdrop-blur sm:-mx-8 sm:px-8">
+    <PageContainer className="max-w-3xl space-y-6">
+      <div className="sticky top-0 z-10 -mx-8 space-y-2 border-b bg-background/90 px-8 py-3 backdrop-blur">
         <div className="flex items-center justify-between gap-3">
           <h1 className="truncate text-lg font-bold sm:text-xl">{quiz.name}</h1>
           <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
@@ -202,7 +203,8 @@ export default function QuizAttemptPage() {
           <CardContent>
             <RadioGroup
               className="gap-2"
-              value={question.id != null && answers[question.id] != null ? String(answers[question.id]) : undefined}
+              // "" (y no undefined) = controlado desde el principio, sin ninguna opción marcada.
+              value={question.id != null && answers[question.id] != null ? String(answers[question.id]) : ""}
               onValueChange={(value) => {
                 if (question.id == null) return
                 setAnswers((prev) => ({ ...prev, [question.id as number]: Number(value) }))
@@ -238,7 +240,7 @@ export default function QuizAttemptPage() {
             ? `Enviar cuestionario (${questions.length - answeredCount} sin responder)`
             : "Enviar cuestionario"}
       </Button>
-    </div>
+    </PageContainer>
   )
 }
 

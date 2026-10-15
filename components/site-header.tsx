@@ -54,7 +54,8 @@ function useCrumbs(pathSegments: string[]): Crumb[] {
 
   const subject = useSubject(subjectId)
   const pdfs = usePdfs(pdfId != null)
-  const quiz = useQuiz(quizId)
+  // En admin (editor de cuestionario) el breadcrumb sigue la URL, pero con el nombre en vez del id.
+  const quiz = useQuiz(isAdmin ? idAfter("quizzes") : quizId)
   const pdf = pdfs.data?.find((p) => p.id === pdfId)
 
   const byUrl = (labelOf: (segment: string, index: number) => string): Crumb[] =>
