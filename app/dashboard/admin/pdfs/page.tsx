@@ -60,7 +60,7 @@ function PdfRow({ pdf, onEdit }: { pdf: PDFDto; onEdit: () => void }) {
   }
 
   return (
-    <TableRow>
+    <TableRow className="hover:bg-transparent">
       <TableCell className="max-w-72">
         <div className="truncate font-medium">{pdf.name}</div>
         <div className="truncate text-xs text-muted-foreground">

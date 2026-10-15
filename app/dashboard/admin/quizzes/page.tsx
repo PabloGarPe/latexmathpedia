@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useRef, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -208,7 +209,7 @@ function QuizRow({ quiz }: { quiz: QuizDto }) {
   }
 
   return (
-    <TableRow>
+    <TableRow className="hover:bg-transparent">
       <TableCell className="font-medium">{quiz.name}</TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
@@ -233,7 +234,7 @@ function QuizRow({ quiz }: { quiz: QuizDto }) {
           <Download className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="sm" className="cursor-pointer" asChild>
-          <a href={`/dashboard/admin/quizzes/${quiz.id}`}>Editar</a>
+          <Link href={`/dashboard/admin/quizzes/${quiz.id}`}>Editar</Link>
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>

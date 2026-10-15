@@ -120,6 +120,15 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Tailwind v4 ya no pone la manita en los botones: todo lo que se pueda pulsar la lleva. Está en
+     la capa base, así que clases como cursor-grab o cursor-help siguen ganando. */
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled),
+  :is([role="button"], [role="tab"], [role="radio"], [role="checkbox"], [role="switch"], [role="option"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]):not([aria-disabled="true"], [data-disabled]) {
+    cursor: pointer;
+  }
 }
 
 /* Estilos específicos para las tarjetas de PDF */
@@ -127,7 +136,7 @@
   @apply transition-all duration-200;
 }
 
-.pdf-card-preview:hover {
+.group:hover .pdf-card-preview {
   @apply transform scale-105;
 }
 

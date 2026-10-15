@@ -146,7 +146,7 @@ export function QuizLeaderboard({ quizId }: { quizId: number }) {
                 {rest.map((entry) => (
                   <li
                     key={entry.userId}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/50"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm"
                   >
                     <span className="w-7 text-center font-semibold tabular-nums text-muted-foreground">
                       {entry.rank}
