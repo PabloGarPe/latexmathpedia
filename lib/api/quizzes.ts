@@ -29,6 +29,24 @@ export async function getPublicQuizzes() {
   return data;
 }
 
+// Hileras del feed. Como en las de PDFs, se comprueba response.ok y no `error`: un cuerpo
+// vacío en un fallo llega como "" (falsy) y la query acabaría con data undefined.
+export async function getRecentQuizzes(limit: number) {
+  const { data, response } = await apiClient.GET("/public/quiz/recent", {
+    params: { query: { limit } },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo cargar la hilera de cuestionarios");
+  return data;
+}
+
+export async function getTopQuizzes(limit: number) {
+  const { data, response } = await apiClient.GET("/public/quiz/top", {
+    params: { query: { limit } },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo cargar la hilera de cuestionarios");
+  return data;
+}
+
 export async function getQuiz(id: number) {
   const { data, error } = await apiClient.GET("/quiz/{id}", {
     params: { path: { id } },

@@ -2,12 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ContentCard from "@/components/content-card";
+import PdfExplorer from "@/components/pdf-explorer";
 import PdfRows from "@/components/pdf-rows";
+import QuizExplorer from "@/components/quiz-explorer";
+import QuizRows from "@/components/quiz-rows";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSearch } from "@/contexts/search-context"; // Importar el contexto de búsqueda
 import { useToast } from "@/hooks/use-toast";
-import { usePdfs, useRecentPdfs, useTopPdfs } from "@/hooks/api/use-pdfs";
-import { usePublicQuizzes } from "@/hooks/api/use-quizzes";
+import { PDF_ROW_LIMIT, usePdfs, useRecentPdfs, useTopPdfs } from "@/hooks/api/use-pdfs";
+import {
+  QUIZ_ROW_LIMIT,
+  usePublicQuizzes,
+  useRecentQuizzes,
+  useTopQuizzes,
+} from "@/hooks/api/use-quizzes";
 import type { BlogPostMeta } from "@/lib/content/posts";
 import { toDisplayPdf, type ContentItem, type DisplayPdf } from "@/lib/content/types";
 import type { QuizDto } from "@/lib/api/quizzes";
@@ -20,18 +28,13 @@ function normalizeText(text: string): string {
     .toLowerCase();
 }
 
-type TabKey = "all" | "pdf" | "quiz" | "blog";
+type TabKey = "pdf" | "quiz" | "blog";
 
 const TAB_LABEL: Record<TabKey, string> = {
-  all: "Todo",
   pdf: "PDFs",
   quiz: "Cuestionarios",
   blog: "Blog",
 };
-
-function itemDate(item: ContentItem): string {
-  return item.kind === "blog" ? item.data.date : (item.data.lastTimeEdited ?? "");
-}
 
 function ContentGrid({
   items,
@@ -68,29 +71,37 @@ function ContentGrid({
 export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
   const toast = useToast();
   const { searchQuery } = useSearch();
-  const [activeTab, setActiveTab] = useState<TabKey>("all");
+  const [activeTab, setActiveTab] = useState<TabKey>("pdf");
 
   const normalizedSearch = normalizeText(searchQuery.trim());
   const isSearching = normalizedSearch !== "";
 
-  // Prioridad de carga: primero las hileras de arriba (Novedades / Lo más visto, ligeras y lo
-  // primero que ve el usuario); el catálogo completo y los cuestionarios, que alimentan la
-  // rejilla de abajo, esperan a que esas dos resuelvan para no competir por las conexiones.
-  // Mismas claves que usa <PdfRows>, así que no se duplican peticiones. Si el usuario busca
-  // o abre otra pestaña, el catálogo hace falta ya y no se espera.
-  const recentQuery = useRecentPdfs();
-  const topQuery = useTopPdfs();
-  const rowsSettled = !recentQuery.isPending && !topQuery.isPending;
-  const catalogEnabled = rowsSettled || isSearching || activeTab !== "all";
+  // Prioridad de carga, por pestaña: primero las hileras de arriba (Novedades / Lo más visto /
+  // Los más hechos, ligeras y lo primero que ve el usuario); el catálogo completo, que
+  // alimenta "Explorar todo", espera a que esas resuelvan para no competir por las
+  // conexiones. Mismas claves que usan <PdfRows>/<QuizRows>, así que no se duplican
+  // peticiones. Solo se pide lo de la pestaña activa. Si el usuario busca, el catálogo hace
+  // falta ya y no se espera.
+  const pdfTab = activeTab === "pdf";
+  const quizTab = activeTab === "quiz";
 
-  // El catálogo es público y solo trae metadatos; el contenido lo pide el visor con sesión.
-  const pdfsQuery = usePdfs(catalogEnabled);
-  // isPending (no isLoading): mientras la query está diferida isLoading es false y la rejilla
-  // enseñaría "sin resultados" en vez del esqueleto.
+  const recentPdfs = useRecentPdfs(PDF_ROW_LIMIT, pdfTab);
+  const topPdfs = useTopPdfs(PDF_ROW_LIMIT, pdfTab);
+  const pdfRowsSettled = !recentPdfs.isPending && !topPdfs.isPending;
+
+  const recentQuizzes = useRecentQuizzes(QUIZ_ROW_LIMIT, quizTab);
+  const topQuizzes = useTopQuizzes(QUIZ_ROW_LIMIT, quizTab);
+  const quizRowsSettled = !recentQuizzes.isPending && !topQuizzes.isPending;
+
+  // El catálogo de PDFs es público y solo trae metadatos; el contenido lo pide el visor con
+  // sesión. isPending (no isLoading): mientras la query está diferida isLoading es false y la
+  // rejilla enseñaría "sin resultados" en vez del esqueleto.
+  const pdfsQuery = usePdfs(pdfTab && (pdfRowsSettled || isSearching));
   const pdfsLoading = pdfsQuery.isPending;
 
   // Mismo endpoint público que usa el catálogo de /dashboard/quizzes, sin depender de auth.
-  const quizzesQuery = usePublicQuizzes(catalogEnabled);
+  const quizzesQuery = usePublicQuizzes(quizTab && (quizRowsSettled || isSearching));
+  const quizzesLoading = quizzesQuery.isPending;
 
   useEffect(() => {
     if (pdfsQuery.error) {
@@ -107,12 +118,13 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
     [pdfsQuery.data],
   );
 
-  const allQuizzes: QuizDto[] = quizzesQuery.data ?? [];
+  const allQuizzes: QuizDto[] = useMemo(() => quizzesQuery.data ?? [], [quizzesQuery.data]);
 
   // El filtro por asignatura/tema del feed general se retiró: la sidebar (nav-subjects.tsx)
   // ahora navega directamente a la ficha de asignatura (/dashboard/subjects/[id]), que ya
   // agrupa PDFs y cuestionarios por tema — no hace falta mantener dos formas de ver lo
-  // mismo. Aquí solo queda la búsqueda como filtro.
+  // mismo. Aquí solo queda la búsqueda como filtro (de la pestaña activa); los cuestionarios
+  // añaden además sus filtros propios dentro de <QuizExplorer>.
   const pdfsToShow = useMemo(() => {
     if (!isSearching) return allPdfs;
     return allPdfs.filter((pdf) =>
@@ -132,50 +144,20 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
     return posts.filter((post) => normalizeText(post.title).includes(normalizedSearch));
   }, [posts, isSearching, normalizedSearch]);
 
-  const allItems: ContentItem[] = useMemo(() => {
-    const items: ContentItem[] = [
-      ...pdfsToShow.map((data) => ({ kind: "pdf" as const, data })),
-      ...quizzesToShow.map((data) => ({ kind: "quiz" as const, data })),
-      ...blogTabToShow.map((data) => ({ kind: "blog" as const, data })),
-    ];
-    return items.sort(
-      (a, b) => new Date(itemDate(b)).getTime() - new Date(itemDate(a)).getTime(),
-    );
-  }, [pdfsToShow, quizzesToShow, blogTabToShow]);
-
-  const pdfItems: ContentItem[] = useMemo(
-    () => pdfsToShow.map((data) => ({ kind: "pdf" as const, data })),
-    [pdfsToShow],
-  );
-  const quizItems: ContentItem[] = useMemo(
-    () => quizzesToShow.map((data) => ({ kind: "quiz" as const, data })),
-    [quizzesToShow],
-  );
   const blogItems: ContentItem[] = useMemo(
     () => blogTabToShow.map((data) => ({ kind: "blog" as const, data })),
     [blogTabToShow],
   );
 
   const countByTab: Record<TabKey, number> = {
-    all: allItems.length,
-    pdf: pdfItems.length,
-    quiz: quizItems.length,
+    pdf: pdfsToShow.length,
+    quiz: quizzesToShow.length,
     blog: blogItems.length,
   };
 
-  const pageTitle = useMemo(() => {
-    if (isSearching) {
-      return `Resultados para: "${searchQuery}" (${countByTab[activeTab]} encontrados)`;
-    }
-    return TAB_LABEL[activeTab];
-  }, [isSearching, searchQuery, activeTab, countByTab]);
-
-  const loadingByTab: Record<TabKey, boolean> = {
-    all: pdfsLoading || quizzesQuery.isPending,
-    pdf: pdfsLoading,
-    quiz: quizzesQuery.isPending,
-    blog: false,
-  };
+  const pageTitle = isSearching
+    ? `Resultados para: "${searchQuery}" (${countByTab[activeTab]} encontrados)`
+    : TAB_LABEL[activeTab];
 
   return (
     <div className="p-8 max-w-325 mx-auto">
@@ -183,45 +165,37 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
         <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
           <h2 className="text-2xl font-bold">{pageTitle}</h2>
           <TabsList>
-            <TabsTrigger value="all">Todo</TabsTrigger>
             <TabsTrigger value="pdf">PDFs</TabsTrigger>
             <TabsTrigger value="quiz">Cuestionarios</TabsTrigger>
             <TabsTrigger value="blog">Blog</TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="all">
-          {/* Hileras solo en la vista general; al buscar se muestran los resultados planos. */}
-          {!isSearching && (
-            <div className="mt-4 space-y-8">
-              <PdfRows />
-              <h3 className="text-xl font-semibold">Explorar todo</h3>
-            </div>
-          )}
-          <ContentGrid
-            items={allItems}
-            isLoading={loadingByTab.all}
-            emptyMessage="No se encontraron resultados para esta categoría"
-          />
-        </TabsContent>
         <TabsContent value="pdf">
-          <ContentGrid
-            items={pdfItems}
-            isLoading={loadingByTab.pdf}
-            emptyMessage="No se encontraron apuntes para esta categoría"
-          />
+          <div className="mt-4 space-y-8">
+            {/* Hileras solo sin búsqueda; al buscar se muestran los resultados planos. */}
+            {!isSearching && <PdfRows />}
+            <PdfExplorer
+              pdfs={pdfsToShow}
+              isLoading={pdfsLoading}
+              emptyMessage="No se encontraron apuntes para esta categoría"
+            />
+          </div>
         </TabsContent>
         <TabsContent value="quiz">
-          <ContentGrid
-            items={quizItems}
-            isLoading={loadingByTab.quiz}
-            emptyMessage="No se encontraron cuestionarios para esta categoría"
-          />
+          <div className="mt-4 space-y-8">
+            {!isSearching && <QuizRows />}
+            <QuizExplorer
+              quizzes={quizzesToShow}
+              isLoading={quizzesLoading}
+              emptyMessage="No se encontraron cuestionarios para esta categoría"
+            />
+          </div>
         </TabsContent>
         <TabsContent value="blog">
           <ContentGrid
             items={blogItems}
-            isLoading={loadingByTab.blog}
+            isLoading={false}
             emptyMessage="No se encontraron artículos"
           />
         </TabsContent>

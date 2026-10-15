@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ListChecks } from "lucide-react";
+import { ArrowRight, ListChecks, Users } from "lucide-react";
 import { QuizDifficultyBadge } from "@/components/ui/quiz-difficulty-badge";
 import type { QuizDto } from "@/lib/api/quizzes";
-import { formatDate } from "@/lib/utils";
+import { formatCompactCount, formatDate } from "@/lib/utils";
 
-// Banda superior decorativa. En el feed ("Todo") la insignia de tipo de ContentCard se
-// superpone sobre su esquina izquierda, así que aquí no se pone nada a la izquierda y el
-// título empieza siempre por debajo de la banda: no hay solapamiento posible.
+// Banda superior decorativa; el título empieza siempre por debajo de ella. Cuenta envíos de
+// todos los usuarios (no personas distintas), de ahí "intentos" en el copy.
 export function QuizCard({ quiz }: { quiz: QuizDto }) {
+  const attempts = quiz.attemptCount ?? 0;
   return (
     <Link href={`/dashboard/quizzes/${quiz.id}`} className="group block h-full">
       <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md">
@@ -44,8 +44,16 @@ export function QuizCard({ quiz }: { quiz: QuizDto }) {
               )}
             </div>
           )}
-          <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
-            <span>{formatDate(quiz.lastTimeEdited)}</span>
+          <div className="flex items-center justify-between gap-3 border-t pt-3 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span>{formatDate(quiz.lastTimeEdited)}</span>
+              <span className="inline-flex items-center gap-1" title={`${attempts} en total`}>
+                <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="tabular-nums">
+                  {formatCompactCount(attempts)} {attempts === 1 ? "intento" : "intentos"}
+                </span>
+              </span>
+            </div>
             <span className="inline-flex items-center gap-1 font-medium text-foreground/70 transition-all group-hover:gap-2 group-hover:text-foreground">
               Empezar
               <ArrowRight className="h-3.5 w-3.5" />

@@ -1622,7 +1622,68 @@
       "get": {
         "tags": ["Cuestionarios públicos"],
         "summary": "Lista todos los cuestionarios",
+        "description": "Incluye el número de intentos (attemptCount) de cada cuestionario",
         "operationId": "getAllQuizzes",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuizDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/quiz/top": {
+      "get": {
+        "tags": ["Cuestionarios públicos"],
+        "summary": "Cuestionarios más hechos en general",
+        "description": "Ordenados de más a menos intentos contando los envíos de todos los usuarios. Solo incluye cuestionarios con al menos un intento. Pensado para la hilera 'Los más hechos'",
+        "operationId": "getMostAttemptedQuizzes",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de cuestionarios a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuizDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/quiz/recent": {
+      "get": {
+        "tags": ["Cuestionarios públicos"],
+        "summary": "Cuestionarios nuevos o actualizados recientemente",
+        "description": "Del más reciente al más antiguo según la fecha de última edición. Pensado para la hilera 'Novedades'",
+        "operationId": "getRecentQuizzes",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de cuestionarios a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -2197,6 +2258,13 @@
             "type": "null",
             "$ref": "#/components/schemas/SubjectUnitDto",
             "description": "Tema al que pertenece el cuestionario"
+          },
+          "attemptCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Número total de veces que se ha hecho el cuestionario (todos los usuarios; cada envío cuenta, aunque sea del mismo usuario). 0 si nadie lo ha hecho",
+            "example": 128,
+            "readOnly": true
           }
         }
       },

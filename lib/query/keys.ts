@@ -20,6 +20,9 @@ export const queryKeys = {
   },
   quizzes: {
     all: () => ["quizzes"] as const,
+    // Hileras del feed (públicas, sin clave por usuario).
+    recent: (limit: number) => ["quizzes", "recent", limit] as const,
+    top: (limit: number) => ["quizzes", "top", limit] as const,
     detail: (quizId: number) => ["quizzes", quizId] as const,
     attempt: (quizId: number) => ["quizzes", quizId, "attempt"] as const,
     questions: (quizId: number) => ["quizzes", quizId, "questions"] as const,
