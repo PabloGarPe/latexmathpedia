@@ -31,12 +31,21 @@ export async function getSubject(id: number) {
   return data;
 }
 
+// El back guarda `position` pero devuelve los temas sin ordenar, así que el orden se aplica
+// aquí: así lo ven igual la ficha, la barra lateral y los selectores. Con la misma posición
+// (p. ej. temas antiguos, todos a 0) manda el id, que es el orden de creación.
+export function sortUnits<T extends { id?: number; position?: number }>(units: T[]): T[] {
+  return [...units].sort(
+    (a, b) => (a.position ?? 0) - (b.position ?? 0) || (a.id ?? 0) - (b.id ?? 0),
+  );
+}
+
 export async function getSubjectUnits(subjectId: number) {
   const { data, error } = await apiClient.GET("/public/subject/{id}/units", {
     params: { path: { id: subjectId } },
   });
   if (error) throw error;
-  return data;
+  return sortUnits(data ?? []);
 }
 
 export async function getSubjectPdfs(subjectId: number) {

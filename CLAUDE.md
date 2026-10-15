@@ -28,6 +28,7 @@ Puntos clave a tener presente:
 - Los DTOs son **camelCase y planos** (`PDFDto`, `SubjectDto`, `QuizDto`…).
 - Auth: dos modos por `NEXT_PUBLIC_AUTH_MODE` (`mock` por defecto, `keycloak` para producción/real) detrás de la misma interfaz `useAuth()` — ver `contexts/auth-context.tsx`.
 - Las pantallas de Keycloak (login/registro/recuperar contraseña) se ven con un tema propio que vive en el **repo del backend** (`keycloak/themes/mathtexpedia`, solo CSS + textos; copia los tokens de `app/globals.css` y `public/logo.png`, así que si cambia el diseño hay que actualizarlo allí). El frontend sigue redirigiendo a Keycloak: no hay formularios de credenciales propios.
+- Gestión de contenido del admin: **"Modo edición"** sobre las vistas normales (asignaturas, temas, PDFs, cuestionarios; ver `UI-RESTRUCTURE.md` §7), más las vistas globales `/dashboard/admin/pdfs` y `/dashboard/admin/quizzes`. No hay página aparte de asignaturas.
 - La categorización usa las entidades **Subject / SubjectUnit** del backend (no tags hardcodeados).
 - Peticiones de mejora/aclaración al backend no se documentan en este repo: se abren como issues en `PabloGarPe/mathtexpedia-backend`.
 

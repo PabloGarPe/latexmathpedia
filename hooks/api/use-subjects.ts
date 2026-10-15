@@ -12,8 +12,10 @@ import {
   getSubjects,
   getSubjectUnits,
   updateSubject,
+  sortUnits,
   updateSubjectUnit,
   type CreateSubjectDto,
+  type SubjectUnitDto,
   type CreateSubjectUnitDto,
   type UpdateSubjectDto,
   type UpdateSubjectUnitDto,
@@ -132,6 +134,39 @@ export function useDeleteSubjectUnit() {
       queryClient.invalidateQueries({ queryKey: queryKeys.subjects.units(variables.subjectId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.pdfs.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.quizzes.all() });
+    },
+  });
+}
+
+// Reordenar temas tras arrastrar: `units` es el orden final. Solo se escriben los que cambian
+// de posición (1..N; el back no exige que sean únicas ni consecutivas). Optimista: la lista se
+// recoloca al soltar y vuelve atrás si algún PUT falla.
+export function useReorderSubjectUnits() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ units }: { subjectId: number; units: SubjectUnitDto[] }) =>
+      Promise.all(
+        units.flatMap((unit, index) =>
+          unit.id != null && unit.position !== index + 1
+            ? [updateSubjectUnit(unit.id, { name: unit.name ?? "", position: index + 1 })]
+            : [],
+        ),
+      ),
+    onMutate: async ({ subjectId, units }) => {
+      const key = queryKeys.subjects.units(subjectId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<SubjectUnitDto[]>(key);
+      queryClient.setQueryData<SubjectUnitDto[]>(
+        key,
+        sortUnits(units.map((unit, index) => ({ ...unit, position: index + 1 }))),
+      );
+      return { previous };
+    },
+    onError: (_error, variables, context) => {
+      queryClient.setQueryData(queryKeys.subjects.units(variables.subjectId), context?.previous);
+    },
+    onSettled: (_data, _error, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.units(variables.subjectId) });
     },
   });
 }

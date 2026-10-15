@@ -8,6 +8,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { SearchProvider } from "@/contexts/search-context"
+import { EditModeProvider } from "@/contexts/edit-mode-context"
 import { ChatWidget } from "@/components/chat-widget"
 
 export const iframeHeight = "800px"
@@ -18,21 +19,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="[--header-height:calc(--spacing(14))]">
       <SearchProvider>
-        <SidebarProvider className="flex flex-col min-h-screen">
-          <SiteHeader />
-          <div className="flex flex-1">
-            <AppSidebar />
-            {/* min-w-0: un hijo flex no baja de su ancho de contenido (min-width: auto), así que
-                con el menú abierto y la ventana estrecha el contenido (rejilla, carruseles de
-                PDFs) ensanchaba toda la página en vez de ajustarse al hueco junto a la barra. */}
-            <SidebarInset className="flex min-w-0 flex-col">
-              <div className="min-w-0 flex-1">
-                {children}
-              </div>
-              <MainFooter />
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
+        <EditModeProvider>
+          <SidebarProvider className="flex flex-col min-h-screen">
+            <SiteHeader />
+            <div className="flex flex-1">
+              <AppSidebar />
+              {/* min-w-0: un hijo flex no baja de su ancho de contenido (min-width: auto), así que
+                  con el menú abierto y la ventana estrecha el contenido (rejilla, carruseles de
+                  PDFs) ensanchaba toda la página en vez de ajustarse al hueco junto a la barra. */}
+              <SidebarInset className="flex min-w-0 flex-col">
+                <div className="min-w-0 flex-1">
+                  {children}
+                </div>
+                <MainFooter />
+              </SidebarInset>
+            </div>
+          </SidebarProvider>
+        </EditModeProvider>
 
         <ChatWidget />
       </SearchProvider>
