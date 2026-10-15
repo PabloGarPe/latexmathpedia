@@ -63,7 +63,7 @@ export default function PdfViewerPage() {
         )}
         <h1 className="text-2xl font-bold tracking-tight">{pdf?.name ?? "Documento"}</h1>
         {authors && <p className="text-sm text-muted-foreground">Por {authors}</p>}
-        {pdf?.description && <p className="text-muted-foreground">{pdf.description}</p>}
+        {pdf?.description && <p className="line-clamp-2 text-muted-foreground">{pdf.description}</p>}
       </header>
 
       {isError ? (
@@ -73,7 +73,12 @@ export default function PdfViewerPage() {
       ) : isLoading || !content ? (
         <div className="h-[70vh] animate-pulse rounded-md bg-muted" />
       ) : (
-        <PdfViewer data={content} />
+        <PdfViewer
+          data={content}
+          // Cabecera del dashboard + título/autores de arriba: el visor ocupa el resto de la
+          // ventana para que el scroll vertical quede dentro de él.
+          className="h-[calc(100dvh-var(--header-height)-14rem)]"
+        />
       )}
     </div>
   )
