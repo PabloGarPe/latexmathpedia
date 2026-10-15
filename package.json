@@ -53,7 +53,7 @@
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.4",
     "@tanstack/react-query-devtools": "^5.104.0",
-    "@types/node": "^25",
+    "@types/node": "^26",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "baseline-browser-mapping": "^2.11.26",
