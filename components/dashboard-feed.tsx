@@ -129,7 +129,7 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
   const pdfsToShow = useMemo(() => {
     if (!isSearching) return allPdfs;
     return allPdfs.filter((pdf) =>
-      [pdf.title, pdf.author ?? "", ...pdf.coauthors].some((text) =>
+      [pdf.title, ...pdf.authors.map((author) => author.username ?? "")].some((text) =>
         normalizeText(text).includes(normalizedSearch),
       ),
     );

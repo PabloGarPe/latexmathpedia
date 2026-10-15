@@ -35,6 +35,9 @@ type AuthContextValue = {
   isAdmin: boolean;
   email: string;
   displayName: string;
+  // given_name / family_name de Keycloak, solo para precargar el formulario de perfil (en mock, undefined).
+  givenName?: string;
+  familyName?: string;
   accessToken?: string;
   login: (options?: LoginOptions) => Promise<void>;
   register: (options?: Pick<LoginOptions, 'redirectTo'>) => Promise<void>;
@@ -253,10 +256,12 @@ function KeycloakAuthState({ children }: PropsWithChildren) {
   const isAdmin = isAuthenticated && (session?.isAdmin ?? false);
   const email = isAuthenticated ? session?.user?.email ?? '' : '';
   const displayName = isAuthenticated ? session?.user?.name ?? '' : '';
+  const givenName = isAuthenticated ? session?.givenName : undefined;
+  const familyName = isAuthenticated ? session?.familyName : undefined;
   const loading = status === 'loading';
 
   // Al iniciar sesión o registrarse, asegura que exista el UserAccount en el backend
-  useSyncUserAccount(isAuthenticated ? email || undefined : undefined, displayName);
+  useSyncUserAccount(isAuthenticated ? email || undefined : undefined);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -265,6 +270,8 @@ function KeycloakAuthState({ children }: PropsWithChildren) {
       isAdmin,
       email,
       displayName,
+      givenName,
+      familyName,
       accessToken,
       login,
       register,
@@ -279,6 +286,8 @@ function KeycloakAuthState({ children }: PropsWithChildren) {
       isAdmin,
       email,
       displayName,
+      givenName,
+      familyName,
       accessToken,
       login,
       register,

@@ -42,6 +42,15 @@ export async function getMyTopPdfs(limit: number) {
   return data;
 }
 
+// Como getRecentPdfs pero solo de las asignaturas suscritas (requiere JWT); [] sin suscripciones.
+export async function getRecentSubscribedPdfs(limit: number) {
+  const { data, response } = await apiClient.GET("/pdf/recent/subscribed", {
+    params: { query: { limit } },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo cargar la hilera de PDFs");
+  return data;
+}
+
 // Binario del PDF (application/pdf), servido por el back desde S3 sin exponer la URL.
 // Requiere JWT: lo añade el middleware de apiClient.
 export async function getPdfContent(pdfId: number) {

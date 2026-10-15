@@ -3,16 +3,30 @@
 import { Flame, Sparkles } from "lucide-react";
 import FeedRow from "@/components/feed-row";
 import { QuizCard } from "@/components/quiz-card";
-import { useRecentQuizzes, useTopQuizzes } from "@/hooks/api/use-quizzes";
+import { SubscribedFeedRow } from "@/components/subscriptions/subscribed-feed-row";
+import { useAuth } from "@/contexts/auth-context";
+import { useRecentQuizzes, useRecentSubscribedQuizzes, useTopQuizzes } from "@/hooks/api/use-quizzes";
 
-// Orden fijo: Novedades, Los más hechos. Ambas son públicas (sin hilera personal) y cada una
+function SubscribedRow() {
+  return (
+    <SubscribedFeedRow
+      query={useRecentSubscribedQuizzes()}
+      getKey={(quiz, index) => quiz.id ?? index}
+      renderItem={(quiz) => <QuizCard quiz={quiz} />}
+    />
+  );
+}
+
+// Orden fijo: Novedades de mis asignaturas (solo con sesión), Novedades, Los más hechos. Cada una
 // es su propia query, así que cargan y fallan por separado. "Los más hechos" llega vacía
 // hasta el primer intento y entonces se oculta sola.
 export function QuizRows() {
+  const { isAuthenticated } = useAuth();
   const recent = useRecentQuizzes();
   const top = useTopQuizzes();
   return (
     <div className="space-y-8">
+      {isAuthenticated && <SubscribedRow />}
       <FeedRow
         title="Novedades"
         icon={Sparkles}

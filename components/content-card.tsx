@@ -18,7 +18,7 @@ export function ContentCard({ item, actions }: { item: ContentItem; actions?: Re
           date={formatDate(item.data.lastTimeEdited)}
           subjectName={item.data.subjectName}
           subjectUnitName={item.data.subjectUnitName}
-          authors={formatPdfAuthors(item.data.author, item.data.coauthors)}
+          authors={formatPdfAuthors(item.data.authors)}
           viewCount={item.data.viewCount}
         />
       )}

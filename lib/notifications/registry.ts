@@ -62,7 +62,7 @@ export function channelMeta(channel: string) {
 }
 
 const SCOPES: Record<string, string> = {
-  ALL: "Todo",
+  ALL: "Todas las asignaturas",
   SUBSCRIBED: "Solo mis asignaturas",
 }
 

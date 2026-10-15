@@ -12,6 +12,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { UserAvatar } from "@/components/user-avatar"
 import { useQuizLeaderboard } from "@/hooks/api/use-quizzes"
 import type { LeaderboardEntryDto } from "@/lib/api/quizzes"
 import { cn } from "@/lib/utils"
@@ -43,6 +44,15 @@ const PODIUM_STYLE: Record<
   },
 }
 
+const entryName = (entry: LeaderboardEntryDto) => entry.username?.trim() || "Usuario sin perfil"
+
+const avatarOf = (entry: LeaderboardEntryDto) => ({
+  id: entry.userId,
+  username: entry.username,
+  hasAvatar: entry.hasAvatar,
+  avatarUpdatedAt: entry.avatarUpdatedAt,
+})
+
 function formatScore(score?: number) {
   return score != null ? score.toFixed(1) : "-"
 }
@@ -57,18 +67,17 @@ function PodiumPlace({ entry, place }: { entry: LeaderboardEntryDto; place: 1 | 
           aria-label="Primer puesto"
         />
       )}
-      <div
+      <UserAvatar
+        user={avatarOf(entry)}
         className={cn(
-          "flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold ring-4",
+          "h-12 w-12 text-lg font-bold ring-4",
           style.medal,
           style.ring,
           place === 1 && "h-14 w-14 text-xl",
         )}
-      >
-        {(entry.username ?? "?").charAt(0).toUpperCase()}
-      </div>
-      <p className="mt-2 w-full truncate text-center text-sm font-semibold" title={entry.username}>
-        {entry.username}
+      />
+      <p className="mt-2 w-full truncate text-center text-sm font-semibold" title={entryName(entry)}>
+        {entryName(entry)}
       </p>
       <p className="text-xs text-muted-foreground">{formatScore(entry.bestAdjustedScore)} / 10</p>
       <div
@@ -151,10 +160,8 @@ export function QuizLeaderboard({ quizId }: { quizId: number }) {
                     <span className="w-7 text-center font-semibold tabular-nums text-muted-foreground">
                       {entry.rank}
                     </span>
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                      {(entry.username ?? "?").charAt(0).toUpperCase()}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate font-medium">{entry.username}</span>
+                    <UserAvatar user={avatarOf(entry)} className="h-7 w-7 text-xs" />
+                    <span className="min-w-0 flex-1 truncate font-medium">{entryName(entry)}</span>
                     <span className="font-semibold tabular-nums">{formatScore(entry.bestAdjustedScore)}</span>
                   </li>
                 ))}

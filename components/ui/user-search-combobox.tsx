@@ -5,12 +5,37 @@ import { AlertCircle, Loader2, Plus, Search, UserSearch } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { Skeleton } from "@/components/ui/skeleton"
+import { UserAvatar } from "@/components/user-avatar"
 import { useUserSearch } from "@/hooks/api/use-users"
 import { USER_SEARCH_MIN_CHARS } from "@/lib/api/users"
 import { cn } from "@/lib/utils"
 
-// Un usuario elegible: el email es lo que se envía al back; el nombre es solo para pintarlo.
-export type UserOption = { email: string; name?: string | null }
+// Un usuario elegible: el email es lo que se envía al back; el resto (lo que devuelve
+// GET /users/search) es solo para pintarlo. Sin username = no ha completado el perfil.
+export type UserOption = {
+  email: string
+  id?: number | null
+  username?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  hasAvatar?: boolean | null
+  avatarUpdatedAt?: string | null
+}
+
+export const fullNameOf = (user: Pick<UserOption, "firstName" | "lastName">) =>
+  [user.firstName, user.lastName]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ")
+
+// Cómo se rotula a un usuario en las vistas del admin. Aquí sí se permite el email (es el
+// buscador del admin y es lo que se envía): principal = username (o el email si no tiene
+// perfil); secundario = "Nombre Apellidos" y el email cuando no es ya el principal.
+export function describeUser(user: UserOption) {
+  const username = user.username?.trim()
+  const secondary = [fullNameOf(user), username ? user.email : ""].filter(Boolean).join(" · ")
+  return { primary: username || user.email, secondary: secondary || null }
+}
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -37,34 +62,6 @@ function Highlight({ text, term }: { text: string; term: string }) {
   )
 }
 
-// Un color estable por persona, para reconocerla de un vistazo (clases completas: Tailwind las
-// necesita escritas tal cual).
-const AVATAR_TONES = [
-  "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-  "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-  "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-  "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
-]
-
-export function UserAvatar({ author, className }: { author: UserOption; className?: string }) {
-  const label = (author.name?.trim() || author.email).charAt(0).toUpperCase()
-  const hash = [...author.email].reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
-        AVATAR_TONES[hash % AVATAR_TONES.length],
-        className,
-      )}
-    >
-      {label}
-    </span>
-  )
-}
-
 type Suggestion = UserOption & { manual?: boolean }
 
 // Buscador de usuarios registrados (GET /users/search, solo admin) con desplegable de
@@ -76,7 +73,7 @@ export function UserSearchCombobox({
   taken,
   onSelect,
   invalid,
-  placeholder = "Buscar por nombre o email…",
+  placeholder = "Buscar por usuario, nombre o email…",
 }: {
   id: string
   taken: ReadonlySet<string>
@@ -95,14 +92,21 @@ export function UserSearchCombobox({
 
   const results: Suggestion[] = (search.data ?? [])
     .filter((user) => user.email && !taken.has(user.email.toLowerCase()))
-    .map((user) => ({ email: user.email as string, name: user.name }))
+    .map((user) => ({
+      email: user.email as string,
+      id: user.id,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      hasAvatar: user.hasAvatar,
+    }))
   const hiddenByTaken = (search.data?.length ?? 0) - results.length
 
   // Si el buscador falla (sin conexión, sin permisos…) se deja añadir un email escrito a mano:
   // el back lo validará al guardar.
   const manual: Suggestion[] =
     search.isError && EMAIL_PATTERN.test(term) && !taken.has(term.toLowerCase())
-      ? [{ email: term, name: null, manual: true }]
+      ? [{ email: term, manual: true }]
       : []
   const options = manual.length > 0 ? manual : results
 
@@ -111,7 +115,8 @@ export function UserSearchCombobox({
   const showSkeleton = search.canSearch && busy && !search.data
 
   const add = (option: Suggestion) => {
-    onSelect({ email: option.email.trim(), name: option.name ?? null })
+    const { manual: _manual, ...user } = option
+    onSelect({ ...user, email: option.email.trim() })
     setText("")
     setActiveEmail(null)
     setOpen(false)
@@ -180,7 +185,7 @@ export function UserSearchCombobox({
         <div id={listId} role="listbox" aria-label="Usuarios encontrados" className="max-h-64 overflow-y-auto">
           {!search.canSearch ? (
             <Hint icon={UserSearch}>
-              Escribe al menos {USER_SEARCH_MIN_CHARS} letras del nombre o del email.
+              Escribe al menos {USER_SEARCH_MIN_CHARS} letras del usuario, el nombre o el email.
             </Hint>
           ) : showSkeleton ? (
             <div className="space-y-1 p-1" aria-label="Buscando…">
@@ -221,7 +226,7 @@ export function UserSearchCombobox({
                     index === activeIndex && "bg-accent",
                   )}
                 >
-                  <UserAvatar author={option} />
+                  <UserAvatar user={option} fallbackLabel={option.email} />
                   <div className="min-w-0 flex-1">
                     {option.manual ? (
                       <>
@@ -231,11 +236,13 @@ export function UserSearchCombobox({
                     ) : (
                       <>
                         <p className="truncate text-sm font-medium">
-                          <Highlight text={option.name || option.email} term={term} />
+                          <Highlight text={option.username?.trim() || option.email} term={term} />
                         </p>
-                        {option.name && (
+                        {(fullNameOf(option) || option.username?.trim()) && (
                           <p className="truncate text-xs text-muted-foreground">
-                            <Highlight text={option.email} term={term} />
+                            {fullNameOf(option) && <Highlight text={fullNameOf(option)} term={term} />}
+                            {fullNameOf(option) && option.username?.trim() && " · "}
+                            {option.username?.trim() && <Highlight text={option.email} term={term} />}
                           </p>
                         )}
                       </>

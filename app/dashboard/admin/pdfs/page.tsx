@@ -47,7 +47,7 @@ const SORTERS: Record<SortKey, (a: PDFDto, b: PDFDto) => number> = {
 function PdfRow({ pdf, onEdit }: { pdf: PDFDto; onEdit: () => void }) {
   const toast = useToast()
   const deletePdf = useDeletePdf()
-  const authors = formatPdfAuthors(pdf.author, pdf.coauthors)
+  const authors = formatPdfAuthors(pdf.authors)
 
   const handleDelete = async () => {
     if (pdf.id == null) return
@@ -134,8 +134,7 @@ export default function AdminPdfsPage() {
         return (
           pdf.name?.toLowerCase().includes(term) ||
           pdf.description?.toLowerCase().includes(term) ||
-          pdf.author?.toLowerCase().includes(term) ||
-          pdf.coauthors?.some((coauthor) => coauthor?.toLowerCase().includes(term))
+          pdf.authors?.some((author) => author.username?.toLowerCase().includes(term))
         )
       })
       .sort(SORTERS[sort])

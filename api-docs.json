@@ -56,6 +56,10 @@
       "description": "Envío de correos en nombre del usuario autenticado"
     },
     {
+      "name": "Perfil",
+      "description": "Fotos de perfil de los usuarios. Requiere JWT, no requiere rol ADMIN"
+    },
+    {
       "name": "Subjects",
       "description": "Gestión de asignaturas y temas (crear/borrar/actualizar requiere rol ADMIN; consultar cuestionarios requiere autenticación)"
     },
@@ -66,6 +70,10 @@
     {
       "name": "Chatbot",
       "description": "Asistente conversacional sobre el contenido de Mathtexpedia"
+    },
+    {
+      "name": "Suscripciones",
+      "description": "Asignaturas a las que está suscrito el usuario autenticado. Requiere JWT, no requiere rol ADMIN"
     }
   ],
   "paths": {
@@ -548,7 +556,7 @@
       "put": {
         "tags": ["Perfil"],
         "summary": "Actualiza el perfil del usuario autenticado",
-        "description": "La primera actualización marca el perfil como completado",
+        "description": "Sustituye todos los datos del perfil: el username es obligatorio y los demás campos, opcionales; uno que no se envíe (o venga en blanco) se borra. El primer guardado marca el perfil como completado. No toca la foto de perfil",
         "operationId": "updateMe",
         "requestBody": {
           "content": {
@@ -568,7 +576,168 @@
             }
           },
           "400": {
-            "description": "Datos de entrada inválidos",
+            "description": "Datos de entrada inválidos (username vacío o con formato incorrecto, campos demasiado largos)",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          },
+          "409": {
+            "description": "El username ya lo usa otro usuario (sin distinguir mayúsculas)",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/subscriptions/{subjectId}": {
+      "put": {
+        "tags": ["Suscripciones"],
+        "summary": "Me suscribo a una asignatura",
+        "description": "Idempotente: si ya estaba suscrito devuelve la suscripción existente con 200",
+        "operationId": "subscribe",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID de la asignatura",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suscripción activa",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ninguna asignatura con ese ID",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Suscripciones"],
+        "summary": "Me doy de baja de una asignatura",
+        "description": "Idempotente: devuelve 204 también si no estaba suscrito",
+        "operationId": "unsubscribe",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID de la asignatura",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "El usuario ya no está suscrito a la asignatura"
+          },
+          "401": { "description": "No autenticado" }
+        }
+      }
+    },
+    "/me/avatar": {
+      "put": {
+        "tags": ["Perfil"],
+        "summary": "Sube o cambia mi foto de perfil",
+        "description": "multipart/form-data con la parte 'file': imagen JPEG o PNG de hasta 2 MB y al menos 64x64 píxeles. Se recorta a cuadrado, se reduce a 256 px como máximo y se guarda como JPEG; la imagen original no se conserva. Sustituye a la anterior. Devuelve el perfil actualizado (con hasAvatar y avatarUpdatedAt)",
+        "operationId": "updateAvatar",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Imagen JPEG o PNG"
+                  }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Foto guardada",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          },
+          "400": {
+            "description": "Falta el fichero, no es JPEG/PNG, está corrupto, pesa más de 2 MB o no cumple el tamaño mínimo/máximo en píxeles",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          },
+          "413": {
+            "description": "La petición supera el límite de subida del servidor",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Perfil"],
+        "summary": "Elimina mi foto de perfil",
+        "description": "Idempotente: si no tenía foto no hace nada. Devuelve el perfil actualizado",
+        "operationId": "deleteAvatar",
+        "responses": {
+          "200": {
+            "description": "Foto eliminada (o no existía)",
             "content": {
               "*/*": {
                 "schema": { "$ref": "#/components/schemas/UserAccountDto" }
@@ -1215,6 +1384,48 @@
         }
       }
     },
+    "/users/{userId}/avatar": {
+      "get": {
+        "tags": ["Perfil"],
+        "summary": "Foto de perfil de un usuario",
+        "description": "Imagen JPEG cuadrada de hasta 256 px. Solo para usuarios autenticados: al llevar el token en cabecera no sirve como 'src' directo de una etiqueta img, hay que pedirla con fetch y mostrarla como blob. Admite If-None-Match (ETag derivado de avatarUpdatedAt): responde 304 sin cuerpo si no ha cambiado",
+        "operationId": "getAvatar",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "Identificador interno del usuario",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" },
+            "example": 42
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Imagen JPEG",
+            "content": { "image/jpeg": {} }
+          },
+          "304": {
+            "description": "La foto no ha cambiado desde la versión indicada en If-None-Match",
+            "content": {
+              "image/jpeg": { "schema": { "type": "string", "format": "byte" } }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "image/jpeg": { "schema": { "type": "string", "format": "byte" } }
+            }
+          },
+          "404": {
+            "description": "El usuario no existe, está inactivo o no tiene foto",
+            "content": {
+              "image/jpeg": { "schema": { "type": "string", "format": "byte" } }
+            }
+          }
+        }
+      }
+    },
     "/users/search": {
       "get": {
         "tags": ["Usuarios"],
@@ -1708,6 +1919,47 @@
             "content": {
               "*/*": {
                 "schema": { "$ref": "#/components/schemas/QuizForAttemptDto" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quiz/recent/subscribed": {
+      "get": {
+        "tags": ["Quiz"],
+        "summary": "Cuestionarios nuevos o actualizados de las asignaturas a las que estoy suscrito",
+        "description": "Como GET /public/quiz/recent pero solo de las asignaturas suscritas, del más reciente al más antiguo. Lista vacía si el usuario no tiene suscripciones. Los ocultos solo se incluyen para administradores",
+        "operationId": "getRecentSubscribedQuizzes",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de cuestionarios a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de cuestionarios (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuizDto" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuizDto" }
+                }
               }
             }
           }
@@ -2211,6 +2463,47 @@
         }
       }
     },
+    "/pdf/recent/subscribed": {
+      "get": {
+        "tags": ["PDFs"],
+        "summary": "PDFs nuevos o actualizados de las asignaturas a las que estoy suscrito",
+        "description": "Como GET /public/pdf/recent pero solo de las asignaturas suscritas, del más reciente al más antiguo. Lista vacía si el usuario no tiene suscripciones",
+        "operationId": "getRecentSubscribedPDFs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de PDFs a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de PDFs (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PDFDto" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PDFDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/option/{id}": {
       "get": {
         "tags": ["Option"],
@@ -2317,6 +2610,42 @@
             "content": {
               "*/*": {
                 "schema": { "$ref": "#/components/schemas/UnreadCountDto" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/subscriptions": {
+      "get": {
+        "tags": ["Suscripciones"],
+        "summary": "Lista las asignaturas a las que estoy suscrito",
+        "description": "Ordenadas por nombre de asignatura. Lista vacía si no hay ninguna suscripción",
+        "operationId": "getMySubscriptions",
+        "responses": {
+          "200": {
+            "description": "Suscripciones del usuario (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                  }
+                }
               }
             }
           }
@@ -2818,6 +3147,31 @@
         },
         "required": ["authorEmails", "name", "subjectId"]
       },
+      "AuthorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identificador interno del usuario; sirve para pedir su foto en GET /users/{id}/avatar",
+            "example": 42
+          },
+          "username": {
+            "type": ["string", "null"],
+            "description": "Nombre público. Nulo si el usuario aún no ha completado su perfil",
+            "example": "ada_lovelace"
+          },
+          "hasAvatar": {
+            "type": "boolean",
+            "description": "Si tiene foto de perfil"
+          },
+          "avatarUpdatedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Versión de la foto (cuándo se cambió); clave de caché. Nulo si no tiene"
+          }
+        }
+      },
       "PDFDto": {
         "type": "object",
         "properties": {
@@ -2829,14 +3183,18 @@
           "subjectUnit": { "$ref": "#/components/schemas/SubjectUnitDto" },
           "author": {
             "type": ["string", "null"],
-            "description": "Nombre del autor principal. Nulo en PDFs antiguos que aún no tienen autores asignados",
-            "example": "Ada Lovelace"
+            "description": "Nombre público (username) del autor principal. Nulo en PDFs antiguos que aún no tienen autores asignados o si el autor no ha completado su perfil",
+            "example": "ada_lovelace"
           },
           "coauthors": {
             "type": "array",
-            "description": "Nombres de los coautores, en el orden en que se indicaron. Vacío si no hay coautores",
-            "example": ["Alan Turing"],
-            "items": { "type": "string" }
+            "description": "Nombres públicos de los coautores, en el orden en que se indicaron. Vacío si no hay coautores. Un coautor sin perfil completo aparece como nulo",
+            "items": { "type": ["string", "null"] }
+          },
+          "authors": {
+            "type": "array",
+            "description": "Autores con su identificador y marca de foto de perfil: el primero es el principal, el resto coautores, en el mismo orden que 'author' y 'coauthors'. Vacío en PDFs antiguos sin autores",
+            "items": { "$ref": "#/components/schemas/AuthorDto" }
           },
           "viewCount": {
             "type": "integer",
@@ -2903,6 +3261,7 @@
               "PDF_FILE_UPDATED",
               "QUIZ_PUBLISHED",
               "SUBJECT_CREATED",
+              "SUBJECT_UNIT_CREATED",
               "PDF_AUTHOR_ADDED",
               "WELCOME",
               "ANNOUNCEMENT"
@@ -2922,7 +3281,7 @@
           "scope": {
             "type": ["string", "null"],
             "description": "Alcance (opcional; debe estar entre los admitidos por el tipo). Si no se indica se mantiene el actual",
-            "enum": ["ALL"],
+            "enum": ["ALL", "SUBSCRIBED"],
             "example": "ALL"
           }
         },
@@ -2951,6 +3310,7 @@
               "PDF_FILE_UPDATED",
               "QUIZ_PUBLISHED",
               "SUBJECT_CREATED",
+              "SUBJECT_UNIT_CREATED",
               "PDF_AUTHOR_ADDED",
               "WELCOME",
               "ANNOUNCEMENT"
@@ -2990,13 +3350,13 @@
           "scope": {
             "type": ["string", "null"],
             "description": "Alcance elegido. Nulo si el tipo no admite alcances",
-            "enum": ["ALL"],
+            "enum": ["ALL", "SUBSCRIBED"],
             "example": "ALL"
           },
           "availableScopes": {
             "type": "array",
             "description": "Alcances que admite el tipo. Si solo hay uno no hace falta mostrar selector",
-            "items": { "type": "string", "enum": ["ALL"] },
+            "items": { "type": "string", "enum": ["ALL", "SUBSCRIBED"] },
             "uniqueItems": true
           }
         }
@@ -3004,14 +3364,49 @@
       "UpdateUserAccountDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "username": {
             "type": "string",
-            "description": "Nombre del usuario",
-            "example": "Pedro1234",
-            "minLength": 1
+            "description": "Nombre público que se muestra en la aplicación (apuntes, búsquedas…). Obligatorio, único sin distinguir mayúsculas, de 3 a 30 caracteres entre letras sin tilde, números, punto, guion y guion bajo",
+            "example": "ada_lovelace",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]{3,30}$"
+          },
+          "firstName": {
+            "type": ["string", "null"],
+            "description": "Nombre de pila (opcional). Nulo o vacío lo borra",
+            "example": "Ada",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "lastName": {
+            "type": ["string", "null"],
+            "description": "Apellidos (opcional). Nulo o vacío lo borra",
+            "example": "Lovelace",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "bio": {
+            "type": ["string", "null"],
+            "description": "Biografía corta (opcional, máx. 280 caracteres). Nulo o vacío la borra",
+            "maxLength": 280,
+            "minLength": 0
+          },
+          "university": {
+            "type": ["string", "null"],
+            "description": "Universidad o centro de estudios (opcional). Nulo o vacío lo borra",
+            "example": "Universidad de Sevilla",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "studies": {
+            "type": ["string", "null"],
+            "description": "Estudios que cursa (opcional). Nulo o vacío lo borra",
+            "example": "Grado en Matemáticas",
+            "maxLength": 150,
+            "minLength": 0
           }
         },
-        "required": ["name"]
+        "required": ["username"]
       },
       "UserAccountDto": {
         "type": "object",
@@ -3027,10 +3422,43 @@
             "description": "Email del usuario",
             "example": "user@example.com"
           },
-          "name": {
-            "type": "string",
-            "description": "Nombre del usuario",
-            "example": "John Doe"
+          "username": {
+            "type": ["string", "null"],
+            "description": "Nombre público del usuario. Nulo hasta que completa el perfil",
+            "example": "ada_lovelace"
+          },
+          "firstName": {
+            "type": ["string", "null"],
+            "description": "Nombre de pila",
+            "example": "Ada"
+          },
+          "lastName": {
+            "type": ["string", "null"],
+            "description": "Apellidos",
+            "example": "Lovelace"
+          },
+          "bio": {
+            "type": ["string", "null"],
+            "description": "Biografía corta"
+          },
+          "university": {
+            "type": ["string", "null"],
+            "description": "Universidad o centro de estudios",
+            "example": "Universidad de Sevilla"
+          },
+          "studies": {
+            "type": ["string", "null"],
+            "description": "Estudios que cursa",
+            "example": "Grado en Matemáticas"
+          },
+          "hasAvatar": {
+            "type": "boolean",
+            "description": "Si el usuario tiene foto de perfil. Se descarga de GET /users/{id}/avatar"
+          },
+          "avatarUpdatedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Cuándo se cambió la foto por última vez; nulo si no tiene. Úsalo como clave de caché de la imagen"
           },
           "status": {
             "type": "string",
@@ -3050,9 +3478,23 @@
             "description": "Fecha del último acceso del usuario"
           },
           "profileCompletedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Fecha en que se completó el perfil (se fija al guardar por primera vez un nombre de usuario). Nulo = el perfil está por completar y el front debe pedirlo"
+          }
+        }
+      },
+      "SubjectSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/SubjectDto",
+            "description": "Asignatura a la que está suscrito el usuario"
+          },
+          "subscribedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Fecha de finalización del perfil del usuario"
+            "description": "Cuándo se suscribió"
           }
         }
       },
@@ -3543,15 +3985,29 @@
             "description": "Identificador interno del usuario. Útil como clave en la lista y para excluir del lado del cliente a los ya seleccionados",
             "example": 42
           },
-          "name": {
+          "username": {
             "type": ["string", "null"],
-            "description": "Nombre del usuario. Nulo si aún no ha completado su perfil: en ese caso el front debe mostrar solo el email",
-            "example": "Ada Lovelace"
+            "description": "Nombre público del usuario. Nulo si aún no ha completado su perfil: en ese caso el front debe mostrar solo el email",
+            "example": "ada_lovelace"
+          },
+          "firstName": {
+            "type": ["string", "null"],
+            "description": "Nombre de pila, si lo ha indicado",
+            "example": "Ada"
+          },
+          "lastName": {
+            "type": ["string", "null"],
+            "description": "Apellidos, si los ha indicado",
+            "example": "Lovelace"
           },
           "email": {
             "type": "string",
             "description": "Email del usuario. Es el valor que se envía en 'authorEmails' al crear o actualizar un PDF",
             "example": "ada@mathtexpedia.es"
+          },
+          "hasAvatar": {
+            "type": "boolean",
+            "description": "Si tiene foto de perfil (GET /users/{id}/avatar)"
           }
         }
       },
@@ -3601,8 +4057,25 @@
       "LeaderboardEntryDto": {
         "type": "object",
         "properties": {
-          "userId": { "type": "integer", "format": "int64" },
-          "username": { "type": "string" },
+          "userId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identificador interno del usuario; sirve para pedir su foto en GET /users/{id}/avatar"
+          },
+          "username": {
+            "type": ["string", "null"],
+            "description": "Nombre público (username) del usuario. Nulo si aún no ha completado su perfil",
+            "example": "ada_lovelace"
+          },
+          "hasAvatar": {
+            "type": "boolean",
+            "description": "Si el usuario tiene foto de perfil"
+          },
+          "avatarUpdatedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Versión de la foto (cuándo se cambió); clave de caché. Nulo si no tiene"
+          },
           "bestAdjustedScore": { "type": "number", "format": "double" },
           "rank": { "type": "integer", "format": "int32" }
         }
@@ -3770,6 +4243,7 @@
               "PDF_FILE_UPDATED",
               "QUIZ_PUBLISHED",
               "SUBJECT_CREATED",
+              "SUBJECT_UNIT_CREATED",
               "PDF_AUTHOR_ADDED",
               "WELCOME",
               "ANNOUNCEMENT"

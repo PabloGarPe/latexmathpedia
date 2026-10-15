@@ -4,8 +4,9 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { Flame, History, Sparkles, type LucideIcon } from "lucide-react";
 import ContentCard from "@/components/content-card";
 import FeedRow from "@/components/feed-row";
+import { SubscribedFeedRow } from "@/components/subscriptions/subscribed-feed-row";
 import { useAuth } from "@/contexts/auth-context";
-import { useMyTopPdfs, useRecentPdfs, useTopPdfs } from "@/hooks/api/use-pdfs";
+import { useMyTopPdfs, useRecentPdfs, useRecentSubscribedPdfs, useTopPdfs } from "@/hooks/api/use-pdfs";
 import type { PDFDto } from "@/lib/api/pdfs";
 import { toDisplayPdf } from "@/lib/content/types";
 
@@ -29,6 +30,16 @@ function PdfRow({ title, icon, query, hideOnError }: PdfRowProps) {
   );
 }
 
+function SubscribedRow() {
+  return (
+    <SubscribedFeedRow
+      query={useRecentSubscribedPdfs()}
+      getKey={(pdf, index) => pdf.id ?? index}
+      renderItem={(pdf, index) => <ContentCard item={{ kind: "pdf", data: toDisplayPdf(pdf, index) }} />}
+    />
+  );
+}
+
 function RecentRow() {
   return <PdfRow title="Novedades" icon={Sparkles} query={useRecentPdfs()} />;
 }
@@ -41,12 +52,14 @@ function MyTopRow() {
   return <PdfRow title="Tus más vistos" icon={History} query={useMyTopPdfs()} hideOnError />;
 }
 
-// Orden fijo: Novedades, Lo más visto, Tus más vistos (solo con sesión). Cada hilera es su
+// Orden fijo: Novedades de mis asignaturas (solo con sesión), Novedades, Lo más visto, Tus más
+// vistos (solo con sesión). Cada hilera es su
 // propia query, así que cargan y fallan de forma independiente.
 export function PdfRows() {
   const { isAuthenticated } = useAuth();
   return (
     <div className="space-y-8">
+      {isAuthenticated && <SubscribedRow />}
       <RecentRow />
       <TopRow />
       {isAuthenticated && <MyTopRow />}
