@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Gauge, ListChecks, Medal, Pencil, Percent, Repea
 import type { LucideIcon } from "lucide-react"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { EditModeToggle } from "@/components/admin/edit-mode-toggle"
+import { ContentUnavailable } from "@/components/content-unavailable"
 import { QuizFormDialog } from "@/components/admin/quiz-form-dialog"
 import { PageContainer } from "@/components/page-shell"
 import { Button } from "@/components/ui/button"
@@ -103,7 +104,7 @@ export default function QuizDetailPage() {
 
   // Ficha: requiere sesión (GET /quiz/{id} no es público, aunque no exige rol admin)
   const { isAuthenticated, loading: authLoading } = useProtectedRoute()
-  const { data: quiz, isLoading } = useQuiz(isAuthenticated ? quizId : null)
+  const { data: quiz, isLoading, error: quizError } = useQuiz(isAuthenticated ? quizId : null)
 
   if (authLoading) {
     return (
@@ -115,6 +116,17 @@ export default function QuizDetailPage() {
 
   if (!isAuthenticated) {
     return null
+  }
+
+  // 404: borrado o todavía oculto (a los alumnos no se les distingue).
+  if (quizError) {
+    return (
+      <ContentUnavailable
+        title="Este cuestionario no está disponible"
+        backHref="/dashboard/quizzes"
+        backLabel="Ver cuestionarios"
+      />
+    )
   }
 
   if (isLoading || !quiz) {

@@ -2,6 +2,7 @@
 
 import {
   BadgeCheck,
+  Bell,
   Check,
   ChevronsUpDown,
   CreditCard,
@@ -126,13 +127,19 @@ export function NavUser({
                   <Link href="/dashboard/profile">
                     <DropdownMenuItem className="cursor-pointer">
                       <BadgeCheck />
-                      <span>Profile</span>
+                      <span>Perfil</span>
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/dashboard/notifications">
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Bell />
+                      <span>Notificaciones</span>
                     </DropdownMenuItem>
                   </Link>
                   <Link href="/dashboard/billing">
                     <DropdownMenuItem className="cursor-pointer">
                       <CreditCard />
-                      <span>Donate</span>
+                      <span>Donar</span>
                     </DropdownMenuItem>
                   </Link>
                 </DropdownMenuGroup>
@@ -163,7 +170,7 @@ export function NavUser({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer" onClick={handleLogOut}>
                   <LogOut />
-                  Log out
+                  Cerrar sesión
                 </DropdownMenuItem>
               </>
             )}

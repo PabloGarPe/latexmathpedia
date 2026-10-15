@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { ContentUnavailable } from "@/components/content-unavailable"
 import { PageContainer } from "@/components/page-shell"
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -23,7 +24,7 @@ export default function QuizAttemptPage() {
   const router = useRouter()
 
   const { isAuthenticated, loading: authLoading } = useProtectedRoute()
-  const { data: quiz, isLoading } = useQuizForAttempt(isAuthenticated ? quizId : null)
+  const { data: quiz, isLoading, error: quizError } = useQuizForAttempt(isAuthenticated ? quizId : null)
   const submitAttempt = useSubmitQuizAttempt(quizId)
 
   const [answers, setAnswers] = useState<Record<number, number>>({})
@@ -39,6 +40,16 @@ export default function QuizAttemptPage() {
 
   if (!isAuthenticated) {
     return null
+  }
+
+  if (quizError) {
+    return (
+      <ContentUnavailable
+        title="Este cuestionario no está disponible"
+        backHref="/dashboard/quizzes"
+        backLabel="Ver cuestionarios"
+      />
+    )
   }
 
   if (isLoading || !quiz) {

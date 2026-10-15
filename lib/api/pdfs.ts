@@ -45,11 +45,12 @@ export async function getMyTopPdfs(limit: number) {
 // Binario del PDF (application/pdf), servido por el back desde S3 sin exponer la URL.
 // Requiere JWT: lo añade el middleware de apiClient.
 export async function getPdfContent(pdfId: number) {
-  const { data, error } = await apiClient.GET("/pdf/{pdfId}", {
+  const { data, response } = await apiClient.GET("/pdf/{pdfId}", {
     params: { path: { pdfId } },
     parseAs: "arrayBuffer",
   });
-  if (error) throw error;
+  // Con status para distinguir el 404 (borrado) de otros fallos.
+  if (!response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar el PDF");
   return data;
 }
 

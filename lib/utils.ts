@@ -22,3 +22,18 @@ export function formatDate(iso?: string): string {
   if (Number.isNaN(date.getTime())) return iso
   return date.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
+
+// "hace 5 min", "ayer"… para listas de actividad. Pasada una semana, fecha normal.
+export function formatRelativeTime(iso?: string | null): string {
+  if (!iso) return ""
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ""
+  const seconds = Math.round((date.getTime() - Date.now()) / 1000)
+  const abs = Math.abs(seconds)
+  const rtf = new Intl.RelativeTimeFormat("es", { numeric: "auto" })
+  if (abs < 60) return "ahora"
+  if (abs < 3600) return rtf.format(Math.round(seconds / 60), "minute")
+  if (abs < 86400) return rtf.format(Math.round(seconds / 3600), "hour")
+  if (abs < 7 * 86400) return rtf.format(Math.round(seconds / 86400), "day")
+  return formatDate(iso)
+}

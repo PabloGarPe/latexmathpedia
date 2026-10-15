@@ -20,6 +20,8 @@ export const queryKeys = {
   },
   quizzes: {
     all: () => ["quizzes"] as const,
+    // Catálogo completo del admin (GET /quiz, incluye ocultos); distinto del público.
+    catalog: () => ["quizzes", "catalog"] as const,
     // Hileras del feed (públicas, sin clave por usuario).
     recent: (limit: number) => ["quizzes", "recent", limit] as const,
     top: (limit: number) => ["quizzes", "top", limit] as const,
@@ -39,6 +41,17 @@ export const queryKeys = {
   },
   profile: {
     me: () => ["profile", "me"] as const,
+  },
+  // Por usuario: al cerrar sesión se vacía la caché (queryClient.clear()).
+  notifications: {
+    all: () => ["notifications"] as const,
+    unreadCount: () => ["notifications", "unread-count"] as const,
+    // Prefijo de todos los listados (desplegable y página completa).
+    lists: () => ["notifications", "list"] as const,
+    list: (unreadOnly: boolean, size: number) => ["notifications", "list", unreadOnly, size] as const,
+    // Página completa (scroll infinito).
+    infinite: (unreadOnly: boolean) => ["notifications", "list", "infinite", unreadOnly] as const,
+    preferences: () => ["notifications", "preferences"] as const,
   },
   users: {
     search: (term: string) => ["users", "search", term] as const,
