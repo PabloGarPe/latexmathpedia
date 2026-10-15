@@ -69,13 +69,13 @@ export function PdfEditForm({
       description: pdf.description ?? "",
       subjectId: pdf.subject?.id ?? null,
       subjectUnitId: pdf.subjectUnit?.id ?? null,
-      // PDFDto solo trae nombres de autores y el back pide emails (y los sustituye enteros en
-      // cada update), así que hay que volver a introducirlos al editar.
+      // PDFDto solo trae usernames (sin email) y el back pide emails (y los sustituye enteros
+      // en cada update), así que hay que volver a elegirlos en el buscador al editar.
       authors: emptyAuthors,
     },
   })
 
-  const currentAuthors = formatPdfAuthors(pdf.author, pdf.coauthors)
+  const currentAuthors = formatPdfAuthors(pdf.authors)
   const file = watch("file")
   const subjectId = watch("subjectId")
   const subjectUnitId = watch("subjectUnitId")

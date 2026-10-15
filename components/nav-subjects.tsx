@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { BookOpen, ChevronRight } from "lucide-react"
+import { BookOpen, ChevronRight, LayoutGrid } from "lucide-react"
+import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   Collapsible,
@@ -19,7 +20,9 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
-import { useSubjects, useSubjectUnits } from "@/hooks/api/use-subjects"
+import { useAuth } from "@/contexts/auth-context"
+import { useMySubscriptions } from "@/hooks/api/use-subscriptions"
+import { useSubjectUnits } from "@/hooks/api/use-subjects"
 import type { SubjectDto } from "@/lib/api/subjects"
 
 function SubjectNavItem({ subject }: { subject: SubjectDto }) {
@@ -102,23 +105,54 @@ function SubjectNavItem({ subject }: { subject: SubjectDto }) {
   )
 }
 
-export function NavSubjects({ title }: { title: string }) {
-  const { data: subjects, isLoading } = useSubjects()
+// La sidebar solo lista las asignaturas a las que el usuario está suscrito (el resto, en el
+// catálogo). Sin sesión, sin suscripciones o si la lista no se puede cargar (modo mock: 401) se
+// muestra una invitación a suscribirse; "Todas las asignaturas" va siempre.
+export function NavSubjects({ title = "Mis asignaturas" }: { title?: string }) {
+  const { isAuthenticated } = useAuth()
+  const pathname = usePathname()
+  const { data: subscriptions, isLoading } = useMySubscriptions()
+  const subjects = (subscriptions ?? [])
+    .map((subscription) => subscription.subject)
+    .filter((subject): subject is SubjectDto => subject != null)
+  const showHint = !isLoading && (!isAuthenticated || subjects.length === 0)
 
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{title}</SidebarGroupLabel>
       <SidebarMenu>
-        {isLoading && (
+        {isAuthenticated && isLoading && (
           <SidebarMenuItem>
             <SidebarMenuButton disabled>
               <span className="text-muted-foreground text-sm">Cargando asignaturas...</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         )}
-        {subjects?.map((subject) => (
+        {isAuthenticated && subjects.map((subject) => (
           <SubjectNavItem key={subject.id} subject={subject} />
         ))}
+        {showHint && (
+          <SidebarMenuItem>
+            <p className="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+              <Link href="/dashboard/subjects" className="underline-offset-2 hover:text-foreground hover:underline">
+                Suscríbete a tus asignaturas
+              </Link>{" "}
+              para tenerlas aquí.
+            </p>
+          </SidebarMenuItem>
+        )}
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            tooltip="Todas las asignaturas"
+            className={pathname === "/dashboard/subjects" ? "text-primary" : ""}
+          >
+            <Link href="/dashboard/subjects">
+              <LayoutGrid />
+              <span>Todas las asignaturas</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
   )

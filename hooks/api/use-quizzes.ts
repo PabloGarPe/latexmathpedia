@@ -9,6 +9,7 @@ import {
   getPublicQuizzes,
   getQuiz,
   getRecentQuizzes,
+  getRecentSubscribedQuizzes,
   getTopQuizzes,
   getQuizForAttempt,
   getMyStats,
@@ -24,6 +25,7 @@ import {
   type SubmitQuizAttemptDto,
   type UpdateQuizDto,
 } from "@/lib/api/quizzes";
+import { useAuth } from "@/contexts/auth-context";
 import { queryKeys } from "@/lib/query/keys";
 
 export const QUIZ_ROW_LIMIT = 10;
@@ -37,6 +39,18 @@ export function useRecentQuizzes(limit = QUIZ_ROW_LIMIT, enabled = true) {
     queryFn: () => getRecentQuizzes(limit),
     enabled,
     staleTime: ROW_STALE_TIME,
+  });
+}
+
+// Hilera "Novedades de mis asignaturas" (solo con sesión; [] si no hay suscripciones).
+export function useRecentSubscribedQuizzes(limit = QUIZ_ROW_LIMIT, enabled = true) {
+  const { isAuthenticated, email } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.quizzes.recentSubscribed(email, limit),
+    queryFn: () => getRecentSubscribedQuizzes(limit),
+    enabled: enabled && isAuthenticated,
+    staleTime: ROW_STALE_TIME,
+    retry: 1,
   });
 }
 

@@ -9,15 +9,21 @@ import { SortableList, SortableRow } from "@/components/admin/quiz-editor/sortab
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { UserAvatar, UserSearchCombobox } from "@/components/ui/user-search-combobox"
+import { describeUser, UserSearchCombobox, type UserOption } from "@/components/ui/user-search-combobox"
+import { UserAvatar } from "@/components/user-avatar"
 import { cn } from "@/lib/utils"
 
 // Autores de un PDF tal cual los pide el back (CreatePDFDto/UpdatePDFDto.authorEmails): lista
 // ordenada de emails de usuarios existentes, el primero es el autor principal y el resto
-// coautores. Además del email se guarda el nombre (solo para pintarlo; no se envía).
+// coautores. Además del email se guardan los datos de perfil (solo para pintarlo; no se envían).
 const authorSchema = z.object({
   email: z.string().trim().min(1, "El email es obligatorio").email("Debe ser un email válido"),
-  name: z.string().nullish(),
+  id: z.number().nullish(),
+  username: z.string().nullish(),
+  firstName: z.string().nullish(),
+  lastName: z.string().nullish(),
+  hasAvatar: z.boolean().nullish(),
+  avatarUpdatedAt: z.string().nullish(),
 })
 
 const noRepeats = (authors: { email: string }[]) =>
@@ -31,7 +37,7 @@ export const authorsSchema = z
 // Autores propios de un fichero de la cola de subida: lista vacía = usa los del lote.
 export const ownAuthorsSchema = z.array(authorSchema).refine(noRepeats, "Hay autores repetidos")
 
-export type AuthorValue = { email: string; name?: string | null }
+export type AuthorValue = UserOption
 export type AuthorsFieldValues = { authors: AuthorValue[] }
 
 export const emptyAuthors: AuthorValue[] = []
@@ -49,7 +55,7 @@ type AuthorEmailsFieldProps<T extends AuthorsFieldValues> = {
   name?: string
 }
 
-// Elegir autores buscando por nombre o email entre los usuarios registrados (GET /users/search,
+// Elegir autores buscando por usuario, nombre o email entre los usuarios registrados (GET /users/search,
 // solo admin). Teclado: ↑↓ para moverse, Intro para añadir, Esc para cerrar.
 export function AuthorEmailsField<T extends AuthorsFieldValues>(props: AuthorEmailsFieldProps<T>) {
   // Los formularios que lo usan tienen más campos; aquí solo se toca "authors".
@@ -72,7 +78,7 @@ export function AuthorEmailsField<T extends AuthorsFieldValues>(props: AuthorEma
       <div>
         <Label htmlFor={searchId}>Autores</Label>
         <p className="mt-1 text-xs text-muted-foreground">
-          Busca por nombre o email entre los usuarios registrados. El primero es el autor principal.
+          Busca por usuario, nombre o email entre los usuarios registrados. El primero es el autor principal.
         </p>
       </div>
 
@@ -97,7 +103,7 @@ export function AuthorEmailsField<T extends AuthorsFieldValues>(props: AuthorEma
         >
           <div className="space-y-2">
             {authors.map((author, index) => {
-              const display = author.name?.trim() || author.email
+              const { primary: display, secondary } = describeUser(author)
               const fieldError = errors?.[index]?.email
               return (
                 <div key={author.email.trim().toLowerCase()} className="grid gap-1">
@@ -112,7 +118,7 @@ export function AuthorEmailsField<T extends AuthorsFieldValues>(props: AuthorEma
                         )}
                       >
                         {authors.length > 1 && handle}
-                        <UserAvatar author={author} />
+                        <UserAvatar user={author} fallbackLabel={author.email} />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <p className="truncate text-sm font-medium">{display}</p>
@@ -123,9 +129,7 @@ export function AuthorEmailsField<T extends AuthorsFieldValues>(props: AuthorEma
                               {index === 0 ? "Principal" : "Coautor"}
                             </Badge>
                           </div>
-                          {author.name && (
-                            <p className="truncate text-xs text-muted-foreground">{author.email}</p>
-                          )}
+                          {secondary && <p className="truncate text-xs text-muted-foreground">{secondary}</p>}
                         </div>
                         {index > 0 && (
                           <Button

@@ -10,17 +10,23 @@ import {
 import { SearchProvider } from "@/contexts/search-context"
 import { EditModeProvider } from "@/contexts/edit-mode-context"
 import { ChatWidget } from "@/components/chat-widget"
+import { ProfileCompletionBanner } from "@/components/profile/profile-completion-banner"
+import { ProfileCompletionGuard } from "@/components/profile/profile-completion-guard"
+import { useAuth } from "@/contexts/auth-context"
 
 export const iframeHeight = "800px"
 
 export const description = "A sidebar with a header and a search form."
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth()
+
   return (
     <div className="[--header-height:calc(--spacing(14))]">
       <SearchProvider>
         <EditModeProvider>
           <SidebarProvider className="flex flex-col min-h-screen">
+            {isAuthenticated && <ProfileCompletionGuard />}
             <SiteHeader />
             <div className="flex flex-1">
               <AppSidebar />
@@ -28,6 +34,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   con el menú abierto y la ventana estrecha el contenido (rejilla, carruseles de
                   PDFs) ensanchaba toda la página en vez de ajustarse al hueco junto a la barra. */}
               <SidebarInset className="flex min-w-0 flex-col">
+                {isAuthenticated && <ProfileCompletionBanner />}
                 <div className="min-w-0 flex-1">
                   {children}
                 </div>

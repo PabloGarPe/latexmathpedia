@@ -7,8 +7,10 @@ import { AdminMenu } from "@/components/admin/admin-menu"
 import { EditModeToggle } from "@/components/admin/edit-mode-toggle"
 import { NameDialog } from "@/components/admin/name-dialog"
 import { PageContainer, PageHeader } from "@/components/page-shell"
+import { SubscribeButton } from "@/components/subscriptions/subscribe-button"
 import { Button } from "@/components/ui/button"
 import { useEditMode } from "@/contexts/edit-mode-context"
+import { useSubscribedSubjectIds } from "@/hooks/api/use-subscriptions"
 import {
   useCreateSubject,
   useDeleteSubject,
@@ -27,6 +29,7 @@ export default function SubjectsCatalogPage() {
   const toast = useToast()
   const { editing } = useEditMode()
   const { data: subjects, isLoading } = useSubjects()
+  const subscribedIds = useSubscribedSubjectIds()
   const createSubject = useCreateSubject()
   const updateSubject = useUpdateSubject()
   const deleteSubject = useDeleteSubject()
@@ -75,8 +78,16 @@ export default function SubjectsCatalogPage() {
         <div className={GRID}>
           {subjects.map((subject) => {
             const theme = getSubjectTheme(subject.id)
+            const subscribed = subject.id != null && subscribedIds.has(subject.id)
             return (
               <div key={subject.id} className="relative h-full">
+                {/* Hermano del enlace (no hijo), así el clic no navega; en modo edición deja sitio al menú. */}
+                <SubscribeButton
+                  compact
+                  subjectId={subject.id}
+                  subjectName={subject.name}
+                  className={cn("absolute top-3 z-10", editing ? "right-13" : "right-3")}
+                />
                 {editing && (
                   <AdminMenu
                     className="absolute right-3 top-3 z-10"
@@ -88,7 +99,12 @@ export default function SubjectsCatalogPage() {
                   />
                 )}
                 <Link href={`/dashboard/subjects/${subject.id}`} className="group block h-full">
-                  <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md">
+                  <div
+                    className={cn(
+                      "flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md",
+                      subscribed && "border-primary/40 ring-1 ring-primary/20",
+                    )}
+                  >
                     <div className={cn("relative h-24 shrink-0 overflow-hidden bg-linear-to-br", theme.gradient)}>
                       <BookOpen className={cn("absolute -bottom-4 right-3 h-20 w-20 -rotate-12", theme.watermark)} />
                       <div

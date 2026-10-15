@@ -2,6 +2,7 @@
 
 import { PageContainer } from "@/components/page-shell"
 import { ProfileNav } from "@/components/settings/profile-nav"
+import { UserAvatar } from "@/components/user-avatar"
 import { useAuth } from "@/contexts/auth-context"
 import { useMe } from "@/hooks/api/use-profile"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
@@ -21,19 +22,23 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     )
   }
 
-  const displayName = me?.name || email.split("@")[0]
+  // El título es el username; sin él (perfil por completar) nunca se deduce del email.
+  const fullName = [me?.firstName, me?.lastName].filter(Boolean).join(" ")
 
   return (
     <PageContainer className="max-w-5xl space-y-8">
       <div className="flex items-center gap-4">
-        <div
-          aria-hidden="true"
-          className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-linear-to-br from-primary to-primary/70 text-xl font-bold text-primary-foreground shadow-lg"
-        >
-          {displayName.slice(0, 2).toUpperCase()}
-        </div>
+        <UserAvatar
+          user={me ?? {}}
+          fallbackLabel={email}
+          initialsLength={2}
+          className="h-16 w-16 text-xl"
+        />
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold tracking-tight">{displayName}</h1>
+          <h1 className="truncate text-2xl font-bold tracking-tight">
+            {me ? (me.username ?? "Perfil sin completar") : "Perfil"}
+          </h1>
+          {fullName && <p className="truncate text-sm">{fullName}</p>}
           <p className="truncate text-sm text-muted-foreground">{email}</p>
         </div>
       </div>

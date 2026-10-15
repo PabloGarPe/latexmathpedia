@@ -8,6 +8,7 @@ import {
   getPdfContent,
   getPdfs,
   getRecentPdfs,
+  getRecentSubscribedPdfs,
   getTopPdfs,
   updatePdf,
   type CreatePDFDto,
@@ -48,6 +49,18 @@ export function useMyTopPdfs(limit = PDF_ROW_LIMIT) {
     queryKey: queryKeys.pdfs.topMe(email, limit),
     queryFn: () => getMyTopPdfs(limit),
     enabled: isAuthenticated,
+    staleTime: ROW_STALE_TIME,
+    retry: 1,
+  });
+}
+
+// Hilera "Novedades de mis asignaturas" (solo con sesión; [] si no hay suscripciones).
+export function useRecentSubscribedPdfs(limit = PDF_ROW_LIMIT, enabled = true) {
+  const { isAuthenticated, email } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.pdfs.recentSubscribed(email, limit),
+    queryFn: () => getRecentSubscribedPdfs(limit),
+    enabled: enabled && isAuthenticated,
     staleTime: ROW_STALE_TIME,
     retry: 1,
   });

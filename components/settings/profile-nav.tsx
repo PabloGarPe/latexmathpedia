@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, ListChecks, Shield, UserRound, type LucideIcon } from "lucide-react"
+import { Bell, BookOpen, ListChecks, Shield, UserRound, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Secciones del perfil, cada una en su ruta. Para añadir una: crear `app/dashboard/profile/<x>/page.tsx`
 // y añadirla aquí.
 export const PROFILE_SECTIONS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/dashboard/profile", label: "Perfil", icon: UserRound },
+  { href: "/dashboard/profile/subjects", label: "Mis asignaturas", icon: BookOpen },
   { href: "/dashboard/profile/notifications", label: "Notificaciones", icon: Bell },
   { href: "/dashboard/profile/account", label: "Cuenta y seguridad", icon: Shield },
   { href: "/dashboard/profile/activity", label: "Actividad", icon: ListChecks },

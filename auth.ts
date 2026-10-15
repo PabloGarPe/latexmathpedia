@@ -99,11 +99,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
       error: "/auth/login",
     },
     callbacks: {
-      async jwt({ token, account }) {
+      async jwt({ token, account, profile }) {
         // Primer login: guardar los tokens de Keycloak
         if (account) {
           return {
             ...token,
+            // Nombre y apellidos de Keycloak: solo para precargar el formulario de perfil
+            givenName: typeof profile?.given_name === "string" ? profile.given_name : undefined,
+            familyName: typeof profile?.family_name === "string" ? profile.family_name : undefined,
             accessToken: account.access_token,
             refreshToken: account.refresh_token,
             expiresAt: account.expires_at,
@@ -136,6 +139,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
         session.accessToken = token.accessToken;
         session.isAdmin = token.isAdmin ?? false;
         session.error = token.error;
+        session.givenName = token.givenName;
+        session.familyName = token.familyName;
         return session;
       },
     },

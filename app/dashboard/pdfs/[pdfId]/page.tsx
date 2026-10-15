@@ -10,7 +10,8 @@ import { ApiError } from "@/lib/api/errors"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
 import { useInvalidatePdfViews, usePdfContent, usePdfs } from "@/hooks/api/use-pdfs"
 import { useToast } from "@/hooks/use-toast"
-import { formatPdfAuthors } from "@/lib/content/types"
+import { UserAvatar } from "@/components/user-avatar"
+import { authorLabel } from "@/lib/content/types"
 
 export default function PdfViewerPage() {
   const params = useParams<{ pdfId: string }>()
@@ -24,7 +25,7 @@ export default function PdfViewerPage() {
   // caché si se llega desde el feed o la ficha de asignatura).
   const { data: pdfs } = usePdfs()
   const pdf = pdfs?.find((p) => p.id === pdfId)
-  const authors = formatPdfAuthors(pdf?.author, pdf?.coauthors)
+  const authors = pdf?.authors ?? []
 
   const { data: content, isLoading, isError, error: contentError } = usePdfContent(pdfId, isAuthenticated)
   const notFound = contentError instanceof ApiError && contentError.status === 404
@@ -69,7 +70,18 @@ export default function PdfViewerPage() {
           </Link>
         )}
         <h1 className="text-2xl font-bold tracking-tight">{pdf?.name ?? "Documento"}</h1>
-        {authors && <p className="text-sm text-muted-foreground">Por {authors}</p>}
+        {authors.length > 0 && (
+          // Principal primero. Los nombres no son enlaces: no hay perfil público de otros usuarios.
+          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+            {authors.map((author, index) => (
+              <li key={author.id ?? index} className="flex items-center gap-1.5">
+                <UserAvatar user={author} className="h-6 w-6 text-xs" />
+                <span className={author.username ? "text-foreground" : "italic"}>{authorLabel(author)}</span>
+                {index === 0 && authors.length > 1 && <span className="text-xs">(principal)</span>}
+              </li>
+            ))}
+          </ul>
+        )}
         {pdf?.description && <p className="line-clamp-2 text-muted-foreground">{pdf.description}</p>}
       </header>
 

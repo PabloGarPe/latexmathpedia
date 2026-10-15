@@ -40,6 +40,7 @@ import { EditModeToggle } from "@/components/admin/edit-mode-toggle"
 import { NameDialog } from "@/components/admin/name-dialog"
 import { PdfSheet, type PdfSheetTarget } from "@/components/admin/pdf-sheet"
 import { QuizFormDialog } from "@/components/admin/quiz-form-dialog"
+import { SubscribeButton } from "@/components/subscriptions/subscribe-button"
 import { Button } from "@/components/ui/button"
 import {
   Accordion,
@@ -586,7 +587,10 @@ export default function SubjectDetailPage() {
             <BookOpen className="h-8 w-8" />
           </div>
           <div className="min-w-0 space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">{subject.name}</h1>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <h1 className="text-3xl font-bold tracking-tight">{subject.name}</h1>
+              <SubscribeButton subjectId={subject.id} subjectName={subject.name} />
+            </div>
             {subject.description && (
               <p className="max-w-prose text-muted-foreground">{subject.description}</p>
             )}

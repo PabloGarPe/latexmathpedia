@@ -66,6 +66,16 @@ export async function getRecentQuizzes(limit: number) {
   return data;
 }
 
+// Como getRecentQuizzes pero solo de las asignaturas suscritas (requiere JWT); [] sin
+// suscripciones. Los ocultos solo llegan a los administradores.
+export async function getRecentSubscribedQuizzes(limit: number) {
+  const { data, response } = await apiClient.GET("/quiz/recent/subscribed", {
+    params: { query: { limit } },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo cargar la hilera de cuestionarios");
+  return data;
+}
+
 export async function getTopQuizzes(limit: number) {
   const { data, response } = await apiClient.GET("/public/quiz/top", {
     params: { query: { limit } },

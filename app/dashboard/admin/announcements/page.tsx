@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
-import { UserAvatar, UserSearchCombobox, type UserOption } from "@/components/ui/user-search-combobox"
+import { describeUser, UserSearchCombobox, type UserOption } from "@/components/ui/user-search-combobox"
+import { UserAvatar } from "@/components/user-avatar"
 import { useCreateAnnouncement } from "@/hooks/api/use-notifications"
 import { useAdminRoute } from "@/hooks/use-protected-route"
 import { useToast } from "@/hooks/use-toast"
@@ -37,7 +38,17 @@ const announcementSchema = z
       .max(LINK_MAX, `Máximo ${LINK_MAX} caracteres`)
       .refine((value) => value === "" || isInternalPath(value), "Debe ser una ruta interna que empiece por «/», como /dashboard"),
     audience: z.enum(["all", "some"]),
-    recipients: z.array(z.object({ email: z.string(), name: z.string().nullish() })),
+    recipients: z.array(
+      z.object({
+        email: z.string(),
+        id: z.number().nullish(),
+        username: z.string().nullish(),
+        firstName: z.string().nullish(),
+        lastName: z.string().nullish(),
+        hasAvatar: z.boolean().nullish(),
+        avatarUpdatedAt: z.string().nullish(),
+      }),
+    ),
   })
   .refine((values) => values.audience === "all" || values.recipients.length > 0, {
     path: ["recipients"],
@@ -159,7 +170,7 @@ export default function AdminAnnouncementsPage() {
                     <RadioGroup value={field.value} onValueChange={field.onChange} className="grid gap-2 sm:grid-cols-2">
                       {[
                         { value: "all", label: "Todos los usuarios", hint: "Usuarios activos, incluido tú", icon: UsersRound },
-                        { value: "some", label: "Usuarios concretos", hint: "Los eliges por nombre o email", icon: Users },
+                        { value: "some", label: "Usuarios concretos", hint: "Los eliges por usuario, nombre o email", icon: Users },
                       ].map(({ value, label, hint, icon: Icon }) => (
                         <label
                           key={value}
@@ -201,13 +212,13 @@ export default function AdminAnnouncementsPage() {
                           {recipients.length > 0 && (
                             <ul className="flex flex-wrap gap-2">
                               {recipients.map((user) => {
-                                const display = user.name?.trim() || user.email
+                                const { primary: display } = describeUser(user)
                                 return (
                                   <li
                                     key={user.email}
                                     className="flex items-center gap-2 rounded-full border bg-card py-1 pl-1 pr-2 text-sm animate-in fade-in-0 zoom-in-95"
                                   >
-                                    <UserAvatar author={user} className="h-6 w-6 text-xs" />
+                                    <UserAvatar user={user} fallbackLabel={user.email} className="h-6 w-6 text-xs" />
                                     <span className="max-w-48 truncate" title={user.email}>
                                       {display}
                                     </span>

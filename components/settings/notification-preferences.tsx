@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
+import Link from "next/link"
 import { RefreshCw, RotateCcw } from "lucide-react"
 import { SettingsRow, SettingsSection } from "@/components/settings/settings-section"
 import { Button } from "@/components/ui/button"
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { useNotificationPreferences, useUpdateNotificationPreferences } from "@/hooks/api/use-notifications"
+import { useMySubscriptions } from "@/hooks/api/use-subscriptions"
 import { useToast } from "@/hooks/use-toast"
 import type { NotificationPreferenceDto, UpdateNotificationPreferenceItem } from "@/lib/api/notifications"
 import { categoryMeta, channelMeta, compareCategories, scopeLabel } from "@/lib/notifications/registry"
@@ -35,6 +37,9 @@ export function NotificationPreferences() {
   const toast = useToast()
   const { data, isLoading, isError, refetch } = useNotificationPreferences()
   const update = useUpdateNotificationPreferences()
+  // Con alcance "Solo mis asignaturas" y sin suscripciones no llega ningún aviso: se avisa en línea.
+  const subscriptions = useMySubscriptions()
+  const hasNoSubscriptions = subscriptions.isSuccess && subscriptions.data.length === 0
 
   const { channels, categories } = useMemo(() => {
     const rows = (data ?? []).filter(isComplete)
@@ -151,7 +156,7 @@ export function NotificationPreferences() {
                                 save([toItem(cell, { scope: scope as UpdateNotificationPreferenceItem["scope"] })])
                               }
                             >
-                              <SelectTrigger size="sm" aria-label={`Alcance de ${group.label}`} className="w-44">
+                              <SelectTrigger size="sm" aria-label={`Alcance de ${group.label}`} className="w-52">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -162,6 +167,14 @@ export function NotificationPreferences() {
                                 ))}
                               </SelectContent>
                             </Select>
+                          )}
+                          {hasNoSubscriptions && cell.scope === "SUBSCRIBED" && (
+                            <p className="max-w-52 text-center text-xs text-amber-700 dark:text-amber-300">
+                              No estás suscrito a ninguna asignatura.{" "}
+                              <Link href="/dashboard/subjects" className="font-medium underline underline-offset-2">
+                                Suscribirme
+                              </Link>
+                            </p>
                           )}
                         </div>
                       )

@@ -162,11 +162,59 @@ export interface paths {
         get: operations["getMe"];
         /**
          * Actualiza el perfil del usuario autenticado
-         * @description La primera actualización marca el perfil como completado
+         * @description Sustituye todos los datos del perfil: el username es obligatorio y los demás campos, opcionales; uno que no se envíe (o venga en blanco) se borra. El primer guardado marca el perfil como completado. No toca la foto de perfil
          */
         put: operations["updateMe"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/subscriptions/{subjectId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Me suscribo a una asignatura
+         * @description Idempotente: si ya estaba suscrito devuelve la suscripción existente con 200
+         */
+        put: operations["subscribe"];
+        post?: never;
+        /**
+         * Me doy de baja de una asignatura
+         * @description Idempotente: devuelve 204 también si no estaba suscrito
+         */
+        delete: operations["unsubscribe"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sube o cambia mi foto de perfil
+         * @description multipart/form-data con la parte 'file': imagen JPEG o PNG de hasta 2 MB y al menos 64x64 píxeles. Se recorta a cuadrado, se reduce a 256 px como máximo y se guarda como JPEG; la imagen original no se conserva. Sustituye a la anterior. Devuelve el perfil actualizado (con hasAvatar y avatarUpdatedAt)
+         */
+        put: operations["updateAvatar"];
+        post?: never;
+        /**
+         * Elimina mi foto de perfil
+         * @description Idempotente: si no tenía foto no hace nada. Devuelve el perfil actualizado
+         */
+        delete: operations["deleteAvatar"];
         options?: never;
         head?: never;
         patch?: never;
@@ -466,6 +514,26 @@ export interface paths {
         patch: operations["markAllAsRead"];
         trace?: never;
     };
+    "/users/{userId}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Foto de perfil de un usuario
+         * @description Imagen JPEG cuadrada de hasta 256 px. Solo para usuarios autenticados: al llevar el token en cabecera no sirve como 'src' directo de una etiqueta img, hay que pedirla con fetch y mostrarla como blob. Admite If-None-Match (ETag derivado de avatarUpdatedAt): responde 304 sin cuerpo si no ha cambiado
+         */
+        get: operations["getAvatar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/search": {
         parameters: {
             query?: never;
@@ -678,6 +746,26 @@ export interface paths {
          * @description Requiere autenticación, pero no requiere rol ADMIN. Si el cuestionario está oculto, solo lo ve un administrador (404 para el resto)
          */
         get: operations["getQuizForAttempt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/quiz/recent/subscribed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cuestionarios nuevos o actualizados de las asignaturas a las que estoy suscrito
+         * @description Como GET /public/quiz/recent pero solo de las asignaturas suscritas, del más reciente al más antiguo. Lista vacía si el usuario no tiene suscripciones. Los ocultos solo se incluyen para administradores
+         */
+        get: operations["getRecentSubscribedQuizzes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -991,6 +1079,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pdf/recent/subscribed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * PDFs nuevos o actualizados de las asignaturas a las que estoy suscrito
+         * @description Como GET /public/pdf/recent pero solo de las asignaturas suscritas, del más reciente al más antiguo. Lista vacía si el usuario no tiene suscripciones
+         */
+        get: operations["getRecentSubscribedPDFs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/option/{id}": {
         parameters: {
             query?: never;
@@ -1043,6 +1151,26 @@ export interface paths {
          * @description Pensado para el polling de la campanita (recomendado cada 60 s con la pestaña visible). Es una consulta muy ligera y no modifica la cuenta del usuario
          */
         get: operations["getUnreadCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista las asignaturas a las que estoy suscrito
+         * @description Ordenadas por nombre de asignatura. Lista vacía si no hay ninguna suscripción
+         */
+        get: operations["getMySubscriptions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1441,6 +1569,26 @@ export interface components {
              */
             authorEmails: string[];
         };
+        AuthorDto: {
+            /**
+             * Format: int64
+             * @description Identificador interno del usuario; sirve para pedir su foto en GET /users/{id}/avatar
+             * @example 42
+             */
+            id?: number;
+            /**
+             * @description Nombre público. Nulo si el usuario aún no ha completado su perfil
+             * @example ada_lovelace
+             */
+            username?: string | null;
+            /** @description Si tiene foto de perfil */
+            hasAvatar?: boolean;
+            /**
+             * Format: date-time
+             * @description Versión de la foto (cuándo se cambió); clave de caché. Nulo si no tiene
+             */
+            avatarUpdatedAt?: string | null;
+        };
         PDFDto: {
             /** Format: int64 */
             id?: number;
@@ -1451,17 +1599,14 @@ export interface components {
             subject?: components["schemas"]["SubjectDto"];
             subjectUnit?: components["schemas"]["SubjectUnitDto"];
             /**
-             * @description Nombre del autor principal. Nulo en PDFs antiguos que aún no tienen autores asignados
-             * @example Ada Lovelace
+             * @description Nombre público (username) del autor principal. Nulo en PDFs antiguos que aún no tienen autores asignados o si el autor no ha completado su perfil
+             * @example ada_lovelace
              */
             author?: string | null;
-            /**
-             * @description Nombres de los coautores, en el orden en que se indicaron. Vacío si no hay coautores
-             * @example [
-             *       "Alan Turing"
-             *     ]
-             */
-            coauthors?: string[];
+            /** @description Nombres públicos de los coautores, en el orden en que se indicaron. Vacío si no hay coautores. Un coautor sin perfil completo aparece como nulo */
+            coauthors?: (string | null)[];
+            /** @description Autores con su identificador y marca de foto de perfil: el primero es el principal, el resto coautores, en el mismo orden que 'author' y 'coauthors'. Vacío en PDFs antiguos sin autores */
+            authors?: components["schemas"]["AuthorDto"][];
             /**
              * Format: int64
              * @description Número total de veces que se ha abierto el PDF (todos los usuarios; cada apertura cuenta, aunque sea del mismo usuario). 0 si nunca se ha visto
@@ -1511,7 +1656,7 @@ export interface components {
              * @example PDF_CREATED
              * @enum {string}
              */
-            type: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
+            type: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "SUBJECT_UNIT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
             /**
              * @description Canal
              * @example IN_APP
@@ -1525,7 +1670,7 @@ export interface components {
              * @example ALL
              * @enum {string|null}
              */
-            scope?: "ALL" | null;
+            scope?: "ALL" | "SUBSCRIBED" | null;
         };
         UpdateNotificationPreferencesDto: {
             /** @description Preferencias a cambiar. Es parcial: solo se tocan las indicadas */
@@ -1537,7 +1682,7 @@ export interface components {
              * @example PDF_CREATED
              * @enum {string}
              */
-            type?: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
+            type?: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "SUBJECT_UNIT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
             /**
              * @description Categoría, para agrupar en la pantalla de preferencias
              * @example CONTENT
@@ -1569,16 +1714,38 @@ export interface components {
              * @example ALL
              * @enum {string|null}
              */
-            scope?: "ALL" | null;
+            scope?: "ALL" | "SUBSCRIBED" | null;
             /** @description Alcances que admite el tipo. Si solo hay uno no hace falta mostrar selector */
-            availableScopes?: "ALL"[];
+            availableScopes?: ("ALL" | "SUBSCRIBED")[];
         };
         UpdateUserAccountDto: {
             /**
-             * @description Nombre del usuario
-             * @example Pedro1234
+             * @description Nombre público que se muestra en la aplicación (apuntes, búsquedas…). Obligatorio, único sin distinguir mayúsculas, de 3 a 30 caracteres entre letras sin tilde, números, punto, guion y guion bajo
+             * @example ada_lovelace
              */
-            name: string;
+            username: string;
+            /**
+             * @description Nombre de pila (opcional). Nulo o vacío lo borra
+             * @example Ada
+             */
+            firstName?: string | null;
+            /**
+             * @description Apellidos (opcional). Nulo o vacío lo borra
+             * @example Lovelace
+             */
+            lastName?: string | null;
+            /** @description Biografía corta (opcional, máx. 280 caracteres). Nulo o vacío la borra */
+            bio?: string | null;
+            /**
+             * @description Universidad o centro de estudios (opcional). Nulo o vacío lo borra
+             * @example Universidad de Sevilla
+             */
+            university?: string | null;
+            /**
+             * @description Estudios que cursa (opcional). Nulo o vacío lo borra
+             * @example Grado en Matemáticas
+             */
+            studies?: string | null;
         };
         UserAccountDto: {
             /**
@@ -1592,10 +1759,39 @@ export interface components {
              */
             email?: string;
             /**
-             * @description Nombre del usuario
-             * @example John Doe
+             * @description Nombre público del usuario. Nulo hasta que completa el perfil
+             * @example ada_lovelace
              */
-            name?: string;
+            username?: string | null;
+            /**
+             * @description Nombre de pila
+             * @example Ada
+             */
+            firstName?: string | null;
+            /**
+             * @description Apellidos
+             * @example Lovelace
+             */
+            lastName?: string | null;
+            /** @description Biografía corta */
+            bio?: string | null;
+            /**
+             * @description Universidad o centro de estudios
+             * @example Universidad de Sevilla
+             */
+            university?: string | null;
+            /**
+             * @description Estudios que cursa
+             * @example Grado en Matemáticas
+             */
+            studies?: string | null;
+            /** @description Si el usuario tiene foto de perfil. Se descarga de GET /users/{id}/avatar */
+            hasAvatar?: boolean;
+            /**
+             * Format: date-time
+             * @description Cuándo se cambió la foto por última vez; nulo si no tiene. Úsalo como clave de caché de la imagen
+             */
+            avatarUpdatedAt?: string | null;
             /**
              * @description Estado del usuario
              * @example ACTIVE
@@ -1614,9 +1810,18 @@ export interface components {
             lastSeenAt?: string;
             /**
              * Format: date-time
-             * @description Fecha de finalización del perfil del usuario
+             * @description Fecha en que se completó el perfil (se fija al guardar por primera vez un nombre de usuario). Nulo = el perfil está por completar y el front debe pedirlo
              */
-            profileCompletedAt?: string;
+            profileCompletedAt?: string | null;
+        };
+        SubjectSubscriptionDto: {
+            /** @description Asignatura a la que está suscrito el usuario */
+            subject?: components["schemas"]["SubjectDto"];
+            /**
+             * Format: date-time
+             * @description Cuándo se suscribió
+             */
+            subscribedAt?: string;
         };
         /** @description Datos del tema a crear */
         CreateSubjectUnitDto: {
@@ -1964,15 +2169,27 @@ export interface components {
              */
             id?: number;
             /**
-             * @description Nombre del usuario. Nulo si aún no ha completado su perfil: en ese caso el front debe mostrar solo el email
-             * @example Ada Lovelace
+             * @description Nombre público del usuario. Nulo si aún no ha completado su perfil: en ese caso el front debe mostrar solo el email
+             * @example ada_lovelace
              */
-            name?: string | null;
+            username?: string | null;
+            /**
+             * @description Nombre de pila, si lo ha indicado
+             * @example Ada
+             */
+            firstName?: string | null;
+            /**
+             * @description Apellidos, si los ha indicado
+             * @example Lovelace
+             */
+            lastName?: string | null;
             /**
              * @description Email del usuario. Es el valor que se envía en 'authorEmails' al crear o actualizar un PDF
              * @example ada@mathtexpedia.es
              */
             email?: string;
+            /** @description Si tiene foto de perfil (GET /users/{id}/avatar) */
+            hasAvatar?: boolean;
         };
         QuizAttemptStatsDto: {
             /**
@@ -2014,9 +2231,23 @@ export interface components {
             sort?: string[];
         };
         LeaderboardEntryDto: {
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Identificador interno del usuario; sirve para pedir su foto en GET /users/{id}/avatar
+             */
             userId?: number;
-            username?: string;
+            /**
+             * @description Nombre público (username) del usuario. Nulo si aún no ha completado su perfil
+             * @example ada_lovelace
+             */
+            username?: string | null;
+            /** @description Si el usuario tiene foto de perfil */
+            hasAvatar?: boolean;
+            /**
+             * Format: date-time
+             * @description Versión de la foto (cuándo se cambió); clave de caché. Nulo si no tiene
+             */
+            avatarUpdatedAt?: string | null;
             /** Format: double */
             bestAdjustedScore?: number;
             /** Format: int32 */
@@ -2150,7 +2381,7 @@ export interface components {
              * @example PDF_CREATED
              * @enum {string}
              */
-            type?: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
+            type?: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "SUBJECT_UNIT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
             /**
              * @description Categoría de la notificación, útil para elegir el icono
              * @example CONTENT
@@ -2745,8 +2976,172 @@ export interface operations {
                     "*/*": components["schemas"]["UserAccountDto"];
                 };
             };
-            /** @description Datos de entrada inválidos */
+            /** @description Datos de entrada inválidos (username vacío o con formato incorrecto, campos demasiado largos) */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAccountDto"];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAccountDto"];
+                };
+            };
+            /** @description El username ya lo usa otro usuario (sin distinguir mayúsculas) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAccountDto"];
+                };
+            };
+        };
+    };
+    subscribe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID de la asignatura */
+                subjectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suscripción activa */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectSubscriptionDto"];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectSubscriptionDto"];
+                };
+            };
+            /** @description No existe ninguna asignatura con ese ID */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectSubscriptionDto"];
+                };
+            };
+        };
+    };
+    unsubscribe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID de la asignatura */
+                subjectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description El usuario ya no está suscrito a la asignatura */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Imagen JPEG o PNG
+                     */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Foto guardada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAccountDto"];
+                };
+            };
+            /** @description Falta el fichero, no es JPEG/PNG, está corrupto, pesa más de 2 MB o no cumple el tamaño mínimo/máximo en píxeles */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAccountDto"];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAccountDto"];
+                };
+            };
+            /** @description La petición supera el límite de subida del servidor */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAccountDto"];
+                };
+            };
+        };
+    };
+    deleteAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Foto eliminada (o no existía) */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3467,6 +3862,59 @@ export interface operations {
             };
         };
     };
+    getAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Identificador interno del usuario
+                 * @example 42
+                 */
+                userId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Imagen JPEG */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description La foto no ha cambiado desde la versión indicada en If-None-Match */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            /** @description El usuario no existe, está inactivo o no tiene foto */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+        };
+    };
     searchUsers: {
         parameters: {
             query?: {
@@ -3883,6 +4331,38 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["QuizForAttemptDto"];
+                };
+            };
+        };
+    };
+    getRecentSubscribedQuizzes: {
+        parameters: {
+            query?: {
+                /** @description Máximo de cuestionarios a devolver (por defecto 10, máximo 20) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista de cuestionarios (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizDto"][];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizDto"][];
                 };
             };
         };
@@ -4315,6 +4795,38 @@ export interface operations {
             };
         };
     };
+    getRecentSubscribedPDFs: {
+        parameters: {
+            query?: {
+                /** @description Máximo de PDFs a devolver (por defecto 10, máximo 20) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista de PDFs (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PDFDto"][];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PDFDto"][];
+                };
+            };
+        };
+    };
     getOption: {
         parameters: {
             query?: never;
@@ -4417,6 +4929,35 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["UnreadCountDto"];
+                };
+            };
+        };
+    };
+    getMySubscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suscripciones del usuario (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectSubscriptionDto"][];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectSubscriptionDto"][];
                 };
             };
         };
