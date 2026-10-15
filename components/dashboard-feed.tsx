@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ContentCard from "@/components/content-card";
+import PdfRows from "@/components/pdf-rows";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSearch } from "@/contexts/search-context"; // Importar el contexto de búsqueda
 import { useToast } from "@/hooks/use-toast";
-import { usePdfs } from "@/hooks/api/use-pdfs";
+import { usePdfs, useRecentPdfs, useTopPdfs } from "@/hooks/api/use-pdfs";
 import { usePublicQuizzes } from "@/hooks/api/use-quizzes";
 import type { BlogPostMeta } from "@/lib/content/posts";
 import { toDisplayPdf, type ContentItem, type DisplayPdf } from "@/lib/content/types";
@@ -69,12 +70,27 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
   const { searchQuery } = useSearch();
   const [activeTab, setActiveTab] = useState<TabKey>("all");
 
+  const normalizedSearch = normalizeText(searchQuery.trim());
+  const isSearching = normalizedSearch !== "";
+
+  // Prioridad de carga: primero las hileras de arriba (Novedades / Lo más visto, ligeras y lo
+  // primero que ve el usuario); el catálogo completo y los cuestionarios, que alimentan la
+  // rejilla de abajo, esperan a que esas dos resuelvan para no competir por las conexiones.
+  // Mismas claves que usa <PdfRows>, así que no se duplican peticiones. Si el usuario busca
+  // o abre otra pestaña, el catálogo hace falta ya y no se espera.
+  const recentQuery = useRecentPdfs();
+  const topQuery = useTopPdfs();
+  const rowsSettled = !recentQuery.isPending && !topQuery.isPending;
+  const catalogEnabled = rowsSettled || isSearching || activeTab !== "all";
+
   // El catálogo es público y solo trae metadatos; el contenido lo pide el visor con sesión.
-  const pdfsQuery = usePdfs();
-  const pdfsLoading = pdfsQuery.isLoading;
+  const pdfsQuery = usePdfs(catalogEnabled);
+  // isPending (no isLoading): mientras la query está diferida isLoading es false y la rejilla
+  // enseñaría "sin resultados" en vez del esqueleto.
+  const pdfsLoading = pdfsQuery.isPending;
 
   // Mismo endpoint público que usa el catálogo de /dashboard/quizzes, sin depender de auth.
-  const quizzesQuery = usePublicQuizzes();
+  const quizzesQuery = usePublicQuizzes(catalogEnabled);
 
   useEffect(() => {
     if (pdfsQuery.error) {
@@ -92,9 +108,6 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
   );
 
   const allQuizzes: QuizDto[] = quizzesQuery.data ?? [];
-
-  const normalizedSearch = normalizeText(searchQuery.trim());
-  const isSearching = normalizedSearch !== "";
 
   // El filtro por asignatura/tema del feed general se retiró: la sidebar (nav-subjects.tsx)
   // ahora navega directamente a la ficha de asignatura (/dashboard/subjects/[id]), que ya
@@ -158,9 +171,9 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
   }, [isSearching, searchQuery, activeTab, countByTab]);
 
   const loadingByTab: Record<TabKey, boolean> = {
-    all: pdfsLoading || quizzesQuery.isLoading,
+    all: pdfsLoading || quizzesQuery.isPending,
     pdf: pdfsLoading,
-    quiz: quizzesQuery.isLoading,
+    quiz: quizzesQuery.isPending,
     blog: false,
   };
 
@@ -178,6 +191,13 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
         </div>
 
         <TabsContent value="all">
+          {/* Hileras solo en la vista general; al buscar se muestran los resultados planos. */}
+          {!isSearching && (
+            <div className="mt-4 space-y-8">
+              <PdfRows />
+              <h3 className="text-xl font-semibold">Explorar todo</h3>
+            </div>
+          )}
           <ContentGrid
             items={allItems}
             isLoading={loadingByTab.all}

@@ -15,6 +15,7 @@ export type DisplayPdf = {
   subjectUnitName?: string;
   author?: string;
   coauthors: string[];
+  viewCount: number;
 };
 
 // Unión discriminada que homogeneiza los tres tipos de recurso que hoy mezcla el feed
@@ -39,6 +40,7 @@ export function toDisplayPdf(pdf: components["schemas"]["PDFDto"], fallbackId: n
     author: pdf.author ?? undefined,
     // El backend puede colar nulls en la lista aunque el contrato diga string[]
     coauthors: (pdf.coauthors ?? []).filter((c): c is string => typeof c === "string" && c.trim() !== ""),
+    viewCount: pdf.viewCount ?? 0,
   };
 }
 

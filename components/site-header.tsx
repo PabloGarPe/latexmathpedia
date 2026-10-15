@@ -1,6 +1,7 @@
 "use client"
 
 import { ChevronRight, SidebarIcon } from "lucide-react"
+import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 import { SearchForm } from "@/components/search-form"
@@ -13,9 +14,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useSidebar } from "@/components/ui/sidebar"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ModeToggle } from "./mode-toggle"
 
 function capitalizeFirstLetter(string: string) {
@@ -71,6 +74,23 @@ export function SiteHeader() {
             })}
           </BreadcrumbList>
         </Breadcrumb>
+        {/* Aviso de beta: siempre visible (también en móvil, donde el breadcrumb se oculta) y
+            enlaza al formulario de contacto para reportar fallos. */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link href="/dashboard/contact/contact-us" aria-label="Versión beta: informar de un problema">
+              <Badge
+                variant="outline"
+                className="shrink-0 border-amber-500/50 bg-amber-500/10 uppercase tracking-wide text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+              >
+                Beta
+              </Badge>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent>
+            Estamos en beta: puede haber fallos. ¿Has encontrado alguno? Cuéntanoslo.
+          </TooltipContent>
+        </Tooltip>
         <SearchForm className="w-full sm:ml-auto sm:w-auto" onSearch={handleSearch} />
         <ModeToggle />
       </div>

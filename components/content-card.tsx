@@ -34,6 +34,7 @@ export function ContentCard({ item }: { item: ContentItem }) {
           subjectName={item.data.subjectName}
           subjectUnitName={item.data.subjectUnitName}
           authors={formatPdfAuthors(item.data.author, item.data.coauthors)}
+          viewCount={item.data.viewCount}
         />
       )}
       {item.kind === "quiz" && <QuizCard quiz={item.data} />}

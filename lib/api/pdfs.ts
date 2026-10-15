@@ -14,6 +14,33 @@ export async function getPdfs() {
   return data;
 }
 
+// Hileras del feed. Todas devuelven PDFDto[] (con viewCount); limit por defecto 10, máx. 20.
+export async function getRecentPdfs(limit: number) {
+  const { data, response } = await apiClient.GET("/public/pdf/recent", {
+    params: { query: { limit } },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo cargar la hilera de PDFs");
+  return data;
+}
+
+export async function getTopPdfs(limit: number) {
+  const { data, response } = await apiClient.GET("/public/pdf/top", {
+    params: { query: { limit } },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo cargar la hilera de PDFs");
+  return data;
+}
+
+// Requiere JWT (lo añade el middleware de apiClient); [] si el usuario aún no ha abierto nada.
+// Un 401 llega con el cuerpo vacío (error === ""), así que se comprueba response.ok y no `error`.
+export async function getMyTopPdfs(limit: number) {
+  const { data, response } = await apiClient.GET("/pdf/top/me", {
+    params: { query: { limit } },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo cargar la hilera de PDFs");
+  return data;
+}
+
 // Binario del PDF (application/pdf), servido por el back desde S3 sin exponer la URL.
 // Requiere JWT: lo añade el middleware de apiClient.
 export async function getPdfContent(pdfId: number) {

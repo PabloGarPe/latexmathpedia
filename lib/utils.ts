@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Contador compacto a partir de 1000 ("1,2k", "3M"). Trunca en vez de redondear para que
+// 1999 no se vea como "2k"; sin decimal cuando sería ",0".
+export function formatCompactCount(value: number): string {
+  if (!Number.isFinite(value) || value < 1000) return String(Math.max(0, Math.trunc(value || 0)))
+  const [divisor, suffix] = value >= 1_000_000 ? [1_000_000, "M"] : [1000, "k"]
+  const scaled = Math.floor((value / divisor) * 10) / 10
+  return `${String(scaled).replace(".", ",")}${suffix}`
+}
+
 // Formato de fecha compartido por las tarjetas de contenido y las tablas de admin
 // (antes duplicado casi idéntico en 6 sitios distintos).
 export function formatDate(iso?: string): string {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
-import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import { Button } from "@/components/ui/button";
 
 // Visor de solo lectura. El PDF se pinta página a página en <canvas> con pdf.js en vez de
@@ -108,19 +108,18 @@ export function PdfViewer({ data }: { data: ArrayBuffer }) {
 
   useEffect(() => {
     let cancelled = false;
-    let loaded: PDFDocumentProxy | undefined;
+    // En pdf.js 6 el documento se libera a través de su loading task.
+    let task: PDFDocumentLoadingTask | undefined;
 
     (async () => {
       try {
         const pdfjs = await loadPdfjs();
+        if (cancelled) return;
         // pdf.js transfiere (desengancha) el buffer al worker; se le pasa una copia para no
         // invalidar el que guarda TanStack Query.
-        loaded = await pdfjs.getDocument({ data: new Uint8Array(data.slice(0)) })
-          .promise;
-        if (cancelled) {
-          loaded.destroy();
-          return;
-        }
+        task = pdfjs.getDocument({ data: new Uint8Array(data.slice(0)) });
+        const loaded = await task.promise;
+        if (cancelled) return;
         setDoc(loaded);
       } catch {
         if (!cancelled) setError(true);
@@ -129,7 +128,7 @@ export function PdfViewer({ data }: { data: ArrayBuffer }) {
 
     return () => {
       cancelled = true;
-      loaded?.destroy();
+      task?.destroy();
     };
   }, [data]);
 
