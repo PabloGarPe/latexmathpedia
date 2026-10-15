@@ -24,8 +24,9 @@ export type LeaderboardEntryDto = components["schemas"]["LeaderboardEntryDto"];
 export type PageLeaderboardEntryDto = components["schemas"]["PageLeaderboardEntryDto"];
 
 export async function getPublicQuizzes() {
-  const { data, error } = await apiClient.GET("/public/quiz");
-  if (error) throw error;
+  const { data, error, response } = await apiClient.GET("/public/quiz");
+  // Un 401/403 sin cuerpo llega con `error` vacío y `data` undefined: se comprueba el estado.
+  if (error || !response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar la información del cuestionario");
   return data;
 }
 
@@ -48,18 +49,18 @@ export async function getTopQuizzes(limit: number) {
 }
 
 export async function getQuiz(id: number) {
-  const { data, error } = await apiClient.GET("/quiz/{id}", {
+  const { data, error, response } = await apiClient.GET("/quiz/{id}", {
     params: { path: { id } },
   });
-  if (error) throw error;
+  if (error || !response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar la información del cuestionario");
   return data;
 }
 
 export async function getQuizForAttempt(id: number) {
-  const { data, error } = await apiClient.GET("/quiz/{id}/attempt", {
+  const { data, error, response } = await apiClient.GET("/quiz/{id}/attempt", {
     params: { path: { id } },
   });
-  if (error) throw error;
+  if (error || !response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar la información del cuestionario");
   return data;
 }
 
@@ -78,7 +79,7 @@ export async function submitQuizAttempt(id: number, body: SubmitQuizAttemptDto) 
 // fuerza aquí un querySerializer propio para esta llamada; sin él, la paginación es un no-op
 // silencioso (confirmado leyendo node_modules/openapi-fetch/src/index.js).
 export async function getMyAttempts(page: number, size: number) {
-  const { data, error } = await apiClient.GET("/attempts", {
+  const { data, error, response } = await apiClient.GET("/attempts", {
     params: { query: { pageable: { page, size } } },
     querySerializer: (query: { pageable?: { page?: number; size?: number } }) => {
       const search = new URLSearchParams();
@@ -87,7 +88,7 @@ export async function getMyAttempts(page: number, size: number) {
       return search.toString();
     },
   });
-  if (error) throw error;
+  if (error || !response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar la información del cuestionario");
   return data;
 }
 
@@ -118,18 +119,18 @@ export async function deleteQuiz(id: number) {
 // QuestionDto (con explanation, sin ocultar la respuesta correcta) es distinto del
 // QuestionForAttemptDto que ya usa la parte 1 para resolver el cuestionario.
 export async function getQuizQuestions(id: number) {
-  const { data, error } = await apiClient.GET("/quiz/{id}/questions", {
+  const { data, error, response } = await apiClient.GET("/quiz/{id}/questions", {
     params: { path: { id } },
   });
-  if (error) throw error;
+  if (error || !response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar la información del cuestionario");
   return data;
 }
 
 export async function exportQuiz(id: number) {
-  const { data, error } = await apiClient.GET("/quiz/{id}/export", {
+  const { data, error, response } = await apiClient.GET("/quiz/{id}/export", {
     params: { path: { id } },
   });
-  if (error) throw error;
+  if (error || !response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar la información del cuestionario");
   return data;
 }
 
@@ -150,23 +151,23 @@ export async function importQuiz(
 // resto de valores son 0. Es la fuente del "mejor puntuación" de la ficha; no hace falta traer
 // el histórico (/quiz/{id}/attempts, también solo propio y sin paginar).
 export async function getQuizStats(id: number) {
-  const { data, error } = await apiClient.GET("/quiz/{id}/stats", {
+  const { data, error, response } = await apiClient.GET("/quiz/{id}/stats", {
     params: { path: { id } },
   });
-  if (error) throw error;
+  if (error || !response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar la información del cuestionario");
   return data;
 }
 
 // Estadísticas agregadas de TODOS los intentos del usuario autenticado (distinto de
 // getQuizStats, que es el rendimiento del usuario en un quiz concreto).
 export async function getMyStats() {
-  const { data, error } = await apiClient.GET("/attempts/stats");
-  if (error) throw error;
+  const { data, error, response } = await apiClient.GET("/attempts/stats");
+  if (error || !response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar la información del cuestionario");
   return data;
 }
 
 export async function getQuizLeaderboard(id: number, page: number, size: number) {
-  const { data, error } = await apiClient.GET("/quiz/{id}/leaderboard", {
+  const { data, error, response } = await apiClient.GET("/quiz/{id}/leaderboard", {
     params: {
       path: { id },
       query: { pageable: { page, size } },
@@ -178,6 +179,6 @@ export async function getQuizLeaderboard(id: number, page: number, size: number)
       return search.toString();
     },
   });
-  if (error) throw error;
+  if (error || !response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar la información del cuestionario");
   return data;
 }

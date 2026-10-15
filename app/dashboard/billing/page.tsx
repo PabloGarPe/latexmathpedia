@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { CreditCard, Gift, Heart, Zap } from "lucide-react"
 
+import { PageContainer } from "@/components/page-shell"
 import { Button } from "@/components/ui/button"
 import { 
   Card, 
@@ -32,9 +33,9 @@ export default function DonationPage() {
   }
 
   return (
-    <div className="p-8 max-w-[1200px] mx-auto">
+    <PageContainer>
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Apoya a LatexMathpedia</h1>
+        <h1 className="text-2xl font-bold">Apoya a LatexMathpedia</h1>
         <p className="text-muted-foreground">
           Tu apoyo nos ayuda a seguir creando contenido educativo de calidad y mantener nuestros recursos accesibles para todos.
         </p>
@@ -69,6 +70,6 @@ export default function DonationPage() {
           </div>
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }

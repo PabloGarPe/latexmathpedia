@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Crown, Info, Trophy } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { CircleHelp, Crown, Trophy } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Pagination,
   PaginationContent,
@@ -11,6 +11,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useQuizLeaderboard } from "@/hooks/api/use-quizzes"
 import type { LeaderboardEntryDto } from "@/lib/api/quizzes"
 import { cn } from "@/lib/utils"
@@ -111,13 +112,23 @@ export function QuizLeaderboard({ quizId }: { quizId: number }) {
         <CardTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-amber-500" />
           Tabla de líderes
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Cómo se calcula la puntuación"
+                className="cursor-help rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <CircleHelp className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-xs text-balance">
+              Cuenta tu mejor puntuación ponderada por el número de intento: cuantos más intentos
+              necesites, menos puntúa el resultado. Por eso un 10 en un reintento puede aparecer
+              aquí con menos de 10.
+            </TooltipContent>
+          </Tooltip>
         </CardTitle>
-        <CardDescription className="flex items-start gap-1.5">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          Cuenta tu mejor puntuación ponderada por el número de intento: cuantos más intentos
-          necesites, menos puntúa el resultado. Por eso un 10 en un reintento puede aparecer aquí
-          con menos de 10.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {isLoading ? (

@@ -6,15 +6,17 @@ import { QuizDifficultyBadge } from "@/components/ui/quiz-difficulty-badge";
 import type { QuizDto } from "@/lib/api/quizzes";
 import { formatCompactCount, formatDate } from "@/lib/utils";
 
-// Banda superior decorativa; el título empieza siempre por debajo de ella. Cuenta envíos de
-// todos los usuarios (no personas distintas), de ahí "intentos" en el copy.
+// Banda superior decorativa, con la misma altura (h-36) que la de PDFCard para que PDFs y
+// cuestionarios alineen su "imagen" cuando comparten rejilla; el título empieza siempre por
+// debajo de ella. Cuenta envíos de todos los usuarios (no personas distintas), de ahí "intentos" en el copy.
 export function QuizCard({ quiz }: { quiz: QuizDto }) {
   const attempts = quiz.attemptCount ?? 0;
   return (
     <Link href={`/dashboard/quizzes/${quiz.id}`} className="group block h-full">
       <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md">
-        <div className="relative h-14 shrink-0 overflow-hidden bg-linear-to-br from-purple-500/20 via-fuchsia-500/10 to-transparent dark:from-purple-500/30 dark:via-fuchsia-500/15">
-          <ListChecks className="absolute -bottom-3 left-1/2 h-16 w-16 -rotate-12 text-purple-500/15" />
+        <div className="relative grid h-36 shrink-0 place-items-center overflow-hidden bg-linear-to-br from-purple-500/20 via-fuchsia-500/10 to-transparent dark:from-purple-500/30 dark:via-fuchsia-500/15">
+          <ListChecks className="absolute -bottom-6 left-1/2 h-28 w-28 -translate-x-1/2 -rotate-12 text-purple-500/15" />
+          <ListChecks className="relative h-8 w-8 text-purple-600 dark:text-purple-300" />
           <div className="absolute right-3 top-3">
             <QuizDifficultyBadge difficulty={quiz.difficulty} />
           </div>
