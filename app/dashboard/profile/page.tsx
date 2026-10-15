@@ -100,6 +100,7 @@ function MyStatsSection() {
 }
 
 function AttemptsHistoryTab() {
+  const router = useRouter()
   const [page, setPage] = useState(0)
   const { data, isLoading } = useMyAttempts(page, 10)
   const { data: quizzes } = usePublicQuizzes()
@@ -145,7 +146,12 @@ function AttemptsHistoryTab() {
                 </TableRow>
               ) : attempts.length > 0 ? (
                 attempts.map((attempt) => (
-                  <TableRow key={attempt.id}>
+                  // Toda la fila lleva al detalle (el enlace "Ver detalle" sigue ahí para teclado y lectores).
+                  <TableRow
+                    key={attempt.id}
+                    className={attempt.quizId != null ? "cursor-pointer" : "hover:bg-transparent"}
+                    onClick={() => attempt.quizId != null && router.push(`/dashboard/quizzes/${attempt.quizId}`)}
+                  >
                     <TableCell className="font-medium">
                       {attempt.quizId != null
                         ? quizNameById.get(attempt.quizId) ?? `Cuestionario #${attempt.quizId}`
@@ -162,6 +168,7 @@ function AttemptsHistoryTab() {
                         <Link
                           href={`/dashboard/quizzes/${attempt.quizId}`}
                           className="text-sm text-primary hover:underline"
+                          onClick={(event) => event.stopPropagation()}
                         >
                           Ver detalle
                         </Link>

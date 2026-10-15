@@ -26,10 +26,10 @@ export default function BlogCard({
   const { isAdmin } = useAuth();
   
   return (
-    <Link href={`/dashboard/blog/${link}`}>
+    <Link href={`/dashboard/blog/${link}`} className="group block h-full">
       <Card className="flex flex-col h-full transition-all duration-200 hover:shadow-md hover:scale-102">
         <CardHeader className="p-4 pb-0">
-            <CardTitle className="text-lg font-semibold hover:text-primary transition-colors duration-200">
+            <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors duration-200">
               {title}
             </CardTitle>
         </CardHeader>
