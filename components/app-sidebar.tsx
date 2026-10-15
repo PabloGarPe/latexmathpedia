@@ -7,6 +7,7 @@ import {
   Command,
   LifeBuoy,
   ListChecks,
+  Megaphone,
   Newspaper,
   Send,
 } from "lucide-react"
@@ -88,6 +89,12 @@ const dataAdminPanel = {
       title: "Cuestionarios",
       url: "/dashboard/admin/quizzes",
       icon: ClipboardList,
+      isActive: false,
+    },
+    {
+      title: "Avisos",
+      url: "/dashboard/admin/announcements",
+      icon: Megaphone,
       isActive: false,
     },
   ],

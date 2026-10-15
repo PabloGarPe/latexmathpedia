@@ -5,6 +5,8 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import PdfViewer from "@/components/pdf-viewer"
+import { ContentUnavailable } from "@/components/content-unavailable"
+import { ApiError } from "@/lib/api/errors"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
 import { useInvalidatePdfViews, usePdfContent, usePdfs } from "@/hooks/api/use-pdfs"
 import { useToast } from "@/hooks/use-toast"
@@ -24,7 +26,8 @@ export default function PdfViewerPage() {
   const pdf = pdfs?.find((p) => p.id === pdfId)
   const authors = formatPdfAuthors(pdf?.author, pdf?.coauthors)
 
-  const { data: content, isLoading, isError } = usePdfContent(pdfId, isAuthenticated)
+  const { data: content, isLoading, isError, error: contentError } = usePdfContent(pdfId, isAuthenticated)
+  const notFound = contentError instanceof ApiError && contentError.status === 404
 
   // Abrir el PDF suma una vista: al llegar el binario se marcan como obsoletos el viewCount
   // y las hileras del feed, para que al volver se refresquen (si no, lo hace el staleTime).
@@ -36,7 +39,7 @@ export default function PdfViewerPage() {
   }, [hasContent, pdfId])
 
   useEffect(() => {
-    if (isError) toast.error("Error al cargar el PDF.")
+    if (isError && !notFound) toast.error("Error al cargar el PDF.")
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isError])
 
@@ -46,6 +49,10 @@ export default function PdfViewerPage() {
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
       </div>
     )
+  }
+
+  if (notFound) {
+    return <ContentUnavailable backHref="/dashboard/subjects" backLabel="Ver asignaturas" />
   }
 
   return (

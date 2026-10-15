@@ -124,6 +124,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notifications/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mis preferencias de notificación
+         * @description Matriz completa de tipos configurables por canal, con los valores por defecto donde el usuario no ha elegido. Los tipos no configurables (bienvenida, avisos) no aparecen porque se entregan siempre
+         */
+        get: operations["getMyPreferences"];
+        /**
+         * Actualiza mis preferencias de notificación
+         * @description Cambio parcial: solo se modifican las preferencias indicadas. Devuelve la matriz completa actualizada
+         */
+        put: operations["updateMyPreferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -219,7 +243,7 @@ export interface paths {
         put?: never;
         /**
          * Importa un cuestionario completo desde JSON
-         * @description El JSON no incluye asignatura ni tema; se seleccionan aparte al importar. Requiere rol ADMIN
+         * @description El JSON no incluye asignatura ni tema; se seleccionan aparte al importar. Se importa completo, así que se publica al momento (visible) y se notifica a los usuarios. Requiere rol ADMIN
          */
         post: operations["importQuiz"];
         delete?: never;
@@ -239,7 +263,7 @@ export interface paths {
         put?: never;
         /**
          * Crea un nuevo cuestionario
-         * @description Requiere rol ADMIN
+         * @description Se crea OCULTO (visible = false), porque se rellena pregunta a pregunta. Para publicarlo hay que usar PATCH /quiz/{id}/visibility. Requiere rol ADMIN
          */
         post: operations["createQuiz"];
         delete?: never;
@@ -308,6 +332,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notifications/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Envía un aviso a los usuarios
+         * @description A todos los usuarios activos o solo a los indicados por email. El reparto es asíncrono. El enlace opcional debe ser una ruta interna que empiece por '/'. Requiere rol ADMIN
+         */
+        post: operations["createAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/mail/send": {
         parameters: {
             query?: never;
@@ -348,6 +392,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/quiz/{id}/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Publica u oculta un cuestionario
+         * @description Los cuestionarios ocultos solo los ve un administrador. Publicar uno sin preguntas es un error (400). La primera vez que se publica se notifica a los usuarios; ocultarlo y publicarlo de nuevo no vuelve a notificar. Requiere rol ADMIN
+         */
+        patch: operations["updateQuizVisibility"];
+        trace?: never;
+    };
+    "/notifications/{id}/unread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Marca una notificación como no leída */
+        patch: operations["markAsUnread"];
+        trace?: never;
+    };
+    "/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Marca una notificación como leída
+         * @description Idempotente: si ya estaba leída no es un error
+         */
+        patch: operations["markAsRead"];
+        trace?: never;
+    };
+    "/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Marca todas las notificaciones como leídas */
+        patch: operations["markAllAsRead"];
+        trace?: never;
+    };
     "/users/search": {
         parameters: {
             query?: never;
@@ -377,7 +495,7 @@ export interface paths {
         };
         /**
          * Obtiene todos los cuestionarios de una asignatura
-         * @description Requiere autenticación, pero no requiere rol ADMIN
+         * @description Requiere autenticación, pero no requiere rol ADMIN. Los cuestionarios ocultos solo se incluyen para administradores
          */
         get: operations["getSubjectQuizzes"];
         put?: never;
@@ -397,9 +515,29 @@ export interface paths {
         };
         /**
          * Obtiene todos los cuestionarios de un tema
-         * @description Requiere autenticación, pero no requiere rol ADMIN
+         * @description Requiere autenticación, pero no requiere rol ADMIN. Los cuestionarios ocultos solo se incluyen para administradores
          */
         get: operations["getSubjectUnitQuizzes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/quiz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista todos los cuestionarios
+         * @description Requiere autenticación, pero no requiere rol ADMIN. Para un administrador incluye también los cuestionarios ocultos (es lo que necesita el panel de administración para poder publicarlos); para el resto, solo los visibles. El listado público GET /public/quiz nunca incluye los ocultos
+         */
+        get: operations["getAllQuizzes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -417,7 +555,7 @@ export interface paths {
         };
         /**
          * Obtiene un cuestionario por su ID
-         * @description Requiere autenticación, pero no requiere rol ADMIN
+         * @description Requiere autenticación, pero no requiere rol ADMIN. Si el cuestionario está oculto, solo lo ve un administrador (404 para el resto)
          */
         get: operations["getQuiz"];
         put?: never;
@@ -457,7 +595,7 @@ export interface paths {
         };
         /**
          * Obtiene las preguntas de un cuestionario por su ID
-         * @description Requiere autenticación, pero no requiere rol ADMIN
+         * @description Incluye la explicación de la respuesta correcta, por lo que es solo para edición. Para resolver el cuestionario usar GET /quiz/{id}/attempt. Requiere rol ADMIN
          */
         get: operations["getQuizQuestions"];
         put?: never;
@@ -537,7 +675,7 @@ export interface paths {
         };
         /**
          * Obtiene un cuestionario por su ID para intentar resolverlo
-         * @description Requiere autenticación, pero no requiere rol ADMIN
+         * @description Requiere autenticación, pero no requiere rol ADMIN. Si el cuestionario está oculto, solo lo ve un administrador (404 para el resto)
          */
         get: operations["getQuizForAttempt"];
         put?: never;
@@ -557,7 +695,7 @@ export interface paths {
         };
         /**
          * Obtiene una pregunta por su ID
-         * @description Requiere autenticación, pero no requiere rol ADMIN
+         * @description Incluye la explicación de la respuesta correcta, por lo que es solo para edición. Requiere rol ADMIN
          */
         get: operations["getQuestion"];
         put?: never;
@@ -576,8 +714,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Obtiene una pregunta con sus opciones por su ID
-         * @description Requiere autenticación, pero no requiere rol ADMIN
+         * Obtiene las opciones de una pregunta por su ID
+         * @description Incluye cuál es la opción correcta, por lo que es solo para edición. Para resolver un cuestionario usar GET /quiz/{id}/attempt. Requiere rol ADMIN
          */
         get: operations["getQuestionOptions"];
         put?: never;
@@ -684,7 +822,7 @@ export interface paths {
          * Lista todos los cuestionarios
          * @description Incluye el número de intentos (attemptCount) de cada cuestionario
          */
-        get: operations["getAllQuizzes"];
+        get: operations["getAllQuizzes_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -862,9 +1000,49 @@ export interface paths {
         };
         /**
          * Obtiene una opción por su ID
-         * @description Requiere autenticación
+         * @description Incluye si la opción es correcta, por lo que es solo para edición. Requiere rol ADMIN
          */
         get: operations["getOption"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mis notificaciones
+         * @description Bandeja del usuario autenticado, de la más reciente a la más antigua. No modifica la cuenta del usuario
+         */
+        get: operations["getMyNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Número de notificaciones sin leer
+         * @description Pensado para el polling de la campanita (recomendado cada 60 s con la pestaña visible). Es una consulta muy ligera y no modifica la cuenta del usuario
+         */
+        get: operations["getUnreadCount"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1033,6 +1211,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notifications/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Borra una notificación
+         * @description Solo la quita de la bandeja del usuario
+         */
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1141,6 +1339,13 @@ export interface components {
             subject?: components["schemas"]["SubjectDto"];
             /** @description Tema al que pertenece el cuestionario */
             subjectUnit?: components["schemas"]["SubjectUnitDto"];
+            /** @description Si el cuestionario es visible para los usuarios. Los ocultos solo los ve un administrador */
+            visible?: boolean;
+            /**
+             * Format: date-time
+             * @description Fecha de la primera publicación (primera vez que se hizo visible). Nula si nunca se ha publicado
+             */
+            readonly publishedAt?: string | null;
             /**
              * Format: int64
              * @description Número total de veces que se ha hecho el cuestionario (todos los usuarios; cada envío cuenta, aunque sea del mismo usuario). 0 si nadie lo ha hecho
@@ -1299,6 +1504,74 @@ export interface components {
              */
             questionId?: number;
             correct?: boolean;
+        };
+        Item: {
+            /**
+             * @description Tipo de notificación (debe ser configurable)
+             * @example PDF_CREATED
+             * @enum {string}
+             */
+            type: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
+            /**
+             * @description Canal
+             * @example IN_APP
+             * @enum {string}
+             */
+            channel: "IN_APP";
+            /** @description Si se quiere recibir */
+            enabled: boolean;
+            /**
+             * @description Alcance (opcional; debe estar entre los admitidos por el tipo). Si no se indica se mantiene el actual
+             * @example ALL
+             * @enum {string|null}
+             */
+            scope?: "ALL" | null;
+        };
+        UpdateNotificationPreferencesDto: {
+            /** @description Preferencias a cambiar. Es parcial: solo se tocan las indicadas */
+            preferences: components["schemas"]["Item"][];
+        };
+        NotificationPreferenceDto: {
+            /**
+             * @description Tipo de notificación
+             * @example PDF_CREATED
+             * @enum {string}
+             */
+            type?: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
+            /**
+             * @description Categoría, para agrupar en la pantalla de preferencias
+             * @example CONTENT
+             * @enum {string}
+             */
+            category?: "CONTENT" | "PERSONAL" | "SYSTEM";
+            /**
+             * @description Nombre corto para mostrar
+             * @example Nuevos apuntes
+             */
+            label?: string;
+            /**
+             * @description Descripción para mostrar
+             * @example Cuando se sube un apunte nuevo
+             */
+            description?: string;
+            /**
+             * @description Canal de entrega
+             * @example IN_APP
+             * @enum {string}
+             */
+            channel?: "IN_APP";
+            /** @description Si el usuario recibe este tipo por este canal */
+            enabled?: boolean;
+            /** @description Valor por defecto, para poder mostrar 'restablecer' */
+            defaultEnabled?: boolean;
+            /**
+             * @description Alcance elegido. Nulo si el tipo no admite alcances
+             * @example ALL
+             * @enum {string|null}
+             */
+            scope?: "ALL" | null;
+            /** @description Alcances que admite el tipo. Si solo hay uno no hace falta mostrar selector */
+            availableScopes?: "ALL"[];
         };
         UpdateUserAccountDto: {
             /**
@@ -1474,9 +1747,9 @@ export interface components {
         };
         OptionExportableDto: {
             text: string;
+            correct?: boolean;
             /** Format: int32 */
             position?: number;
-            correct?: boolean;
         };
         QuestionExportableDto: {
             text: string;
@@ -1601,6 +1874,25 @@ export interface components {
             questionId: number;
             correct?: boolean;
         };
+        CreateAnnouncementDto: {
+            /**
+             * @description Título del aviso
+             * @example Mantenimiento programado
+             */
+            title: string;
+            /**
+             * @description Texto del aviso
+             * @example El sábado la plataforma estará en mantenimiento de 2:00 a 4:00.
+             */
+            message: string;
+            /**
+             * @description Ruta interna del front a la que llevará el aviso (debe empezar por '/'). Opcional
+             * @example /dashboard
+             */
+            link?: string | null;
+            /** @description Emails de los destinatarios. Si no se indica o está vacío, se envía a todos los usuarios activos */
+            recipientEmails?: string[] | null;
+        };
         Mail: {
             /** @description Remitente. Si no se indica, se usa el email del usuario autenticado */
             from?: string | null;
@@ -1648,6 +1940,21 @@ export interface components {
              * @enum {string}
              */
             status?: "SUCCESS" | "ERROR";
+        };
+        UpdateQuizVisibilityDto: {
+            /**
+             * @description true para publicar el cuestionario (visible para los usuarios), false para ocultarlo
+             * @example true
+             */
+            visible: boolean;
+        };
+        MarkAllReadResultDto: {
+            /**
+             * Format: int32
+             * @description Número de notificaciones que se han marcado como leídas
+             * @example 5
+             */
+            updated?: number;
         };
         AuthorCandidateDto: {
             /**
@@ -1831,6 +2138,96 @@ export interface components {
              */
             role?: "USER" | "ADMIN";
             id?: string;
+        };
+        NotificationDto: {
+            /**
+             * Format: int64
+             * @description Identificador de la notificación del usuario (es el que se usa para marcarla como leída o borrarla)
+             */
+            readonly id?: number;
+            /**
+             * @description Tipo de notificación
+             * @example PDF_CREATED
+             * @enum {string}
+             */
+            type?: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
+            /**
+             * @description Categoría de la notificación, útil para elegir el icono
+             * @example CONTENT
+             * @enum {string}
+             */
+            category?: "CONTENT" | "PERSONAL" | "SYSTEM";
+            /**
+             * @description Título corto, ya redactado
+             * @example Nuevo apunte en Álgebra
+             */
+            title?: string;
+            /**
+             * @description Mensaje corto, ya redactado
+             * @example Se ha añadido «Matrices» al tema Matrices y determinantes.
+             */
+            message?: string;
+            /**
+             * @description Ruta interna del front a la que llevar al usuario. Solo la traen los avisos manuales; el resto se navega con resourceType y resourceId
+             * @example /dashboard
+             */
+            link?: string | null;
+            /**
+             * @description Tipo del recurso al que apunta (NONE si no apunta a ninguno)
+             * @example PDF
+             * @enum {string}
+             */
+            resourceType?: "PDF" | "QUIZ" | "SUBJECT" | "SUBJECT_UNIT" | "NONE";
+            /**
+             * Format: int64
+             * @description Id del recurso al que apunta
+             * @example 12
+             */
+            resourceId?: number | null;
+            /**
+             * Format: int64
+             * @description Id de la asignatura relacionada
+             * @example 3
+             */
+            subjectId?: number | null;
+            /** @description Si el usuario ya la ha leído */
+            read?: boolean;
+            /**
+             * Format: date-time
+             * @description Cuándo la leyó
+             */
+            readAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Cuándo se generó
+             */
+            createdAt?: string;
+        };
+        PageNotificationDto: {
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            size?: number;
+            content?: components["schemas"]["NotificationDto"][];
+            /** Format: int32 */
+            number?: number;
+            sort?: components["schemas"]["SortObject"];
+            pageable?: components["schemas"]["PageableObject"];
+            /** Format: int32 */
+            numberOfElements?: number;
+            first?: boolean;
+            last?: boolean;
+            empty?: boolean;
+        };
+        UnreadCountDto: {
+            /**
+             * Format: int64
+             * @description Número de notificaciones sin leer
+             * @example 3
+             */
+            count?: number;
         };
         PageQuizAttemptDto: {
             /** Format: int32 */
@@ -2222,6 +2619,77 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["OptionDto"];
+                };
+            };
+        };
+    };
+    getMyPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preferencias del usuario */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NotificationPreferenceDto"][];
+                };
+            };
+            /** @description No autenticado o cuenta inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NotificationPreferenceDto"][];
+                };
+            };
+        };
+    };
+    updateMyPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateNotificationPreferencesDto"];
+            };
+        };
+        responses: {
+            /** @description Matriz completa de preferencias */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NotificationPreferenceDto"][];
+                };
+            };
+            /** @description Datos inválidos, tipo no configurable o alcance no admitido por el tipo */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NotificationPreferenceDto"][];
+                };
+            };
+            /** @description No autenticado o cuenta inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NotificationPreferenceDto"][];
                 };
             };
         };
@@ -2750,6 +3218,49 @@ export interface operations {
             };
         };
     };
+    createAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAnnouncementDto"];
+            };
+        };
+        responses: {
+            /** @description Aviso aceptado; se reparte en segundo plano */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Datos inválidos o enlace no interno */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El usuario autenticado no tiene rol ADMIN */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Algún email no corresponde a ningún usuario */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     sendMain: {
         parameters: {
             query?: never;
@@ -2799,6 +3310,159 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChatResponse"];
+                };
+            };
+        };
+    };
+    updateQuizVisibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID del cuestionario */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateQuizVisibilityDto"];
+            };
+        };
+        responses: {
+            /** @description Visibilidad actualizada (también si ya estaba en ese estado) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizDto"];
+                };
+            };
+            /** @description Datos de entrada inválidos o el cuestionario no tiene preguntas */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizDto"];
+                };
+            };
+            /** @description No autorizado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizDto"];
+                };
+            };
+            /** @description No existe ningún cuestionario con el ID proporcionado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizDto"];
+                };
+            };
+        };
+    };
+    markAsUnread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id de la notificación */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marcada como no leída */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe o no es del usuario */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    markAsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id de la notificación */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marcada como leída */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe o no es del usuario */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    markAllAsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Número de notificaciones marcadas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MarkAllReadResultDto"];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MarkAllReadResultDto"];
                 };
             };
         };
@@ -2922,12 +3586,41 @@ export interface operations {
             };
         };
     };
+    getAllQuizzes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista de cuestionarios con el número de intentos de cada uno */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizDto"][];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuizDto"][];
+                };
+            };
+        };
+    };
     getQuiz: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description ID de la asignatura */
+                /** @description ID del cuestionario */
                 id: number;
             };
             cookie?: never;
@@ -3215,6 +3908,15 @@ export interface operations {
                     "*/*": components["schemas"]["QuestionDto"];
                 };
             };
+            /** @description No autorizado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuestionDto"];
+                };
+            };
             /** @description Pregunta no encontrada */
             404: {
                 headers: {
@@ -3397,7 +4099,7 @@ export interface operations {
             };
         };
     };
-    getAllQuizzes: {
+    getAllQuizzes_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3634,7 +4336,7 @@ export interface operations {
                     "*/*": components["schemas"]["OptionDto"];
                 };
             };
-            /** @description No autenticado */
+            /** @description No autorizado */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3650,6 +4352,71 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["OptionDto"];
+                };
+            };
+        };
+    };
+    getMyNotifications: {
+        parameters: {
+            query?: {
+                /** @description Si es true, solo las no leídas */
+                unreadOnly?: boolean;
+                /** @description Número de página, empezando en 0 */
+                page?: number;
+                /** @description Tamaño de página (por defecto 20, máximo 50) */
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de notificaciones */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageNotificationDto"];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageNotificationDto"];
+                };
+            };
+        };
+    };
+    getUnreadCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Número de notificaciones sin leer */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UnreadCountDto"];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UnreadCountDto"];
                 };
             };
         };
@@ -3930,6 +4697,41 @@ export interface operations {
                 content?: never;
             };
             /** @description No existe ninguna opción con el ID proporcionado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id de la notificación */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Borrada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe o no es del usuario */
             404: {
                 headers: {
                     [name: string]: unknown;

@@ -23,6 +23,32 @@ export type QuizAttemptStatsDto = components["schemas"]["QuizAttemptStatsDto"];
 export type LeaderboardEntryDto = components["schemas"]["LeaderboardEntryDto"];
 export type PageLeaderboardEntryDto = components["schemas"]["PageLeaderboardEntryDto"];
 
+// Catálogo completo para el panel de admin: `GET /quiz` devuelve también los ocultos (a un
+// usuario normal solo los visibles). Los endpoints /public/quiz nunca devuelven ocultos.
+export async function getAllQuizzes() {
+  const { data, response } = await apiClient.GET("/quiz");
+  if (!response.ok || data === undefined) throw new ApiError(response.status, "No se pudieron cargar los cuestionarios");
+  return data;
+}
+
+// Publicar (true) u ocultar (false). 400 si se intenta publicar sin preguntas. Solo la primera
+// publicación (`publishedAt` null) notifica a los usuarios.
+export async function setQuizVisibility(id: number, visible: boolean) {
+  const { data, response } = await apiClient.PATCH("/quiz/{id}/visibility", {
+    params: { path: { id } },
+    body: { visible },
+  });
+  if (!response.ok || data === undefined) {
+    throw new ApiError(
+      response.status,
+      response.status === 400
+        ? "Añade al menos una pregunta antes de publicar el cuestionario"
+        : "No se pudo cambiar la visibilidad del cuestionario",
+    );
+  }
+  return data;
+}
+
 export async function getPublicQuizzes() {
   const { data, error, response } = await apiClient.GET("/public/quiz");
   // Un 401/403 sin cuerpo llega con `error` vacío y `data` undefined: se comprueba el estado.

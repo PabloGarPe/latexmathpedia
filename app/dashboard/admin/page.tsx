@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, BookOpen, ClipboardList, FileText } from "lucide-react"
+import { ArrowRight, BookOpen, ClipboardList, FileText, Megaphone } from "lucide-react"
 import { PageContainer, PageHeader } from "@/components/page-shell"
 import { useAdminRoute } from "@/hooks/use-protected-route"
 
@@ -17,6 +17,12 @@ const SECTIONS = [
     title: "Cuestionarios",
     description: "Crea, importa y exporta cuestionarios, y edita sus preguntas y opciones.",
     icon: ClipboardList,
+  },
+  {
+    href: "/dashboard/admin/announcements",
+    title: "Avisos",
+    description: "Envía una notificación a todos los usuarios o a usuarios concretos.",
+    icon: Megaphone,
   },
 ]
 

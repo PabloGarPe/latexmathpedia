@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createQuiz,
   deleteQuiz,
+  getAllQuizzes,
   getMyAttempts,
   getPublicQuizzes,
   getQuiz,
@@ -15,6 +16,7 @@ import {
   getQuizQuestions,
   getQuizStats,
   importQuiz,
+  setQuizVisibility,
   submitQuizAttempt,
   updateQuiz,
   type CreateQuizDto,
@@ -51,6 +53,15 @@ export function usePublicQuizzes(enabled = true) {
   return useQuery({
     queryKey: queryKeys.quizzes.all(),
     queryFn: getPublicQuizzes,
+    enabled,
+  });
+}
+
+// Listado del admin (incluye ocultos). Clave propia para no mezclarse con el público.
+export function useAllQuizzes(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.quizzes.catalog(),
+    queryFn: getAllQuizzes,
     enabled,
   });
 }
@@ -174,6 +185,19 @@ export function useImportQuiz() {
     }) => importQuiz(subjectId, subjectUnitId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.quizzes.all() });
+    },
+  });
+}
+
+// Cambia el estado de publicación. Invalida todo lo de cuestionarios (listados, hileras y
+// asignaturas) porque lo que ve el alumno cambia.
+export function useSetQuizVisibility() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, visible }: { id: number; visible: boolean }) => setQuizVisibility(id, visible),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.quizzes.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all() });
     },
   });
 }

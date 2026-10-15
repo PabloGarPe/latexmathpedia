@@ -124,7 +124,7 @@ function QuizForm({
         onClose()
       } else {
         const created = await createQuiz.mutateAsync(body)
-        toast.success("Cuestionario creado. Ahora puedes añadirle preguntas.")
+        toast.success("Cuestionario creado, oculto por ahora. Añade preguntas y publícalo cuando esté listo.")
         onClose()
         if (created?.id != null) router.push(`/dashboard/admin/quizzes/${created.id}`)
       }

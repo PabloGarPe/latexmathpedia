@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 import { ModeToggle } from "./mode-toggle"
 
 function capitalizeFirstLetter(string: string) {
@@ -154,6 +155,7 @@ export function SiteHeader() {
           </TooltipContent>
         </Tooltip>
         <SearchForm className="w-full sm:ml-auto sm:w-auto" onSearch={handleSearch} />
+        <NotificationBell />
         <ModeToggle />
       </div>
     </header>

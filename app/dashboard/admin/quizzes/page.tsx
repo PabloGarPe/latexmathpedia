@@ -38,13 +38,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SubjectUnitPicker } from "@/components/ui/subject-unit-picker"
 import { PageContainer, PageHeader } from "@/components/page-shell"
 import { QuizFormDialog } from "@/components/admin/quiz-form-dialog"
+import { QuizVisibilityToggle, isQuizHidden } from "@/components/admin/quiz-visibility"
 import { QuizDifficultyBadge } from "@/components/ui/quiz-difficulty-badge"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminRoute } from "@/hooks/use-protected-route"
-import { useDeleteQuiz, useImportQuiz, usePublicQuizzes } from "@/hooks/api/use-quizzes"
+import { useDeleteQuiz, useImportQuiz, useAllQuizzes } from "@/hooks/api/use-quizzes"
 import { exportQuiz, type QuizDto, type QuizExportableDto } from "@/lib/api/quizzes"
 import { conflictMessage } from "@/lib/api/errors"
 import { formatDate } from "@/lib/utils"
@@ -120,7 +122,7 @@ function ImportQuizDialog() {
         subjectUnitId: values.subjectUnitId,
         body: fileContentRef.current,
       })
-      toast.success("Cuestionario importado correctamente.")
+      toast.success("Cuestionario importado y publicado.")
       setOpen(false)
       reset({ subjectId: null, subjectUnitId: null })
       fileContentRef.current = null
@@ -210,7 +212,10 @@ function QuizRow({ quiz }: { quiz: QuizDto }) {
 
   return (
     <TableRow className="hover:bg-transparent">
-      <TableCell className="font-medium">{quiz.name}</TableCell>
+      <TableCell className="font-medium">
+        {quiz.name}
+        {isQuizHidden(quiz) && <span className="sr-only"> (oculto)</span>}
+      </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
           {quiz.subject?.name && (
@@ -227,6 +232,9 @@ function QuizRow({ quiz }: { quiz: QuizDto }) {
       </TableCell>
       <TableCell>
         <QuizDifficultyBadge difficulty={quiz.difficulty} />
+      </TableCell>
+      <TableCell>
+        <QuizVisibilityToggle quiz={quiz} variant="switch" />
       </TableCell>
       <TableCell>{formatDate(quiz.lastTimeEdited)}</TableCell>
       <TableCell className="text-right space-x-1">
@@ -264,8 +272,9 @@ function QuizRow({ quiz }: { quiz: QuizDto }) {
 
 export default function AdminQuizzesPage() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "hidden">("all")
   const { isAuthenticated, isAdmin, loading: authLoading } = useAdminRoute()
-  const { data: quizzes, isLoading: quizzesLoading } = usePublicQuizzes(isAuthenticated && isAdmin)
+  const { data: quizzes, isLoading: quizzesLoading } = useAllQuizzes(isAuthenticated && isAdmin)
 
   if (authLoading) {
     return (
@@ -279,7 +288,10 @@ export default function AdminQuizzesPage() {
     return null
   }
 
+  const hiddenCount = (quizzes ?? []).filter(isQuizHidden).length
   const filteredQuizzes = (quizzes ?? []).filter((quiz) => {
+    if (statusFilter === "published" && isQuizHidden(quiz)) return false
+    if (statusFilter === "hidden" && !isQuizHidden(quiz)) return false
     if (!searchTerm.trim()) return true
     const term = searchTerm.toLowerCase()
     return (
@@ -308,6 +320,19 @@ export default function AdminQuizzesPage() {
           <CardDescription>Busca, edita, exporta o elimina cuestionarios.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+              <TabsList>
+                <TabsTrigger value="all">Todos</TabsTrigger>
+                <TabsTrigger value="published">Publicados</TabsTrigger>
+                <TabsTrigger value="hidden">Ocultos{hiddenCount > 0 ? ` (${hiddenCount})` : ""}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <p className="text-xs text-muted-foreground">
+              Los cuestionarios nuevos se crean ocultos: publícalos cuando tengan preguntas.
+            </p>
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -328,6 +353,7 @@ export default function AdminQuizzesPage() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Asignatura/Tema</TableHead>
                     <TableHead>Dificultad</TableHead>
+                    <TableHead>Estado</TableHead>
                     <TableHead>Última edición</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -339,10 +365,12 @@ export default function AdminQuizzesPage() {
                 </TableBody>
               </Table>
             </div>
-          ) : searchTerm ? (
+          ) : searchTerm || statusFilter !== "all" ? (
             <div className="text-center py-6">
               <AlertCircleIcon className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-2" />
-              <p>No se encontraron resultados para &quot;{searchTerm}&quot;</p>
+              <p>
+                {searchTerm ? <>No se encontraron resultados para &quot;{searchTerm}&quot;</> : "No hay cuestionarios en este estado."}
+              </p>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No hay cuestionarios todavía.</p>

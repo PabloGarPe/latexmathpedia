@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 
 // Rutas que requieren sesión iniciada
-const protectedPaths = ['/dashboard/profile', '/dashboard/admin']
+const protectedPaths = ['/dashboard/profile', '/dashboard/notifications', '/dashboard/admin']
 // Rutas que además requieren el rol de admin de Keycloak
 const adminPaths = ['/dashboard/admin']
 // Rutas de login/registro: si ya hay sesión se redirige al dashboard

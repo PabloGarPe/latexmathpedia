@@ -20,6 +20,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "Eliminar",
+  variant = "destructive",
   onConfirm,
 }: {
   open: boolean
@@ -27,6 +28,8 @@ export function ConfirmDialog({
   title: string
   description: React.ReactNode
   confirmLabel?: string
+  // "default" para confirmaciones que no destruyen nada (p. ej. publicar).
+  variant?: "destructive" | "default"
   onConfirm: () => void | Promise<void>
 }) {
   return (
@@ -39,7 +42,7 @@ export function ConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel className="cursor-pointer">Cancelar</AlertDialogCancel>
           <AlertDialogAction
-            className={buttonVariants({ variant: "destructive", className: "cursor-pointer" })}
+            className={buttonVariants({ variant, className: "cursor-pointer" })}
             onClick={() => void onConfirm()}
           >
             {confirmLabel}

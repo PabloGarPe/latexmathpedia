@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { arrayMove } from "@dnd-kit/sortable"
-import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, ListChecks, Pencil, Trash } from "lucide-react"
+import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, EyeOff, ListChecks, Pencil, Trash } from "lucide-react"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { QuestionCard } from "@/components/admin/quiz-editor/question-card"
 import { QuestionComposer } from "@/components/admin/quiz-editor/question-composer"
@@ -15,6 +15,7 @@ import { PageContainer } from "@/components/page-shell"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { QuizStatusBadge, QuizVisibilityToggle, isQuizHidden } from "@/components/admin/quiz-visibility"
 import { QuizDifficultyBadge } from "@/components/ui/quiz-difficulty-badge"
 import { useDeleteQuiz, useQuiz, useQuizQuestions } from "@/hooks/api/use-quizzes"
 import { useQuestionsOptions, useReorderQuestions } from "@/hooks/api/use-questions"
@@ -54,6 +55,9 @@ export default function QuizEditorPage() {
   const [deletingQuiz, setDeletingQuiz] = useState(false)
   // Arrastrar una pregunta abierta es incómodo (es muy alta): al empezar se pliegan y al soltar se restauran.
   const openBeforeDrag = useRef<number[] | null>(null)
+
+  const noQuestions = !questionsLoading && sortedQuestions.length === 0
+  const publishBlocked = noQuestions ? "Añade al menos una pregunta" : undefined
 
   if (authLoading) return <FullPageSpinner />
   if (!isAuthenticated || !isAdmin) return null
@@ -119,6 +123,7 @@ export default function QuizEditorPage() {
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
+              <QuizStatusBadge quiz={quiz} />
               <QuizDifficultyBadge difficulty={quiz.difficulty} />
               {quiz.subject?.name && (
                 <span className="rounded-full bg-background/70 px-2.5 py-0.5 text-xs">{quiz.subject.name}</span>
@@ -132,7 +137,8 @@ export default function QuizEditorPage() {
             <h1 className="text-3xl font-bold tracking-tight">{quiz.name}</h1>
             {quiz.description && <p className="max-w-prose text-muted-foreground">{quiz.description}</p>}
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {!isQuizHidden(quiz) && <QuizVisibilityToggle quiz={quiz} variant="button" />}
             <Button variant="outline" size="sm" className="cursor-pointer bg-background/80 backdrop-blur" onClick={() => setEditingQuiz(true)}>
               <Pencil className="h-4 w-4" />
               Editar datos
@@ -149,6 +155,26 @@ export default function QuizEditorPage() {
           </div>
         </div>
       </header>
+
+      {isQuizHidden(quiz) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+          <div className="flex items-start gap-3">
+            <EyeOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="space-y-0.5 text-sm">
+              <p className="font-medium">Este cuestionario está oculto</p>
+              <p className="text-muted-foreground">
+                Los alumnos no lo ven ni pueden hacerlo.{" "}
+                {noQuestions
+                  ? "Añade al menos una pregunta para poder publicarlo."
+                  : quiz.publishedAt == null
+                    ? "Al publicarlo se avisará a todos los usuarios."
+                    : "Al volver a publicarlo no se enviará un nuevo aviso."}
+              </p>
+            </div>
+          </div>
+          <QuizVisibilityToggle quiz={quiz} variant="button" disabledReason={publishBlocked} />
+        </div>
+      )}
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section className="space-y-3">
