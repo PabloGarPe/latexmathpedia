@@ -348,6 +348,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Busca usuarios que pueden ser autores o coautores de un PDF
+         * @description Devuelve los usuarios activos cuyo nombre o email contiene el texto buscado (sin distinguir mayúsculas ni tildes), ordenados por nombre (o por email si no tienen nombre). Pensado para un buscador con sugerencias: el front debe aplicar debounce y cancelar la petición anterior. Si 'q' tiene menos de 2 caracteres (tras quitar espacios) devuelve una lista vacía. Requiere rol ADMIN
+         */
+        get: operations["searchUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/subject/{id}/quizzes": {
         parameters: {
             query?: never;
@@ -1629,6 +1649,24 @@ export interface components {
              */
             status?: "SUCCESS" | "ERROR";
         };
+        AuthorCandidateDto: {
+            /**
+             * Format: int64
+             * @description Identificador interno del usuario. Útil como clave en la lista y para excluir del lado del cliente a los ya seleccionados
+             * @example 42
+             */
+            id?: number;
+            /**
+             * @description Nombre del usuario. Nulo si aún no ha completado su perfil: en ese caso el front debe mostrar solo el email
+             * @example Ada Lovelace
+             */
+            name?: string | null;
+            /**
+             * @description Email del usuario. Es el valor que se envía en 'authorEmails' al crear o actualizar un PDF
+             * @example ada@mathtexpedia.es
+             */
+            email?: string;
+        };
         QuizAttemptStatsDto: {
             /**
              * Format: int32
@@ -2761,6 +2799,43 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChatResponse"];
+                };
+            };
+        };
+    };
+    searchUsers: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Texto a buscar en nombre o email (mínimo 2 caracteres)
+                 * @example ada
+                 */
+                q?: string;
+                /** @description Máximo de resultados (por defecto 10, máximo 20) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista de candidatos (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AuthorCandidateDto"][];
+                };
+            };
+            /** @description Sin token válido o el usuario autenticado no tiene rol ADMIN */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AuthorCandidateDto"][];
                 };
             };
         };

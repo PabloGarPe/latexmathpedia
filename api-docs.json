@@ -19,6 +19,10 @@
       "description": "Gestión de preguntas; crear/borrar/actualizar requiere rol ADMIN"
     },
     {
+      "name": "Usuarios",
+      "description": "Búsqueda de usuarios. Requiere rol ADMIN"
+    },
+    {
       "name": "Asignaturas públicas",
       "description": "Consulta del catálogo de asignaturas y temas sin necesidad de autenticación"
     },
@@ -957,6 +961,55 @@
             "content": {
               "*/*": {
                 "schema": { "$ref": "#/components/schemas/ChatResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/search": {
+      "get": {
+        "tags": ["Usuarios"],
+        "summary": "Busca usuarios que pueden ser autores o coautores de un PDF",
+        "description": "Devuelve los usuarios activos cuyo nombre o email contiene el texto buscado (sin distinguir mayúsculas ni tildes), ordenados por nombre (o por email si no tienen nombre). Pensado para un buscador con sugerencias: el front debe aplicar debounce y cancelar la petición anterior. Si 'q' tiene menos de 2 caracteres (tras quitar espacios) devuelve una lista vacía. Requiere rol ADMIN",
+        "operationId": "searchUsers",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Texto a buscar en nombre o email (mínimo 2 caracteres)",
+            "required": false,
+            "schema": { "type": "string" },
+            "example": "ada"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de resultados (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de candidatos (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/AuthorCandidateDto" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o el usuario autenticado no tiene rol ADMIN",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/AuthorCandidateDto" }
+                }
               }
             }
           }
@@ -2920,6 +2973,27 @@
             "type": "string",
             "description": "Resultado de la operación",
             "enum": ["SUCCESS", "ERROR"]
+          }
+        }
+      },
+      "AuthorCandidateDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identificador interno del usuario. Útil como clave en la lista y para excluir del lado del cliente a los ya seleccionados",
+            "example": 42
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "Nombre del usuario. Nulo si aún no ha completado su perfil: en ese caso el front debe mostrar solo el email",
+            "example": "Ada Lovelace"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email del usuario. Es el valor que se envía en 'authorEmails' al crear o actualizar un PDF",
+            "example": "ada@mathtexpedia.es"
           }
         }
       },

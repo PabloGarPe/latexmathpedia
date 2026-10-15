@@ -40,4 +40,7 @@ export const queryKeys = {
   profile: {
     me: () => ["profile", "me"] as const,
   },
+  users: {
+    search: (term: string) => ["users", "search", term] as const,
+  },
 } as const;
