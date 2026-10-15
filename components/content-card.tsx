@@ -5,27 +5,12 @@ import { CONTENT_TYPES } from "@/lib/content/registry";
 import { formatPdfAuthors, type ContentItem } from "@/lib/content/types";
 import { formatDate } from "@/lib/utils";
 
-// Insignia de tipo (icono + texto corto) compartida por los 3 tipos de tarjeta, para que
-// el grid "Todo" se pueda escanear aunque mezcle PDFs/Cuestionarios/Blog. Se superpone en
-// la esquina superior en vez de tocar el layout interno de cada tarjeta (ver
-// UI-RESTRUCTURE.md §2/§5.2: el registro centraliza esto para no repetirlo por tipo).
-function TypeBadge({ kind }: { kind: ContentItem["kind"] }) {
-  const meta = CONTENT_TYPES[kind];
-  const Icon = meta.icon;
-  return (
-    <div
-      className={`absolute top-2 left-2 z-10 flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium shadow-sm ${meta.accentClass}`}
-    >
-      <Icon className="h-3 w-3" />
-      {meta.label}
-    </div>
-  );
-}
-
-export function ContentCard({ item }: { item: ContentItem }) {
+// `actions`: controles de gestión del admin (modo edición), superpuestos en la esquina
+// superior izquierda de la tarjeta -- la derecha la usa la insignia de dificultad de los quizzes.
+export function ContentCard({ item, actions }: { item: ContentItem; actions?: React.ReactNode }) {
   return (
     <div className="relative h-full">
-      <TypeBadge kind={item.kind} />
+      {actions && <div className="absolute left-3 top-3 z-10">{actions}</div>}
       {item.kind === "pdf" && (
         <PDFCard
           title={item.data.title}
@@ -33,7 +18,7 @@ export function ContentCard({ item }: { item: ContentItem }) {
           date={formatDate(item.data.lastTimeEdited)}
           subjectName={item.data.subjectName}
           subjectUnitName={item.data.subjectUnitName}
-          authors={formatPdfAuthors(item.data.author, item.data.coauthors)}
+          authors={formatPdfAuthors(item.data.authors)}
           viewCount={item.data.viewCount}
         />
       )}

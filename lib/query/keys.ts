@@ -14,12 +14,20 @@ export const queryKeys = {
     content: (pdfId: number) => ["pdfs", pdfId, "content"] as const,
     // Hileras del feed. "top" es prefijo de "top/me": invalidar ["pdfs","top"] cubre ambas.
     recent: (limit: number) => ["pdfs", "recent", limit] as const,
+    // De mis asignaturas (por usuario). Cuelga de ["pdfs"]: lo cubren las invalidaciones de vistas.
+    recentSubscribed: (userKey: string, limit: number) => ["pdfs", "recent-subscribed", userKey, limit] as const,
     top: (limit: number) => ["pdfs", "top", limit] as const,
     // Lleva el email del usuario en la clave para no servir la caché de otra sesión.
     topMe: (userKey: string, limit: number) => ["pdfs", "top", "me", userKey, limit] as const,
   },
   quizzes: {
     all: () => ["quizzes"] as const,
+    // Catálogo completo del admin (GET /quiz, incluye ocultos); distinto del público.
+    catalog: () => ["quizzes", "catalog"] as const,
+    // Hileras del feed (públicas, sin clave por usuario).
+    recent: (limit: number) => ["quizzes", "recent", limit] as const,
+    recentSubscribed: (userKey: string, limit: number) => ["quizzes", "recent-subscribed", userKey, limit] as const,
+    top: (limit: number) => ["quizzes", "top", limit] as const,
     detail: (quizId: number) => ["quizzes", quizId] as const,
     attempt: (quizId: number) => ["quizzes", quizId, "attempt"] as const,
     questions: (quizId: number) => ["quizzes", quizId, "questions"] as const,
@@ -36,5 +44,29 @@ export const queryKeys = {
   },
   profile: {
     me: () => ["profile", "me"] as const,
+  },
+  // Foto de perfil (blob). La versión (avatarUpdatedAt) va en la clave: al cambiar se descarga
+  // de nuevo. Invalidar ["avatar", userId] cubre todas las versiones de un usuario.
+  avatars: {
+    user: (userId: number) => ["avatar", userId] as const,
+    version: (userId: number, version: string) => ["avatar", userId, version] as const,
+  },
+  // Asignaturas suscritas del usuario de la sesión (se vacía con queryClient.clear() al salir).
+  subscriptions: {
+    all: () => ["me", "subscriptions"] as const,
+  },
+  // Por usuario: al cerrar sesión se vacía la caché (queryClient.clear()).
+  notifications: {
+    all: () => ["notifications"] as const,
+    unreadCount: () => ["notifications", "unread-count"] as const,
+    // Prefijo de todos los listados (desplegable y página completa).
+    lists: () => ["notifications", "list"] as const,
+    list: (unreadOnly: boolean, size: number) => ["notifications", "list", unreadOnly, size] as const,
+    // Página completa (scroll infinito).
+    infinite: (unreadOnly: boolean) => ["notifications", "list", "infinite", unreadOnly] as const,
+    preferences: () => ["notifications", "preferences"] as const,
+  },
+  users: {
+    search: (term: string) => ["users", "search", term] as const,
   },
 } as const;

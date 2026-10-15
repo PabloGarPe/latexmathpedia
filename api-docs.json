@@ -19,8 +19,16 @@
       "description": "Gestión de preguntas; crear/borrar/actualizar requiere rol ADMIN"
     },
     {
+      "name": "Usuarios",
+      "description": "Búsqueda de usuarios. Requiere rol ADMIN"
+    },
+    {
       "name": "Asignaturas públicas",
       "description": "Consulta del catálogo de asignaturas y temas sin necesidad de autenticación"
+    },
+    {
+      "name": "Notificaciones",
+      "description": "Notificaciones in-app del usuario autenticado (la campanita) y sus preferencias. Requiere JWT; enviar avisos requiere rol ADMIN"
     },
     {
       "name": "Quiz Attempts",
@@ -48,6 +56,10 @@
       "description": "Envío de correos en nombre del usuario autenticado"
     },
     {
+      "name": "Perfil",
+      "description": "Fotos de perfil de los usuarios. Requiere JWT, no requiere rol ADMIN"
+    },
+    {
       "name": "Subjects",
       "description": "Gestión de asignaturas y temas (crear/borrar/actualizar requiere rol ADMIN; consultar cuestionarios requiere autenticación)"
     },
@@ -58,6 +70,10 @@
     {
       "name": "Chatbot",
       "description": "Asistente conversacional sobre el contenido de Mathtexpedia"
+    },
+    {
+      "name": "Suscripciones",
+      "description": "Asignaturas a las que está suscrito el usuario autenticado. Requiere JWT, no requiere rol ADMIN"
     }
   ],
   "paths": {
@@ -419,6 +435,99 @@
         }
       }
     },
+    "/notifications/preferences": {
+      "get": {
+        "tags": ["Notificaciones"],
+        "summary": "Mis preferencias de notificación",
+        "description": "Matriz completa de tipos configurables por canal, con los valores por defecto donde el usuario no ha elegido. Los tipos no configurables (bienvenida, avisos) no aparecen porque se entregan siempre",
+        "operationId": "getMyPreferences",
+        "responses": {
+          "200": {
+            "description": "Preferencias del usuario",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationPreferenceDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado o cuenta inactiva",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationPreferenceDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Notificaciones"],
+        "summary": "Actualiza mis preferencias de notificación",
+        "description": "Cambio parcial: solo se modifican las preferencias indicadas. Devuelve la matriz completa actualizada",
+        "operationId": "updateMyPreferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationPreferencesDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Matriz completa de preferencias",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationPreferenceDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos, tipo no configurable o alcance no admitido por el tipo",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationPreferenceDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado o cuenta inactiva",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationPreferenceDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me": {
       "get": {
         "tags": ["Perfil"],
@@ -447,7 +556,7 @@
       "put": {
         "tags": ["Perfil"],
         "summary": "Actualiza el perfil del usuario autenticado",
-        "description": "La primera actualización marca el perfil como completado",
+        "description": "Sustituye todos los datos del perfil: el username es obligatorio y los demás campos, opcionales; uno que no se envíe (o venga en blanco) se borra. El primer guardado marca el perfil como completado. No toca la foto de perfil",
         "operationId": "updateMe",
         "requestBody": {
           "content": {
@@ -467,7 +576,168 @@
             }
           },
           "400": {
-            "description": "Datos de entrada inválidos",
+            "description": "Datos de entrada inválidos (username vacío o con formato incorrecto, campos demasiado largos)",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          },
+          "409": {
+            "description": "El username ya lo usa otro usuario (sin distinguir mayúsculas)",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/subscriptions/{subjectId}": {
+      "put": {
+        "tags": ["Suscripciones"],
+        "summary": "Me suscribo a una asignatura",
+        "description": "Idempotente: si ya estaba suscrito devuelve la suscripción existente con 200",
+        "operationId": "subscribe",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID de la asignatura",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suscripción activa",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ninguna asignatura con ese ID",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Suscripciones"],
+        "summary": "Me doy de baja de una asignatura",
+        "description": "Idempotente: devuelve 204 también si no estaba suscrito",
+        "operationId": "unsubscribe",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID de la asignatura",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "El usuario ya no está suscrito a la asignatura"
+          },
+          "401": { "description": "No autenticado" }
+        }
+      }
+    },
+    "/me/avatar": {
+      "put": {
+        "tags": ["Perfil"],
+        "summary": "Sube o cambia mi foto de perfil",
+        "description": "multipart/form-data con la parte 'file': imagen JPEG o PNG de hasta 2 MB y al menos 64x64 píxeles. Se recorta a cuadrado, se reduce a 256 px como máximo y se guarda como JPEG; la imagen original no se conserva. Sustituye a la anterior. Devuelve el perfil actualizado (con hasAvatar y avatarUpdatedAt)",
+        "operationId": "updateAvatar",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Imagen JPEG o PNG"
+                  }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Foto guardada",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          },
+          "400": {
+            "description": "Falta el fichero, no es JPEG/PNG, está corrupto, pesa más de 2 MB o no cumple el tamaño mínimo/máximo en píxeles",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          },
+          "413": {
+            "description": "La petición supera el límite de subida del servidor",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Perfil"],
+        "summary": "Elimina mi foto de perfil",
+        "description": "Idempotente: si no tenía foto no hace nada. Devuelve el perfil actualizado",
+        "operationId": "deleteAvatar",
+        "responses": {
+          "200": {
+            "description": "Foto eliminada (o no existía)",
             "content": {
               "*/*": {
                 "schema": { "$ref": "#/components/schemas/UserAccountDto" }
@@ -651,7 +921,7 @@
       "post": {
         "tags": ["Quiz"],
         "summary": "Importa un cuestionario completo desde JSON",
-        "description": "El JSON no incluye asignatura ni tema; se seleccionan aparte al importar. Requiere rol ADMIN",
+        "description": "El JSON no incluye asignatura ni tema; se seleccionan aparte al importar. Se importa completo, así que se publica al momento (visible) y se notifica a los usuarios. Requiere rol ADMIN",
         "operationId": "importQuiz",
         "parameters": [
           {
@@ -715,7 +985,7 @@
       "post": {
         "tags": ["Quiz"],
         "summary": "Crea un nuevo cuestionario",
-        "description": "Requiere rol ADMIN",
+        "description": "Se crea OCULTO (visible = false), porque se rellena pregunta a pregunta. Para publicarlo hay que usar PATCH /quiz/{id}/visibility. Requiere rol ADMIN",
         "operationId": "createQuiz",
         "requestBody": {
           "content": {
@@ -915,6 +1185,32 @@
         }
       }
     },
+    "/notifications/announcements": {
+      "post": {
+        "tags": ["Notificaciones"],
+        "summary": "Envía un aviso a los usuarios",
+        "description": "A todos los usuarios activos o solo a los indicados por email. El reparto es asíncrono. El enlace opcional debe ser una ruta interna que empiece por '/'. Requiere rol ADMIN",
+        "operationId": "createAnnouncement",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateAnnouncementDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Aviso aceptado; se reparte en segundo plano"
+          },
+          "400": { "description": "Datos inválidos o enlace no interno" },
+          "401": { "description": "El usuario autenticado no tiene rol ADMIN" },
+          "404": {
+            "description": "Algún email no corresponde a ningún usuario"
+          }
+        }
+      }
+    },
     "/mail/send": {
       "post": {
         "tags": ["Mail"],
@@ -963,11 +1259,227 @@
         }
       }
     },
+    "/quiz/{id}/visibility": {
+      "patch": {
+        "tags": ["Quiz"],
+        "summary": "Publica u oculta un cuestionario",
+        "description": "Los cuestionarios ocultos solo los ve un administrador. Publicar uno sin preguntas es un error (400). La primera vez que se publica se notifica a los usuarios; ocultarlo y publicarlo de nuevo no vuelve a notificar. Requiere rol ADMIN",
+        "operationId": "updateQuizVisibility",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID del cuestionario",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuizVisibilityDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Visibilidad actualizada (también si ya estaba en ese estado)",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/QuizDto" } }
+            }
+          },
+          "400": {
+            "description": "Datos de entrada inválidos o el cuestionario no tiene preguntas",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/QuizDto" } }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/QuizDto" } }
+            }
+          },
+          "404": {
+            "description": "No existe ningún cuestionario con el ID proporcionado",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/QuizDto" } }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/{id}/unread": {
+      "patch": {
+        "tags": ["Notificaciones"],
+        "summary": "Marca una notificación como no leída",
+        "operationId": "markAsUnread",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la notificación",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Marcada como no leída" },
+          "401": { "description": "No autenticado" },
+          "404": { "description": "No existe o no es del usuario" }
+        }
+      }
+    },
+    "/notifications/{id}/read": {
+      "patch": {
+        "tags": ["Notificaciones"],
+        "summary": "Marca una notificación como leída",
+        "description": "Idempotente: si ya estaba leída no es un error",
+        "operationId": "markAsRead",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la notificación",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Marcada como leída" },
+          "401": { "description": "No autenticado" },
+          "404": { "description": "No existe o no es del usuario" }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "patch": {
+        "tags": ["Notificaciones"],
+        "summary": "Marca todas las notificaciones como leídas",
+        "operationId": "markAllAsRead",
+        "responses": {
+          "200": {
+            "description": "Número de notificaciones marcadas",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkAllReadResultDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkAllReadResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userId}/avatar": {
+      "get": {
+        "tags": ["Perfil"],
+        "summary": "Foto de perfil de un usuario",
+        "description": "Imagen JPEG cuadrada de hasta 256 px. Solo para usuarios autenticados: al llevar el token en cabecera no sirve como 'src' directo de una etiqueta img, hay que pedirla con fetch y mostrarla como blob. Admite If-None-Match (ETag derivado de avatarUpdatedAt): responde 304 sin cuerpo si no ha cambiado",
+        "operationId": "getAvatar",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "Identificador interno del usuario",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" },
+            "example": 42
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Imagen JPEG",
+            "content": { "image/jpeg": {} }
+          },
+          "304": {
+            "description": "La foto no ha cambiado desde la versión indicada en If-None-Match",
+            "content": {
+              "image/jpeg": { "schema": { "type": "string", "format": "byte" } }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "image/jpeg": { "schema": { "type": "string", "format": "byte" } }
+            }
+          },
+          "404": {
+            "description": "El usuario no existe, está inactivo o no tiene foto",
+            "content": {
+              "image/jpeg": { "schema": { "type": "string", "format": "byte" } }
+            }
+          }
+        }
+      }
+    },
+    "/users/search": {
+      "get": {
+        "tags": ["Usuarios"],
+        "summary": "Busca usuarios que pueden ser autores o coautores de un PDF",
+        "description": "Devuelve los usuarios activos cuyo nombre o email contiene el texto buscado (sin distinguir mayúsculas ni tildes), ordenados por nombre (o por email si no tienen nombre). Pensado para un buscador con sugerencias: el front debe aplicar debounce y cancelar la petición anterior. Si 'q' tiene menos de 2 caracteres (tras quitar espacios) devuelve una lista vacía. Requiere rol ADMIN",
+        "operationId": "searchUsers",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Texto a buscar en nombre o email (mínimo 2 caracteres)",
+            "required": false,
+            "schema": { "type": "string" },
+            "example": "ada"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de resultados (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de candidatos (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/AuthorCandidateDto" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o el usuario autenticado no tiene rol ADMIN",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/AuthorCandidateDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/subject/{id}/quizzes": {
       "get": {
         "tags": ["Subjects"],
         "summary": "Obtiene todos los cuestionarios de una asignatura",
-        "description": "Requiere autenticación, pero no requiere rol ADMIN",
+        "description": "Requiere autenticación, pero no requiere rol ADMIN. Los cuestionarios ocultos solo se incluyen para administradores",
         "operationId": "getSubjectQuizzes",
         "parameters": [
           {
@@ -1019,7 +1531,7 @@
       "get": {
         "tags": ["Subjects"],
         "summary": "Obtiene todos los cuestionarios de un tema",
-        "description": "Requiere autenticación, pero no requiere rol ADMIN",
+        "description": "Requiere autenticación, pero no requiere rol ADMIN. Los cuestionarios ocultos solo se incluyen para administradores",
         "operationId": "getSubjectUnitQuizzes",
         "parameters": [
           {
@@ -1067,17 +1579,49 @@
         }
       }
     },
+    "/quiz": {
+      "get": {
+        "tags": ["Quiz"],
+        "summary": "Lista todos los cuestionarios",
+        "description": "Requiere autenticación, pero no requiere rol ADMIN. Para un administrador incluye también los cuestionarios ocultos (es lo que necesita el panel de administración para poder publicarlos); para el resto, solo los visibles. El listado público GET /public/quiz nunca incluye los ocultos",
+        "operationId": "getAllQuizzes",
+        "responses": {
+          "200": {
+            "description": "Lista de cuestionarios con el número de intentos de cada uno",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuizDto" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuizDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/quiz/{id}": {
       "get": {
         "tags": ["Quiz"],
         "summary": "Obtiene un cuestionario por su ID",
-        "description": "Requiere autenticación, pero no requiere rol ADMIN",
+        "description": "Requiere autenticación, pero no requiere rol ADMIN. Si el cuestionario está oculto, solo lo ve un administrador (404 para el resto)",
         "operationId": "getQuiz",
         "parameters": [
           {
             "name": "id",
             "in": "path",
-            "description": "ID de la asignatura",
+            "description": "ID del cuestionario",
             "required": true,
             "schema": { "type": "integer", "format": "int64" }
           }
@@ -1139,7 +1683,7 @@
       "get": {
         "tags": ["Quiz"],
         "summary": "Obtiene las preguntas de un cuestionario por su ID",
-        "description": "Requiere autenticación, pero no requiere rol ADMIN",
+        "description": "Incluye la explicación de la respuesta correcta, por lo que es solo para edición. Para resolver el cuestionario usar GET /quiz/{id}/attempt. Requiere rol ADMIN",
         "operationId": "getQuizQuestions",
         "parameters": [
           {
@@ -1342,7 +1886,7 @@
       "get": {
         "tags": ["Quiz"],
         "summary": "Obtiene un cuestionario por su ID para intentar resolverlo",
-        "description": "Requiere autenticación, pero no requiere rol ADMIN",
+        "description": "Requiere autenticación, pero no requiere rol ADMIN. Si el cuestionario está oculto, solo lo ve un administrador (404 para el resto)",
         "operationId": "getQuizForAttempt",
         "parameters": [
           {
@@ -1381,11 +1925,52 @@
         }
       }
     },
+    "/quiz/recent/subscribed": {
+      "get": {
+        "tags": ["Quiz"],
+        "summary": "Cuestionarios nuevos o actualizados de las asignaturas a las que estoy suscrito",
+        "description": "Como GET /public/quiz/recent pero solo de las asignaturas suscritas, del más reciente al más antiguo. Lista vacía si el usuario no tiene suscripciones. Los ocultos solo se incluyen para administradores",
+        "operationId": "getRecentSubscribedQuizzes",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de cuestionarios a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de cuestionarios (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuizDto" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuizDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/question/{id}": {
       "get": {
         "tags": ["Question"],
         "summary": "Obtiene una pregunta por su ID",
-        "description": "Requiere autenticación, pero no requiere rol ADMIN",
+        "description": "Incluye la explicación de la respuesta correcta, por lo que es solo para edición. Requiere rol ADMIN",
         "operationId": "getQuestion",
         "parameters": [
           {
@@ -1399,6 +1984,14 @@
         "responses": {
           "200": {
             "description": "Pregunta encontrada",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/QuestionDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
             "content": {
               "*/*": {
                 "schema": { "$ref": "#/components/schemas/QuestionDto" }
@@ -1419,8 +2012,8 @@
     "/question/{id}/options": {
       "get": {
         "tags": ["Question"],
-        "summary": "Obtiene una pregunta con sus opciones por su ID",
-        "description": "Requiere autenticación, pero no requiere rol ADMIN",
+        "summary": "Obtiene las opciones de una pregunta por su ID",
+        "description": "Incluye cuál es la opción correcta, por lo que es solo para edición. Para resolver un cuestionario usar GET /quiz/{id}/attempt. Requiere rol ADMIN",
         "operationId": "getQuestionOptions",
         "parameters": [
           {
@@ -1622,7 +2215,68 @@
       "get": {
         "tags": ["Cuestionarios públicos"],
         "summary": "Lista todos los cuestionarios",
-        "operationId": "getAllQuizzes",
+        "description": "Incluye el número de intentos (attemptCount) de cada cuestionario",
+        "operationId": "getAllQuizzes_1",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuizDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/quiz/top": {
+      "get": {
+        "tags": ["Cuestionarios públicos"],
+        "summary": "Cuestionarios más hechos en general",
+        "description": "Ordenados de más a menos intentos contando los envíos de todos los usuarios. Solo incluye cuestionarios con al menos un intento. Pensado para la hilera 'Los más hechos'",
+        "operationId": "getMostAttemptedQuizzes",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de cuestionarios a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuizDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/quiz/recent": {
+      "get": {
+        "tags": ["Cuestionarios públicos"],
+        "summary": "Cuestionarios nuevos o actualizados recientemente",
+        "description": "Del más reciente al más antiguo según la fecha de última edición. Pensado para la hilera 'Novedades'",
+        "operationId": "getRecentQuizzes",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de cuestionarios a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1809,11 +2463,52 @@
         }
       }
     },
+    "/pdf/recent/subscribed": {
+      "get": {
+        "tags": ["PDFs"],
+        "summary": "PDFs nuevos o actualizados de las asignaturas a las que estoy suscrito",
+        "description": "Como GET /public/pdf/recent pero solo de las asignaturas suscritas, del más reciente al más antiguo. Lista vacía si el usuario no tiene suscripciones",
+        "operationId": "getRecentSubscribedPDFs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de PDFs a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de PDFs (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PDFDto" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PDFDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/option/{id}": {
       "get": {
         "tags": ["Option"],
         "summary": "Obtiene una opción por su ID",
-        "description": "Requiere autenticación",
+        "description": "Incluye si la opción es correcta, por lo que es solo para edición. Requiere rol ADMIN",
         "operationId": "getOption",
         "parameters": [
           {
@@ -1838,9 +2533,120 @@
             }
           },
           "401": {
-            "description": "No autenticado",
+            "description": "No autorizado",
             "content": {
               "*/*": { "schema": { "$ref": "#/components/schemas/OptionDto" } }
+            }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": ["Notificaciones"],
+        "summary": "Mis notificaciones",
+        "description": "Bandeja del usuario autenticado, de la más reciente a la más antigua. No modifica la cuenta del usuario",
+        "operationId": "getMyNotifications",
+        "parameters": [
+          {
+            "name": "unreadOnly",
+            "in": "query",
+            "description": "Si es true, solo las no leídas",
+            "required": false,
+            "schema": { "type": "boolean", "default": false }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Número de página, empezando en 0",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "default": 0 }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Tamaño de página (por defecto 20, máximo 50)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de notificaciones",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/PageNotificationDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/PageNotificationDto" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "tags": ["Notificaciones"],
+        "summary": "Número de notificaciones sin leer",
+        "description": "Pensado para el polling de la campanita (recomendado cada 60 s con la pestaña visible). Es una consulta muy ligera y no modifica la cuenta del usuario",
+        "operationId": "getUnreadCount",
+        "responses": {
+          "200": {
+            "description": "Número de notificaciones sin leer",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UnreadCountDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UnreadCountDto" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/subscriptions": {
+      "get": {
+        "tags": ["Suscripciones"],
+        "summary": "Lista las asignaturas a las que estoy suscrito",
+        "description": "Ordenadas por nombre de asignatura. Lista vacía si no hay ninguna suscripción",
+        "operationId": "getMySubscriptions",
+        "responses": {
+          "200": {
+            "description": "Suscripciones del usuario (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                  }
+                }
+              }
             }
           }
         }
@@ -2047,6 +2853,28 @@
           }
         }
       }
+    },
+    "/notifications/{id}": {
+      "delete": {
+        "tags": ["Notificaciones"],
+        "summary": "Borra una notificación",
+        "description": "Solo la quita de la bandeja del usuario",
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la notificación",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Borrada" },
+          "401": { "description": "No autenticado" },
+          "404": { "description": "No existe o no es del usuario" }
+        }
+      }
     }
   },
   "components": {
@@ -2197,6 +3025,23 @@
             "type": "null",
             "$ref": "#/components/schemas/SubjectUnitDto",
             "description": "Tema al que pertenece el cuestionario"
+          },
+          "visible": {
+            "type": "boolean",
+            "description": "Si el cuestionario es visible para los usuarios. Los ocultos solo los ve un administrador"
+          },
+          "publishedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Fecha de la primera publicación (primera vez que se hizo visible). Nula si nunca se ha publicado",
+            "readOnly": true
+          },
+          "attemptCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Número total de veces que se ha hecho el cuestionario (todos los usuarios; cada envío cuenta, aunque sea del mismo usuario). 0 si nadie lo ha hecho",
+            "example": 128,
+            "readOnly": true
           }
         }
       },
@@ -2302,6 +3147,31 @@
         },
         "required": ["authorEmails", "name", "subjectId"]
       },
+      "AuthorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identificador interno del usuario; sirve para pedir su foto en GET /users/{id}/avatar",
+            "example": 42
+          },
+          "username": {
+            "type": ["string", "null"],
+            "description": "Nombre público. Nulo si el usuario aún no ha completado su perfil",
+            "example": "ada_lovelace"
+          },
+          "hasAvatar": {
+            "type": "boolean",
+            "description": "Si tiene foto de perfil"
+          },
+          "avatarUpdatedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Versión de la foto (cuándo se cambió); clave de caché. Nulo si no tiene"
+          }
+        }
+      },
       "PDFDto": {
         "type": "object",
         "properties": {
@@ -2313,14 +3183,18 @@
           "subjectUnit": { "$ref": "#/components/schemas/SubjectUnitDto" },
           "author": {
             "type": ["string", "null"],
-            "description": "Nombre del autor principal. Nulo en PDFs antiguos que aún no tienen autores asignados",
-            "example": "Ada Lovelace"
+            "description": "Nombre público (username) del autor principal. Nulo en PDFs antiguos que aún no tienen autores asignados o si el autor no ha completado su perfil",
+            "example": "ada_lovelace"
           },
           "coauthors": {
             "type": "array",
-            "description": "Nombres de los coautores, en el orden en que se indicaron. Vacío si no hay coautores",
-            "example": ["Alan Turing"],
-            "items": { "type": "string" }
+            "description": "Nombres públicos de los coautores, en el orden en que se indicaron. Vacío si no hay coautores. Un coautor sin perfil completo aparece como nulo",
+            "items": { "type": ["string", "null"] }
+          },
+          "authors": {
+            "type": "array",
+            "description": "Autores con su identificador y marca de foto de perfil: el primero es el principal, el resto coautores, en el mismo orden que 'author' y 'coauthors'. Vacío en PDFs antiguos sin autores",
+            "items": { "$ref": "#/components/schemas/AuthorDto" }
           },
           "viewCount": {
             "type": "integer",
@@ -2376,17 +3250,163 @@
           "correct": { "type": "boolean" }
         }
       },
+      "Item": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Tipo de notificación (debe ser configurable)",
+            "enum": [
+              "PDF_CREATED",
+              "PDF_FILE_UPDATED",
+              "QUIZ_PUBLISHED",
+              "SUBJECT_CREATED",
+              "SUBJECT_UNIT_CREATED",
+              "PDF_AUTHOR_ADDED",
+              "WELCOME",
+              "ANNOUNCEMENT"
+            ],
+            "example": "PDF_CREATED"
+          },
+          "channel": {
+            "type": "string",
+            "description": "Canal",
+            "enum": ["IN_APP"],
+            "example": "IN_APP"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Si se quiere recibir"
+          },
+          "scope": {
+            "type": ["string", "null"],
+            "description": "Alcance (opcional; debe estar entre los admitidos por el tipo). Si no se indica se mantiene el actual",
+            "enum": ["ALL", "SUBSCRIBED"],
+            "example": "ALL"
+          }
+        },
+        "required": ["channel", "enabled", "type"]
+      },
+      "UpdateNotificationPreferencesDto": {
+        "type": "object",
+        "properties": {
+          "preferences": {
+            "type": "array",
+            "description": "Preferencias a cambiar. Es parcial: solo se tocan las indicadas",
+            "items": { "$ref": "#/components/schemas/Item" },
+            "minItems": 1
+          }
+        },
+        "required": ["preferences"]
+      },
+      "NotificationPreferenceDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Tipo de notificación",
+            "enum": [
+              "PDF_CREATED",
+              "PDF_FILE_UPDATED",
+              "QUIZ_PUBLISHED",
+              "SUBJECT_CREATED",
+              "SUBJECT_UNIT_CREATED",
+              "PDF_AUTHOR_ADDED",
+              "WELCOME",
+              "ANNOUNCEMENT"
+            ],
+            "example": "PDF_CREATED"
+          },
+          "category": {
+            "type": "string",
+            "description": "Categoría, para agrupar en la pantalla de preferencias",
+            "enum": ["CONTENT", "PERSONAL", "SYSTEM"],
+            "example": "CONTENT"
+          },
+          "label": {
+            "type": "string",
+            "description": "Nombre corto para mostrar",
+            "example": "Nuevos apuntes"
+          },
+          "description": {
+            "type": "string",
+            "description": "Descripción para mostrar",
+            "example": "Cuando se sube un apunte nuevo"
+          },
+          "channel": {
+            "type": "string",
+            "description": "Canal de entrega",
+            "enum": ["IN_APP"],
+            "example": "IN_APP"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Si el usuario recibe este tipo por este canal"
+          },
+          "defaultEnabled": {
+            "type": "boolean",
+            "description": "Valor por defecto, para poder mostrar 'restablecer'"
+          },
+          "scope": {
+            "type": ["string", "null"],
+            "description": "Alcance elegido. Nulo si el tipo no admite alcances",
+            "enum": ["ALL", "SUBSCRIBED"],
+            "example": "ALL"
+          },
+          "availableScopes": {
+            "type": "array",
+            "description": "Alcances que admite el tipo. Si solo hay uno no hace falta mostrar selector",
+            "items": { "type": "string", "enum": ["ALL", "SUBSCRIBED"] },
+            "uniqueItems": true
+          }
+        }
+      },
       "UpdateUserAccountDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "username": {
             "type": "string",
-            "description": "Nombre del usuario",
-            "example": "Pedro1234",
-            "minLength": 1
+            "description": "Nombre público que se muestra en la aplicación (apuntes, búsquedas…). Obligatorio, único sin distinguir mayúsculas, de 3 a 30 caracteres entre letras sin tilde, números, punto, guion y guion bajo",
+            "example": "ada_lovelace",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]{3,30}$"
+          },
+          "firstName": {
+            "type": ["string", "null"],
+            "description": "Nombre de pila (opcional). Nulo o vacío lo borra",
+            "example": "Ada",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "lastName": {
+            "type": ["string", "null"],
+            "description": "Apellidos (opcional). Nulo o vacío lo borra",
+            "example": "Lovelace",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "bio": {
+            "type": ["string", "null"],
+            "description": "Biografía corta (opcional, máx. 280 caracteres). Nulo o vacío la borra",
+            "maxLength": 280,
+            "minLength": 0
+          },
+          "university": {
+            "type": ["string", "null"],
+            "description": "Universidad o centro de estudios (opcional). Nulo o vacío lo borra",
+            "example": "Universidad de Sevilla",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "studies": {
+            "type": ["string", "null"],
+            "description": "Estudios que cursa (opcional). Nulo o vacío lo borra",
+            "example": "Grado en Matemáticas",
+            "maxLength": 150,
+            "minLength": 0
           }
         },
-        "required": ["name"]
+        "required": ["username"]
       },
       "UserAccountDto": {
         "type": "object",
@@ -2402,10 +3422,43 @@
             "description": "Email del usuario",
             "example": "user@example.com"
           },
-          "name": {
-            "type": "string",
-            "description": "Nombre del usuario",
-            "example": "John Doe"
+          "username": {
+            "type": ["string", "null"],
+            "description": "Nombre público del usuario. Nulo hasta que completa el perfil",
+            "example": "ada_lovelace"
+          },
+          "firstName": {
+            "type": ["string", "null"],
+            "description": "Nombre de pila",
+            "example": "Ada"
+          },
+          "lastName": {
+            "type": ["string", "null"],
+            "description": "Apellidos",
+            "example": "Lovelace"
+          },
+          "bio": {
+            "type": ["string", "null"],
+            "description": "Biografía corta"
+          },
+          "university": {
+            "type": ["string", "null"],
+            "description": "Universidad o centro de estudios",
+            "example": "Universidad de Sevilla"
+          },
+          "studies": {
+            "type": ["string", "null"],
+            "description": "Estudios que cursa",
+            "example": "Grado en Matemáticas"
+          },
+          "hasAvatar": {
+            "type": "boolean",
+            "description": "Si el usuario tiene foto de perfil. Se descarga de GET /users/{id}/avatar"
+          },
+          "avatarUpdatedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Cuándo se cambió la foto por última vez; nulo si no tiene. Úsalo como clave de caché de la imagen"
           },
           "status": {
             "type": "string",
@@ -2425,9 +3478,23 @@
             "description": "Fecha del último acceso del usuario"
           },
           "profileCompletedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Fecha en que se completó el perfil (se fija al guardar por primera vez un nombre de usuario). Nulo = el perfil está por completar y el front debe pedirlo"
+          }
+        }
+      },
+      "SubjectSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/SubjectDto",
+            "description": "Asignatura a la que está suscrito el usuario"
+          },
+          "subscribedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Fecha de finalización del perfil del usuario"
+            "description": "Cuándo se suscribió"
           }
         }
       },
@@ -2543,6 +3610,18 @@
             "description": "Puntuación obtenida en el intento de cuestionario",
             "example": 85.5
           },
+          "adjustedScore": {
+            "type": "number",
+            "format": "double",
+            "description": "Puntuación ponderada según el número de intento; es la que cuenta para el leaderboard",
+            "example": 6.0
+          },
+          "attemptNumber": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de intento del usuario en este cuestionario (1 = primer intento)",
+            "example": 2
+          },
           "totalQuestions": {
             "type": "integer",
             "format": "int32",
@@ -2584,8 +3663,8 @@
         "type": "object",
         "properties": {
           "text": { "type": "string", "minLength": 1 },
-          "position": { "type": "integer", "format": "int32" },
-          "correct": { "type": "boolean" }
+          "correct": { "type": "boolean" },
+          "position": { "type": "integer", "format": "int32" }
         },
         "required": ["text"]
       },
@@ -2754,6 +3833,38 @@
         },
         "required": ["questionId", "text"]
       },
+      "CreateAnnouncementDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Título del aviso",
+            "example": "Mantenimiento programado",
+            "maxLength": 120,
+            "minLength": 0
+          },
+          "message": {
+            "type": "string",
+            "description": "Texto del aviso",
+            "example": "El sábado la plataforma estará en mantenimiento de 2:00 a 4:00.",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "link": {
+            "type": ["string", "null"],
+            "description": "Ruta interna del front a la que llevará el aviso (debe empezar por '/'). Opcional",
+            "example": "/dashboard",
+            "maxLength": 300,
+            "minLength": 0
+          },
+          "recipientEmails": {
+            "type": ["array", "null"],
+            "description": "Emails de los destinatarios. Si no se indica o está vacío, se envía a todos los usuarios activos",
+            "items": { "type": "string", "format": "email" }
+          }
+        },
+        "required": ["message", "title"]
+      },
       "Mail": {
         "type": "object",
         "properties": {
@@ -2843,6 +3954,63 @@
           }
         }
       },
+      "UpdateQuizVisibilityDto": {
+        "type": "object",
+        "properties": {
+          "visible": {
+            "type": "boolean",
+            "description": "true para publicar el cuestionario (visible para los usuarios), false para ocultarlo",
+            "example": true
+          }
+        },
+        "required": ["visible"]
+      },
+      "MarkAllReadResultDto": {
+        "type": "object",
+        "properties": {
+          "updated": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de notificaciones que se han marcado como leídas",
+            "example": 5
+          }
+        }
+      },
+      "AuthorCandidateDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identificador interno del usuario. Útil como clave en la lista y para excluir del lado del cliente a los ya seleccionados",
+            "example": 42
+          },
+          "username": {
+            "type": ["string", "null"],
+            "description": "Nombre público del usuario. Nulo si aún no ha completado su perfil: en ese caso el front debe mostrar solo el email",
+            "example": "ada_lovelace"
+          },
+          "firstName": {
+            "type": ["string", "null"],
+            "description": "Nombre de pila, si lo ha indicado",
+            "example": "Ada"
+          },
+          "lastName": {
+            "type": ["string", "null"],
+            "description": "Apellidos, si los ha indicado",
+            "example": "Lovelace"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email del usuario. Es el valor que se envía en 'authorEmails' al crear o actualizar un PDF",
+            "example": "ada@mathtexpedia.es"
+          },
+          "hasAvatar": {
+            "type": "boolean",
+            "description": "Si tiene foto de perfil (GET /users/{id}/avatar)"
+          }
+        }
+      },
       "QuizAttemptStatsDto": {
         "type": "object",
         "properties": {
@@ -2889,8 +4057,25 @@
       "LeaderboardEntryDto": {
         "type": "object",
         "properties": {
-          "userId": { "type": "integer", "format": "int64" },
-          "username": { "type": "string" },
+          "userId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identificador interno del usuario; sirve para pedir su foto en GET /users/{id}/avatar"
+          },
+          "username": {
+            "type": ["string", "null"],
+            "description": "Nombre público (username) del usuario. Nulo si aún no ha completado su perfil",
+            "example": "ada_lovelace"
+          },
+          "hasAvatar": {
+            "type": "boolean",
+            "description": "Si el usuario tiene foto de perfil"
+          },
+          "avatarUpdatedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Versión de la foto (cuándo se cambió); clave de caché. Nulo si no tiene"
+          },
           "bestAdjustedScore": { "type": "number", "format": "double" },
           "rank": { "type": "integer", "format": "int32" }
         }
@@ -2960,6 +4145,18 @@
             "description": "Puntaje obtenido en el intento de quiz",
             "example": 85.5
           },
+          "adjustedScore": {
+            "type": "number",
+            "format": "double",
+            "description": "Puntaje ponderado según el número de intento; es el que cuenta para el leaderboard",
+            "example": 6.0
+          },
+          "attemptNumber": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de intento del usuario en este quiz (1 = primer intento)",
+            "example": 2
+          },
           "totalQuestions": {
             "type": "integer",
             "format": "int32",
@@ -3027,6 +4224,115 @@
             "enum": ["USER", "ADMIN"]
           },
           "id": { "type": "string" }
+        }
+      },
+      "NotificationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identificador de la notificación del usuario (es el que se usa para marcarla como leída o borrarla)",
+            "readOnly": true
+          },
+          "type": {
+            "type": "string",
+            "description": "Tipo de notificación",
+            "enum": [
+              "PDF_CREATED",
+              "PDF_FILE_UPDATED",
+              "QUIZ_PUBLISHED",
+              "SUBJECT_CREATED",
+              "SUBJECT_UNIT_CREATED",
+              "PDF_AUTHOR_ADDED",
+              "WELCOME",
+              "ANNOUNCEMENT"
+            ],
+            "example": "PDF_CREATED"
+          },
+          "category": {
+            "type": "string",
+            "description": "Categoría de la notificación, útil para elegir el icono",
+            "enum": ["CONTENT", "PERSONAL", "SYSTEM"],
+            "example": "CONTENT"
+          },
+          "title": {
+            "type": "string",
+            "description": "Título corto, ya redactado",
+            "example": "Nuevo apunte en Álgebra"
+          },
+          "message": {
+            "type": "string",
+            "description": "Mensaje corto, ya redactado",
+            "example": "Se ha añadido «Matrices» al tema Matrices y determinantes."
+          },
+          "link": {
+            "type": ["string", "null"],
+            "description": "Ruta interna del front a la que llevar al usuario. Solo la traen los avisos manuales; el resto se navega con resourceType y resourceId",
+            "example": "/dashboard"
+          },
+          "resourceType": {
+            "type": "string",
+            "description": "Tipo del recurso al que apunta (NONE si no apunta a ninguno)",
+            "enum": ["PDF", "QUIZ", "SUBJECT", "SUBJECT_UNIT", "NONE"],
+            "example": "PDF"
+          },
+          "resourceId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "Id del recurso al que apunta",
+            "example": 12
+          },
+          "subjectId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "Id de la asignatura relacionada",
+            "example": 3
+          },
+          "read": {
+            "type": "boolean",
+            "description": "Si el usuario ya la ha leído"
+          },
+          "readAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Cuándo la leyó"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Cuándo se generó"
+          }
+        }
+      },
+      "PageNotificationDto": {
+        "type": "object",
+        "properties": {
+          "totalPages": { "type": "integer", "format": "int32" },
+          "totalElements": { "type": "integer", "format": "int64" },
+          "size": { "type": "integer", "format": "int32" },
+          "content": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/NotificationDto" }
+          },
+          "number": { "type": "integer", "format": "int32" },
+          "sort": { "$ref": "#/components/schemas/SortObject" },
+          "pageable": { "$ref": "#/components/schemas/PageableObject" },
+          "numberOfElements": { "type": "integer", "format": "int32" },
+          "first": { "type": "boolean" },
+          "last": { "type": "boolean" },
+          "empty": { "type": "boolean" }
+        }
+      },
+      "UnreadCountDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Número de notificaciones sin leer",
+            "example": 3
+          }
         }
       },
       "PageQuizAttemptDto": {

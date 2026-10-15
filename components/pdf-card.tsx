@@ -86,7 +86,7 @@ function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, vie
     }
 
     return (
-        <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+        <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
             <div className={`relative h-36 w-full overflow-hidden grid place-items-center ${generateBackgroundColor()} pdf-card-preview`}>
                 <div className="flex flex-col items-center justify-center text-center p-4 h-full w-full">
                     <FileIcon className="mb-2 h-6 w-6" />
@@ -103,7 +103,7 @@ function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, vie
             </div>
 
             <div className="flex flex-1 flex-col p-4">
-                <h3 className="mb-2 line-clamp-2 text-base font-medium">{title}</h3>
+                <h3 className="mb-2 line-clamp-2 text-base font-medium transition-colors group-hover:text-primary">{title}</h3>
 
                 {(subjectName || subjectUnitName) && (
                     <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -142,12 +142,13 @@ function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, vie
                     </div>
                 </div>
 
+                {/* El enlace/botón se estira (after:) sobre toda la tarjeta: se puede pulsar en cualquier punto. */}
                 <div className="mt-auto">
                     {isAuthenticated ? (
                         <Button
                             variant="default"
                             size="sm"
-                            className="w-full cursor-pointer"
+                            className="w-full after:absolute after:inset-0"
                             asChild
                         >
                             <Link href={href}>Ver PDF</Link>
@@ -156,7 +157,7 @@ function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, vie
                         <Button
                             variant="default"
                             size="sm"
-                            className="w-full cursor-pointer"
+                            className="w-full after:absolute after:inset-0"
                             onClick={handleClick}
                         >
                             Iniciar sesión para ver PDF

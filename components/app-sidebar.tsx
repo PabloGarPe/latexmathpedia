@@ -7,6 +7,7 @@ import {
   Command,
   LifeBuoy,
   ListChecks,
+  Megaphone,
   Newspaper,
   Send,
 } from "lucide-react"
@@ -85,15 +86,15 @@ const dataAdminPanel = {
       isActive: false,
     },
     {
-      title: "Asignaturas",
-      url: "/dashboard/admin/subjects",
-      icon: BookOpen,
-      isActive: false,
-    },
-    {
       title: "Cuestionarios",
       url: "/dashboard/admin/quizzes",
       icon: ClipboardList,
+      isActive: false,
+    },
+    {
+      title: "Avisos",
+      url: "/dashboard/admin/announcements",
+      icon: Megaphone,
       isActive: false,
     },
   ],
@@ -138,7 +139,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={dataSubjectsCatalog.subjectsCatalog} title="Catálogo" />
-        <NavSubjects title="Apuntes" />
+        <NavSubjects />
         <NavMain items={dataQuizzes.quizzes} title="Cuestionarios" />
         <NavMain items={dataBlog.blog} title="Blog" />
         {/* Solo mostrar admin panel si está autenticado y es admin */}

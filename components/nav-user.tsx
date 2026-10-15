@@ -2,6 +2,7 @@
 
 import {
   BadgeCheck,
+  Bell,
   Check,
   ChevronsUpDown,
   CreditCard,
@@ -25,7 +26,9 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
+import { UserAvatar } from "@/components/user-avatar"
 import { useAuth, type MockIdentity } from "@/contexts/auth-context"
+import { useMe } from "@/hooks/api/use-profile"
 import { AUTH_MODE } from "@/lib/env"
 import Link from "next/link"
 
@@ -46,6 +49,10 @@ export function NavUser({
   const { isMobile } = useSidebar()
   const { isAuthenticated, login, logout, identity, setIdentity } = useAuth();
   const queryClient = useQueryClient()
+  // En modo mock /me da 401: `me` queda undefined y se usa el nombre que llega por props
+  // (displayName de Keycloak, o la parte local del email).
+  const { data: me } = useMe(isAuthenticated)
+  const name = me?.username || user.name
   // El selector "Modo de prueba" solo tiene sentido en modo mock (setIdentity no existe
   // en modo keycloak). En modo keycloak, sin sesión mostramos el botón de login real.
   const isMockMode = AUTH_MODE !== "keycloak" && Boolean(setIdentity)
@@ -65,10 +72,6 @@ export function NavUser({
       </SidebarMenu>
     )
   }
-
-  const avatar = isAuthenticated
-    ? (user.name.charAt(0).toUpperCase() + (user.name.charAt(1) ?? "").toUpperCase())
-    : "??";
 
   const handleLogOut = async () => {
     try {
@@ -92,11 +95,14 @@ export function NavUser({
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
             >
-              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                <span className="font-medium">{avatar}</span>
-              </div>
+              <UserAvatar
+                user={me ?? {}}
+                fallbackLabel={name}
+                initialsLength={2}
+                className="rounded-lg"
+              />
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{isAuthenticated ? user.name : "Invitado"}</span>
+                <span className="truncate font-medium">{isAuthenticated ? name : "Invitado"}</span>
                 <span className="truncate text-xs">{isAuthenticated ? user.email : "Modo anónimo"}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -112,11 +118,14 @@ export function NavUser({
               <>
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <span className="font-medium">{avatar}</span>
-                    </div>
+                    <UserAvatar
+                      user={me ?? {}}
+                      fallbackLabel={name}
+                      initialsLength={2}
+                      className="rounded-lg"
+                    />
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">{user.name}</span>
+                      <span className="truncate font-medium">{name}</span>
                       <span className="truncate text-xs">{user.email}</span>
                     </div>
                   </div>
@@ -126,13 +135,19 @@ export function NavUser({
                   <Link href="/dashboard/profile">
                     <DropdownMenuItem className="cursor-pointer">
                       <BadgeCheck />
-                      <span>Profile</span>
+                      <span>Perfil</span>
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/dashboard/notifications">
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Bell />
+                      <span>Notificaciones</span>
                     </DropdownMenuItem>
                   </Link>
                   <Link href="/dashboard/billing">
                     <DropdownMenuItem className="cursor-pointer">
                       <CreditCard />
-                      <span>Donate</span>
+                      <span>Donar</span>
                     </DropdownMenuItem>
                   </Link>
                 </DropdownMenuGroup>
@@ -163,7 +178,7 @@ export function NavUser({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer" onClick={handleLogOut}>
                   <LogOut />
-                  Log out
+                  Cerrar sesión
                 </DropdownMenuItem>
               </>
             )}

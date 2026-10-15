@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { PageContainer, PageHeader } from "@/components/page-shell"
 import { QuizCard } from "@/components/quiz-card"
 import {
   Select,
@@ -27,28 +28,31 @@ export default function QuizzesPage() {
   }, [quizzes, subjectFilter])
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">Cuestionarios</h1>
-        <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-          <SelectTrigger className="w-[240px]">
-            <SelectValue placeholder="Filtrar por asignatura" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_SUBJECTS}>Todas las asignaturas</SelectItem>
-            {subjects?.map((subject) => (
-              <SelectItem key={subject.id} value={String(subject.id)}>
-                {subject.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Cuestionarios"
+        description="Practica, mide tu nivel y compite en la tabla de líderes."
+        actions={
+          <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+            <SelectTrigger className="w-[240px]">
+              <SelectValue placeholder="Filtrar por asignatura" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_SUBJECTS}>Todas las asignaturas</SelectItem>
+              {subjects?.map((subject) => (
+                <SelectItem key={subject.id} value={String(subject.id)}>
+                  {subject.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       {isLoading ? (
         <p className="text-muted-foreground">Cargando cuestionarios...</p>
       ) : filteredQuizzes.length > 0 ? (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {filteredQuizzes.map((quiz) => (
             <QuizCard key={quiz.id} quiz={quiz} />
           ))}
@@ -56,6 +60,6 @@ export default function QuizzesPage() {
       ) : (
         <p className="text-muted-foreground">No hay cuestionarios disponibles todavía.</p>
       )}
-    </div>
+    </PageContainer>
   )
 }

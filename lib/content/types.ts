@@ -1,3 +1,4 @@
+import type { AuthorDto } from "@/lib/api/profile";
 import type { QuizDto } from "@/lib/api/quizzes";
 import type { components } from "@/lib/api/schema";
 import type { BlogPostMeta } from "@/lib/content/posts";
@@ -13,8 +14,8 @@ export type DisplayPdf = {
   subjectUnitId?: number;
   subjectName?: string;
   subjectUnitName?: string;
-  author?: string;
-  coauthors: string[];
+  // Principal primero, luego coautores. Vacío en PDFs antiguos sin autores.
+  authors: AuthorDto[];
   viewCount: number;
 };
 
@@ -37,19 +38,26 @@ export function toDisplayPdf(pdf: components["schemas"]["PDFDto"], fallbackId: n
     subjectUnitId: pdf.subjectUnit?.id,
     subjectName: pdf.subject?.name,
     subjectUnitName: pdf.subjectUnit?.name,
-    author: pdf.author ?? undefined,
-    // El backend puede colar nulls en la lista aunque el contrato diga string[]
-    coauthors: (pdf.coauthors ?? []).filter((c): c is string => typeof c === "string" && c.trim() !== ""),
+    authors: pdf.authors ?? [],
     viewCount: pdf.viewCount ?? 0,
   };
 }
 
 const listFormat = new Intl.ListFormat("es", { style: "long", type: "conjunction" });
 
-// "Ada Lovelace" · "Ada Lovelace, con Alan Turing y Grace Hopper". PDFs antiguos sin autores
-// asignados traen author null -> cadena vacía (el llamador no pinta nada).
-export function formatPdfAuthors(author?: string | null, coauthors: (string | null)[] = []): string {
-  if (!author) return "";
-  const names = coauthors.filter((c): c is string => typeof c === "string" && c.trim() !== "");
-  return names.length > 0 ? `${author}, con ${listFormat.format(names)}` : author;
+export const AUTHOR_WITHOUT_PROFILE = "Autor sin perfil";
+
+// Nombre público de un autor; si aún no ha completado el perfil, un texto genérico (nunca el email).
+export const authorLabel = (author: AuthorDto) => author.username?.trim() || AUTHOR_WITHOUT_PROFILE;
+
+// "ada" · "ada, con alan y grace". PDFs antiguos sin autores -> cadena vacía (el llamador no
+// pinta nada). Varios coautores sin perfil se agrupan ("2 autores sin perfil") para que el
+// texto siga siendo legible.
+export function formatPdfAuthors(authors: AuthorDto[] = []): string {
+  const [main, ...rest] = authors;
+  if (!main) return "";
+  const named = rest.filter((a) => a.username?.trim()).map((a) => a.username!.trim());
+  const anonymous = rest.length - named.length;
+  const parts = anonymous === 0 ? named : [...named, anonymous === 1 ? "un autor sin perfil" : `${anonymous} autores sin perfil`];
+  return parts.length > 0 ? `${authorLabel(main)}, con ${listFormat.format(parts)}` : authorLabel(main);
 }

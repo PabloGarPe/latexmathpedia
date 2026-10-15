@@ -8,10 +8,12 @@ import {
   getPdfContent,
   getPdfs,
   getRecentPdfs,
+  getRecentSubscribedPdfs,
   getTopPdfs,
   updatePdf,
   type CreatePDFDto,
   type UpdatePDFDto,
+  type UploadProgress,
 } from "@/lib/api/pdfs";
 import { useAuth } from "@/contexts/auth-context";
 import { queryKeys } from "@/lib/query/keys";
@@ -21,18 +23,20 @@ export const PDF_ROW_LIMIT = 10;
 // Las hileras públicas cambian despacio: 2 min de staleTime evita refetch al cambiar de pestaña.
 const ROW_STALE_TIME = 2 * 60 * 1000;
 
-export function useRecentPdfs(limit = PDF_ROW_LIMIT) {
+export function useRecentPdfs(limit = PDF_ROW_LIMIT, enabled = true) {
   return useQuery({
     queryKey: queryKeys.pdfs.recent(limit),
     queryFn: () => getRecentPdfs(limit),
+    enabled,
     staleTime: ROW_STALE_TIME,
   });
 }
 
-export function useTopPdfs(limit = PDF_ROW_LIMIT) {
+export function useTopPdfs(limit = PDF_ROW_LIMIT, enabled = true) {
   return useQuery({
     queryKey: queryKeys.pdfs.top(limit),
     queryFn: () => getTopPdfs(limit),
+    enabled,
     staleTime: ROW_STALE_TIME,
   });
 }
@@ -45,6 +49,18 @@ export function useMyTopPdfs(limit = PDF_ROW_LIMIT) {
     queryKey: queryKeys.pdfs.topMe(email, limit),
     queryFn: () => getMyTopPdfs(limit),
     enabled: isAuthenticated,
+    staleTime: ROW_STALE_TIME,
+    retry: 1,
+  });
+}
+
+// Hilera "Novedades de mis asignaturas" (solo con sesión; [] si no hay suscripciones).
+export function useRecentSubscribedPdfs(limit = PDF_ROW_LIMIT, enabled = true) {
+  const { isAuthenticated, email } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.pdfs.recentSubscribed(email, limit),
+    queryFn: () => getRecentSubscribedPdfs(limit),
+    enabled: enabled && isAuthenticated,
     staleTime: ROW_STALE_TIME,
     retry: 1,
   });
@@ -96,7 +112,8 @@ function useInvalidatePdfQueries() {
 export function useCreatePdf() {
   const invalidate = useInvalidatePdfQueries();
   return useMutation({
-    mutationFn: ({ data, file }: { data: CreatePDFDto; file: File }) => createPdf(data, file),
+    mutationFn: ({ data, file, onProgress }: { data: CreatePDFDto; file: File; onProgress?: UploadProgress }) =>
+      createPdf(data, file, onProgress),
     onSuccess: invalidate,
   });
 }
@@ -104,8 +121,17 @@ export function useCreatePdf() {
 export function useUpdatePdf() {
   const invalidate = useInvalidatePdfQueries();
   return useMutation({
-    mutationFn: ({ pdfId, data, file }: { pdfId: number; data: UpdatePDFDto; file?: File }) =>
-      updatePdf(pdfId, data, file),
+    mutationFn: ({
+      pdfId,
+      data,
+      file,
+      onProgress,
+    }: {
+      pdfId: number;
+      data: UpdatePDFDto;
+      file?: File;
+      onProgress?: UploadProgress;
+    }) => updatePdf(pdfId, data, file, onProgress),
     onSuccess: invalidate,
   });
 }

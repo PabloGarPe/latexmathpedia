@@ -1,7 +1,7 @@
 "use client"
 
+import Link from "next/link"
 import { useRef, useState } from "react"
-import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -31,13 +31,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   Table,
   TableBody,
   TableCell,
@@ -45,37 +38,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SubjectUnitPicker } from "@/components/ui/subject-unit-picker"
-import { QuizDifficultyBadge, DIFFICULTY_LABEL, QUIZ_DIFFICULTIES } from "@/components/ui/quiz-difficulty-badge"
+import { PageContainer, PageHeader } from "@/components/page-shell"
+import { QuizFormDialog } from "@/components/admin/quiz-form-dialog"
+import { QuizVisibilityToggle, isQuizHidden } from "@/components/admin/quiz-visibility"
+import { QuizDifficultyBadge } from "@/components/ui/quiz-difficulty-badge"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminRoute } from "@/hooks/use-protected-route"
-import { useCreateQuiz, useDeleteQuiz, useImportQuiz, usePublicQuizzes } from "@/hooks/api/use-quizzes"
+import { useDeleteQuiz, useImportQuiz, useAllQuizzes } from "@/hooks/api/use-quizzes"
 import { exportQuiz, type QuizDto, type QuizExportableDto } from "@/lib/api/quizzes"
 import { conflictMessage } from "@/lib/api/errors"
 import { formatDate } from "@/lib/utils"
-
-const createQuizSchema = z
-  .object({
-    name: z.string().min(1, "El nombre es obligatorio"),
-    description: z.string().optional(),
-    difficulty: z.enum(QUIZ_DIFFICULTIES),
-    subjectId: z.number().nullable(),
-    subjectUnitId: z.number().nullable(),
-  })
-  .refine((data) => data.subjectId != null, {
-    message: "Selecciona una asignatura",
-    path: ["subjectId"],
-  })
-
-type CreateQuizFormValues = z.infer<typeof createQuizSchema>
-
-const emptyCreateValues: CreateQuizFormValues = {
-  name: "",
-  description: "",
-  difficulty: "EASY",
-  subjectId: null,
-  subjectUnitId: null,
-}
 
 const importQuizSchema = z
   .object({
@@ -89,104 +63,15 @@ const importQuizSchema = z
 
 type ImportQuizFormValues = z.infer<typeof importQuizSchema>
 
-function CreateQuizDialog() {
-  const toast = useToast()
-  const router = useRouter()
+function CreateQuizButton() {
   const [open, setOpen] = useState(false)
-  const createQuiz = useCreateQuiz()
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<CreateQuizFormValues>({
-    resolver: zodResolver(createQuizSchema),
-    defaultValues: emptyCreateValues,
-  })
-
-  const subjectIdValue = watch("subjectId")
-  const subjectUnitIdValue = watch("subjectUnitId")
-  const difficultyValue = watch("difficulty")
-
-  const onSubmit = async (values: CreateQuizFormValues) => {
-    try {
-      const created = await createQuiz.mutateAsync({
-        name: values.name,
-        description: values.description || undefined,
-        difficulty: values.difficulty,
-        subjectId: values.subjectId as number,
-        subjectUnitId: values.subjectUnitId,
-      })
-      toast.success("Cuestionario creado. Ahora puedes añadirle preguntas.")
-      setOpen(false)
-      reset(emptyCreateValues)
-      if (created?.id != null) {
-        router.push(`/dashboard/admin/quizzes/${created.id}`)
-      }
-    } catch (error) {
-      toast.error(conflictMessage(error, "Error al crear el cuestionario."))
-    }
-  }
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="cursor-pointer">Crear cuestionario</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Crear cuestionario</DialogTitle>
-          <DialogDescription>
-            Datos mínimos para empezar; podrás añadir preguntas justo después.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="quiz-name">Nombre</Label>
-            <Input id="quiz-name" {...register("name")} />
-            {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="quiz-description">Descripción (opcional)</Label>
-            <Input id="quiz-description" {...register("description")} />
-          </div>
-          <div className="grid gap-2">
-            <Label>Dificultad</Label>
-            <Select value={difficultyValue} onValueChange={(value) => setValue("difficulty", value as CreateQuizFormValues["difficulty"])}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {QUIZ_DIFFICULTIES.map((difficulty) => (
-                  <SelectItem key={difficulty} value={difficulty}>
-                    {DIFFICULTY_LABEL[difficulty]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <SubjectUnitPicker
-            subjectId={subjectIdValue ?? null}
-            subjectUnitId={subjectUnitIdValue ?? null}
-            onSubjectChange={(id) => {
-              setValue("subjectId", id, { shouldValidate: true })
-              setValue("subjectUnitId", null)
-            }}
-            onSubjectUnitChange={(id) => setValue("subjectUnitId", id)}
-          />
-          {errors.subjectId && <p className="text-sm text-destructive">{errors.subjectId.message}</p>}
-
-          <DialogFooter>
-            <Button type="submit" className="cursor-pointer" disabled={isSubmitting || createQuiz.isPending}>
-              Crear y editar
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Button className="cursor-pointer" onClick={() => setOpen(true)}>
+        Crear cuestionario
+      </Button>
+      <QuizFormDialog open={open} onOpenChange={setOpen} />
+    </>
   )
 }
 
@@ -237,7 +122,7 @@ function ImportQuizDialog() {
         subjectUnitId: values.subjectUnitId,
         body: fileContentRef.current,
       })
-      toast.success("Cuestionario importado correctamente.")
+      toast.success("Cuestionario importado y publicado.")
       setOpen(false)
       reset({ subjectId: null, subjectUnitId: null })
       fileContentRef.current = null
@@ -326,8 +211,11 @@ function QuizRow({ quiz }: { quiz: QuizDto }) {
   }
 
   return (
-    <TableRow>
-      <TableCell className="font-medium">{quiz.name}</TableCell>
+    <TableRow className="hover:bg-transparent">
+      <TableCell className="font-medium">
+        {quiz.name}
+        {isQuizHidden(quiz) && <span className="sr-only"> (oculto)</span>}
+      </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
           {quiz.subject?.name && (
@@ -345,13 +233,16 @@ function QuizRow({ quiz }: { quiz: QuizDto }) {
       <TableCell>
         <QuizDifficultyBadge difficulty={quiz.difficulty} />
       </TableCell>
+      <TableCell>
+        <QuizVisibilityToggle quiz={quiz} variant="switch" />
+      </TableCell>
       <TableCell>{formatDate(quiz.lastTimeEdited)}</TableCell>
       <TableCell className="text-right space-x-1">
         <Button variant="ghost" size="sm" className="cursor-pointer" onClick={handleExport} disabled={isExporting}>
           <Download className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="sm" className="cursor-pointer" asChild>
-          <a href={`/dashboard/admin/quizzes/${quiz.id}`}>Editar</a>
+          <Link href={`/dashboard/admin/quizzes/${quiz.id}`}>Editar</Link>
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -381,8 +272,9 @@ function QuizRow({ quiz }: { quiz: QuizDto }) {
 
 export default function AdminQuizzesPage() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "hidden">("all")
   const { isAuthenticated, isAdmin, loading: authLoading } = useAdminRoute()
-  const { data: quizzes, isLoading: quizzesLoading } = usePublicQuizzes(isAuthenticated && isAdmin)
+  const { data: quizzes, isLoading: quizzesLoading } = useAllQuizzes(isAuthenticated && isAdmin)
 
   if (authLoading) {
     return (
@@ -396,7 +288,10 @@ export default function AdminQuizzesPage() {
     return null
   }
 
+  const hiddenCount = (quizzes ?? []).filter(isQuizHidden).length
   const filteredQuizzes = (quizzes ?? []).filter((quiz) => {
+    if (statusFilter === "published" && isQuizHidden(quiz)) return false
+    if (statusFilter === "hidden" && !isQuizHidden(quiz)) return false
     if (!searchTerm.trim()) return true
     const term = searchTerm.toLowerCase()
     return (
@@ -407,14 +302,17 @@ export default function AdminQuizzesPage() {
   })
 
   return (
-    <div className="p-8 w-full mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <h1 className="text-3xl font-bold">Administración de Cuestionarios</h1>
-        <div className="flex gap-2">
-          <ImportQuizDialog />
-          <CreateQuizDialog />
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Cuestionarios"
+        description="Vista global: busca, crea, importa, exporta o edita cualquier cuestionario."
+        actions={
+          <div className="flex gap-2">
+            <ImportQuizDialog />
+            <CreateQuizButton />
+          </div>
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -422,6 +320,19 @@ export default function AdminQuizzesPage() {
           <CardDescription>Busca, edita, exporta o elimina cuestionarios.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+              <TabsList>
+                <TabsTrigger value="all">Todos</TabsTrigger>
+                <TabsTrigger value="published">Publicados</TabsTrigger>
+                <TabsTrigger value="hidden">Ocultos{hiddenCount > 0 ? ` (${hiddenCount})` : ""}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <p className="text-xs text-muted-foreground">
+              Los cuestionarios nuevos se crean ocultos: publícalos cuando tengan preguntas.
+            </p>
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -442,6 +353,7 @@ export default function AdminQuizzesPage() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Asignatura/Tema</TableHead>
                     <TableHead>Dificultad</TableHead>
+                    <TableHead>Estado</TableHead>
                     <TableHead>Última edición</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -453,16 +365,18 @@ export default function AdminQuizzesPage() {
                 </TableBody>
               </Table>
             </div>
-          ) : searchTerm ? (
+          ) : searchTerm || statusFilter !== "all" ? (
             <div className="text-center py-6">
               <AlertCircleIcon className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-2" />
-              <p>No se encontraron resultados para &quot;{searchTerm}&quot;</p>
+              <p>
+                {searchTerm ? <>No se encontraron resultados para &quot;{searchTerm}&quot;</> : "No hay cuestionarios en este estado."}
+              </p>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No hay cuestionarios todavía.</p>
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   )
 }

@@ -2,40 +2,47 @@
 
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Trophy } from "lucide-react"
+import { ArrowLeft, ArrowRight, Gauge, ListChecks, Medal, Pencil, Percent, Repeat, Target, Trash } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+import { ConfirmDialog } from "@/components/admin/confirm-dialog"
+import { EditModeToggle } from "@/components/admin/edit-mode-toggle"
+import { ContentUnavailable } from "@/components/content-unavailable"
+import { QuizFormDialog } from "@/components/admin/quiz-form-dialog"
+import { PageContainer } from "@/components/page-shell"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { QuizDifficultyBadge } from "@/components/ui/quiz-difficulty-badge"
+import { QuizLeaderboard } from "@/components/quiz-leaderboard"
+import { cn } from "@/lib/utils"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
-import { useQuiz, useQuizLeaderboard, useQuizStats } from "@/hooks/api/use-quizzes"
+import { useEditMode } from "@/contexts/edit-mode-context"
+import { useDeleteQuiz, useQuiz, useQuizStats } from "@/hooks/api/use-quizzes"
+import { useToast } from "@/hooks/use-toast"
+
+function StatTile({
+  icon: Icon,
+  label,
+  value,
+  className,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string | number
+  className?: string
+}) {
+  return (
+    <div className={cn("flex flex-col gap-1 rounded-lg border bg-card p-4", className)}>
+      <Icon className="h-4 w-4 text-purple-500" />
+      <p className="text-2xl font-bold tabular-nums">{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+    </div>
+  )
+}
 
 function QuizStatsSection({ quizId }: { quizId: number }) {
   const { data: stats, isLoading } = useQuizStats(quizId)
 
-  if (isLoading || !stats) return null
+  if (isLoading || !stats) return <div className="h-40 animate-pulse rounded-xl bg-muted" />
 
   // Con 0 intentos el backend devuelve el resto de valores a 0: no se muestran.
   if (!stats.totalAttempts) {
@@ -50,138 +57,38 @@ function QuizStatsSection({ quizId }: { quizId: number }) {
   }
 
   // bestScore/averageScore van sobre 10; completionRate/accuracyPercentage ya son porcentajes (0-100).
-  const items = [
-    { label: "Intentos totales", value: stats.totalAttempts },
-    {
-      label: "Tasa de finalización",
-      value: stats.completionRate != null ? `${Math.round(stats.completionRate)}%` : "-",
-    },
-    {
-      label: "Precisión media",
-      value: stats.accuracyPercentage != null ? `${Math.round(stats.accuracyPercentage)}%` : "-",
-    },
-    {
-      label: "Puntuación media",
-      value: stats.averageScore != null ? `${stats.averageScore.toFixed(1)}/10` : "-",
-    },
-    {
-      label: "Mejor puntuación",
-      value: stats.bestScore != null ? `${stats.bestScore.toFixed(1)}/10` : "-",
-    },
-  ]
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Tus estadísticas</CardTitle>
-        <CardDescription>Tu rendimiento en este cuestionario.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        {items.map((item) => (
-          <div key={item.label} className="space-y-1">
-            <p className="text-2xl font-bold">{item.value}</p>
-            <p className="text-xs text-muted-foreground">{item.label}</p>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  )
-}
-
-function QuizLeaderboardSection({ quizId }: { quizId: number }) {
-  const [page, setPage] = useState(0)
-  const { data, isLoading } = useQuizLeaderboard(quizId, page, 10)
-
-  const entries = data?.content ?? []
-  const totalPages = data?.totalPages ?? 0
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Trophy className="h-5 w-5" />
-          Tabla de líderes
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>Usuario</TableHead>
-                <TableHead title="Mejor puntuación con penalización por reintentos">Puntuación ajustada</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center">
-                    Cargando tabla de líderes...
-                  </TableCell>
-                </TableRow>
-              ) : entries.length > 0 ? (
-                entries.map((entry) => (
-                  <TableRow key={entry.userId}>
-                    <TableCell>{entry.rank}</TableCell>
-                    <TableCell className="font-medium">{entry.username}</TableCell>
-                    <TableCell>{entry.bestAdjustedScore?.toFixed(1)}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground">
-                    Todavía no hay intentos registrados.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {totalPages > 1 && (
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setPage((p) => Math.max(0, p - 1))
-                  }}
-                  className={page === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <PaginationItem key={i}>
-                  <PaginationLink
-                    href="#"
-                    isActive={i === page}
-                    className="cursor-pointer"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setPage(i)
-                    }}
-                  >
-                    {i + 1}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setPage((p) => Math.min(totalPages - 1, p + 1))
-                  }}
-                  className={page >= totalPages - 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        )}
-      </CardContent>
-    </Card>
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold">Tus estadísticas</h2>
+      {/* 3 + 2 en pantallas anchas: 6 columnas, las tres primeras de 2 y las dos últimas de 3. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+        <StatTile className="sm:col-span-2" icon={Repeat} label="Intentos totales" value={stats.totalAttempts} />
+        <StatTile
+          className="sm:col-span-2"
+          icon={Gauge}
+          label="Tasa de finalización"
+          value={stats.completionRate != null ? `${Math.round(stats.completionRate)}%` : "-"}
+        />
+        <StatTile
+          className="sm:col-span-2"
+          icon={Percent}
+          label="Precisión media"
+          value={stats.accuracyPercentage != null ? `${Math.round(stats.accuracyPercentage)}%` : "-"}
+        />
+        <StatTile
+          className="sm:col-span-3"
+          icon={Target}
+          label="Puntuación media"
+          value={stats.averageScore != null ? `${stats.averageScore.toFixed(1)}/10` : "-"}
+        />
+        <StatTile
+          className="sm:col-span-3"
+          icon={Medal}
+          label="Mejor puntuación"
+          value={stats.bestScore != null ? `${stats.bestScore.toFixed(1)}/10` : "-"}
+        />
+      </div>
+    </section>
   )
 }
 
@@ -189,10 +96,15 @@ export default function QuizDetailPage() {
   const params = useParams<{ quizId: string }>()
   const quizId = Number(params.quizId)
   const router = useRouter()
+  const toast = useToast()
+  const { editing } = useEditMode()
+  const deleteQuiz = useDeleteQuiz()
+  const [editingQuiz, setEditingQuiz] = useState(false)
+  const [deletingQuiz, setDeletingQuiz] = useState(false)
 
   // Ficha: requiere sesión (GET /quiz/{id} no es público, aunque no exige rol admin)
   const { isAuthenticated, loading: authLoading } = useProtectedRoute()
-  const { data: quiz, isLoading } = useQuiz(isAuthenticated ? quizId : null)
+  const { data: quiz, isLoading, error: quizError } = useQuiz(isAuthenticated ? quizId : null)
 
   if (authLoading) {
     return (
@@ -206,48 +118,127 @@ export default function QuizDetailPage() {
     return null
   }
 
+  // 404: borrado o todavía oculto (a los alumnos no se les distingue).
+  if (quizError) {
+    return (
+      <ContentUnavailable
+        title="Este cuestionario no está disponible"
+        backHref="/dashboard/quizzes"
+        backLabel="Ver cuestionarios"
+      />
+    )
+  }
+
   if (isLoading || !quiz) {
     return <p className="p-8 text-muted-foreground">Cargando cuestionario...</p>
   }
 
+  const handleDelete = async () => {
+    try {
+      await deleteQuiz.mutateAsync(quizId)
+      toast.success("Cuestionario eliminado.")
+      router.push("/dashboard/quizzes")
+    } catch {
+      toast.error("No se pudo eliminar el cuestionario.")
+    }
+  }
+
   return (
-    <div className="p-8 max-w-2xl mx-auto space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-2">
-          <div>
-            <CardTitle className="text-2xl">{quiz.name}</CardTitle>
-            {quiz.description && (
-              <CardDescription className="mt-2">{quiz.description}</CardDescription>
-            )}
+    <PageContainer className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard/quizzes")}
+          className="inline-flex cursor-pointer items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Cuestionarios
+        </button>
+        <EditModeToggle />
+      </div>
+
+      <header className="relative overflow-hidden rounded-2xl border bg-linear-to-br from-purple-500/15 via-fuchsia-500/10 to-transparent p-6 sm:p-8 dark:from-purple-500/25 dark:via-fuchsia-500/10">
+        <ListChecks className="pointer-events-none absolute -right-4 -top-4 h-40 w-40 rotate-12 text-purple-500/10" />
+        {editing && (
+          <div className="absolute right-4 top-4 z-10 flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="cursor-pointer bg-background/80 backdrop-blur"
+              onClick={() => setEditingQuiz(true)}
+            >
+              <Pencil className="h-4 w-4" />
+              Editar datos
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="cursor-pointer bg-background/80 backdrop-blur"
+              onClick={() => router.push(`/dashboard/admin/quizzes/${quizId}`)}
+            >
+              <ListChecks className="h-4 w-4" />
+              Editar preguntas
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="cursor-pointer bg-background/80 text-destructive backdrop-blur hover:text-destructive"
+              onClick={() => setDeletingQuiz(true)}
+            >
+              <Trash className="h-4 w-4" />
+              <span className="sr-only">Eliminar cuestionario</span>
+            </Button>
           </div>
-          <QuizDifficultyBadge difficulty={quiz.difficulty} />
-        </CardHeader>
-        {(quiz.subject?.name || quiz.subjectUnit?.name) && (
-          <CardContent className="flex flex-wrap gap-2">
-            {quiz.subject?.name && (
-              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                {quiz.subject.name}
-              </span>
-            )}
-            {quiz.subjectUnit?.name && (
-              <span className="text-xs bg-secondary/10 text-primary px-2 py-0.5 rounded-full">
-                {quiz.subjectUnit.name}
-              </span>
-            )}
-          </CardContent>
         )}
-        <CardFooter>
+        <div className="relative space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800 dark:bg-purple-900 dark:text-purple-100">
+              <ListChecks className="h-3 w-3" />
+              Cuestionario
+            </span>
+            <QuizDifficultyBadge difficulty={quiz.difficulty} />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight">{quiz.name}</h1>
+          {quiz.description && (
+            <p className="max-w-prose text-muted-foreground">{quiz.description}</p>
+          )}
+          {(quiz.subject?.name || quiz.subjectUnit?.name) && (
+            <div className="flex flex-wrap gap-2">
+              {quiz.subject?.name && (
+                <span className="rounded-full bg-background/70 px-2.5 py-0.5 text-xs">{quiz.subject.name}</span>
+              )}
+              {quiz.subjectUnit?.name && (
+                <span className="rounded-full bg-background/70 px-2.5 py-0.5 text-xs text-muted-foreground">
+                  {quiz.subjectUnit.name}
+                </span>
+              )}
+            </div>
+          )}
           <Button
-            className="cursor-pointer"
+            size="lg"
+            className="cursor-pointer gap-2"
             onClick={() => router.push(`/dashboard/quizzes/${quizId}/attempt`)}
           >
             Empezar cuestionario
+            <ArrowRight className="h-4 w-4" />
           </Button>
-        </CardFooter>
-      </Card>
+        </div>
+      </header>
 
-      <QuizStatsSection quizId={quizId} />
-      <QuizLeaderboardSection quizId={quizId} />
-    </div>
+      {/* Dos columnas desde xl (el menú lateral ocupa sitio: antes no caben); apiladas por debajo. */}
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
+        <QuizStatsSection quizId={quizId} />
+        <QuizLeaderboard quizId={quizId} />
+      </div>
+
+      <QuizFormDialog open={editingQuiz} onOpenChange={setEditingQuiz} quiz={quiz} />
+      <ConfirmDialog
+        open={deletingQuiz}
+        onOpenChange={setDeletingQuiz}
+        title={`¿Eliminar "${quiz.name}"?`}
+        description="Esta acción no se puede deshacer y eliminará también sus preguntas y opciones."
+        onConfirm={handleDelete}
+      />
+    </PageContainer>
   )
 }
