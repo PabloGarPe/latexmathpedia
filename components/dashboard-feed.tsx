@@ -10,7 +10,7 @@ import QuizRows from "@/components/quiz-rows";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSearch } from "@/contexts/search-context"; // Importar el contexto de búsqueda
 import { useToast } from "@/hooks/use-toast";
-import { PDF_ROW_LIMIT, usePdfs, useRecentPdfs, useTopPdfs } from "@/hooks/api/use-pdfs";
+import { PDF_ROW_LIMIT, usePdfs, useRecentPdfs, useTopPdfs, useTopRatedPdfs } from "@/hooks/api/use-pdfs";
 import {
   QUIZ_ROW_LIMIT,
   usePublicQuizzes,
@@ -78,7 +78,7 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
   const isSearching = normalizedSearch !== "";
 
   // Prioridad de carga, por pestaña: primero las hileras de arriba (Novedades / Lo más visto /
-  // Los más hechos, ligeras y lo primero que ve el usuario); el catálogo completo, que
+  // Mejor valorados / Los más hechos, ligeras y lo primero que ve el usuario); el catálogo completo, que
   // alimenta "Explorar todo", espera a que esas resuelvan para no competir por las
   // conexiones. Mismas claves que usan <PdfRows>/<QuizRows>, así que no se duplican
   // peticiones. Solo se pide lo de la pestaña activa. Si el usuario busca, el catálogo hace
@@ -88,7 +88,8 @@ export function DashboardFeed({ posts }: { posts: BlogPostMeta[] }) {
 
   const recentPdfs = useRecentPdfs(PDF_ROW_LIMIT, pdfTab);
   const topPdfs = useTopPdfs(PDF_ROW_LIMIT, pdfTab);
-  const pdfRowsSettled = !recentPdfs.isPending && !topPdfs.isPending;
+  const topRatedPdfs = useTopRatedPdfs(PDF_ROW_LIMIT, pdfTab);
+  const pdfRowsSettled = !recentPdfs.isPending && !topPdfs.isPending && !topRatedPdfs.isPending;
 
   const recentQuizzes = useRecentQuizzes(QUIZ_ROW_LIMIT, quizTab);
   const topQuizzes = useTopQuizzes(QUIZ_ROW_LIMIT, quizTab);

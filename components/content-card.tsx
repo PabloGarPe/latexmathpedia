@@ -20,6 +20,7 @@ export function ContentCard({ item, actions }: { item: ContentItem; actions?: Re
           subjectUnitName={item.data.subjectUnitName}
           authors={formatPdfAuthors(item.data.authors)}
           viewCount={item.data.viewCount}
+          rating={item.data.rating}
         />
       )}
       {item.kind === "quiz" && <QuizCard quiz={item.data} />}

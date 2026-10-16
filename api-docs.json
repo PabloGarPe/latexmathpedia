@@ -64,6 +64,10 @@
       "description": "Fotos de perfil de los usuarios. Requiere JWT, no requiere rol ADMIN"
     },
     {
+      "name": "Valoraciones de PDFs",
+      "description": "Votos 👍/👎 a los PDFs. Requiere JWT, no requiere rol ADMIN. Solo puede votar quien haya abierto el PDF y no sea su autor; nunca se expone quién votó qué"
+    },
+    {
       "name": "Subjects",
       "description": "Gestión de asignaturas y temas (crear/borrar/actualizar requiere rol ADMIN; consultar cuestionarios requiere autenticación)"
     },
@@ -332,6 +336,136 @@
               }
             }
           }
+        }
+      }
+    },
+    "/pdf/{pdfId}/rating": {
+      "get": {
+        "tags": ["Valoraciones de PDFs"],
+        "summary": "Valoración de un PDF y mi voto",
+        "description": "Resumen público de votos, el voto del usuario autenticado (nulo si no ha votado) y si puede votar ahora. Si no puede, 'cannotVoteReason' indica el motivo: AUTHOR (es autor del PDF) o NOT_VIEWED (todavía no lo ha abierto)",
+        "operationId": "getRating",
+        "parameters": [
+          {
+            "name": "pdfId",
+            "in": "path",
+            "description": "Id del PDF",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Valoración del PDF",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/PdfRatingDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/PdfRatingDto" }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún PDF con ese id",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/PdfRatingDto" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Valoraciones de PDFs"],
+        "summary": "Voto un PDF o cambio mi voto",
+        "description": "Idempotente: votar de nuevo sustituye el voto anterior. Solo puede votar quien haya abierto el PDF (GET /pdf/{pdfId}) al menos una vez y no sea su autor. Devuelve la valoración recalculada",
+        "operationId": "rate",
+        "parameters": [
+          {
+            "name": "pdfId",
+            "in": "path",
+            "description": "Id del PDF",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RatePdfDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Voto guardado; valoración actualizada del PDF",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/PdfRatingDto" }
+              }
+            }
+          },
+          "400": {
+            "description": "Cuerpo inválido (voto ausente o distinto de LIKE/DISLIKE)",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/PdfRatingDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/PdfRatingDto" }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario es autor del PDF o todavía no lo ha abierto",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/PdfRatingDto" }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún PDF con ese id",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/PdfRatingDto" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Valoraciones de PDFs"],
+        "summary": "Retiro mi voto de un PDF",
+        "description": "Idempotente: devuelve 204 también si no había voto. Siempre permitido, incluso si el usuario ya no podría votar",
+        "operationId": "removeRating",
+        "parameters": [
+          {
+            "name": "pdfId",
+            "in": "path",
+            "description": "Id del PDF",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "El usuario ya no tiene voto en el PDF" },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva"
+          },
+          "404": { "description": "No existe ningún PDF con ese id" }
         }
       }
     },
@@ -2485,11 +2619,32 @@
             "description": "ID de la asignatura",
             "required": true,
             "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Orden del listado: RATING (mejor valorados primero), VIEWS (más vistos), RECENT (editados más recientemente) o NAME (alfabético sin distinguir mayúsculas ni acentos). Si se omite, orden por defecto",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["RATING", "VIEWS", "RECENT", "NAME"]
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Lista de pdfs obtenida",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PDFDto" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Valor de 'sort' no válido",
             "content": {
               "*/*": {
                 "schema": {
@@ -2650,6 +2805,36 @@
         }
       }
     },
+    "/public/pdf/top-rated": {
+      "get": {
+        "tags": ["PDFs públicos"],
+        "summary": "PDFs mejor valorados",
+        "description": "Solo PDFs con al menos 3 votos y más 👍 que 👎, ordenados por puntuación ('rating.score', límite inferior de Wilson) de mayor a menor. Pensado para la hilera 'Mejor valorados' del feed; lista vacía si ninguno cumple",
+        "operationId": "getTopRatedPDFs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Máximo de PDFs a devolver (por defecto 10, máximo 20)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PDFDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/public/pdf/recent": {
       "get": {
         "tags": ["PDFs públicos"],
@@ -2684,8 +2869,20 @@
       "get": {
         "tags": ["PDFs públicos"],
         "summary": "Lista el catálogo de PDFs",
-        "description": "Solo metadatos (incluidos el nombre del autor, los de los coautores y el número de vistas); el contenido se obtiene autenticado en GET /pdf/{pdfId}/content",
+        "description": "Solo metadatos (incluidos el nombre del autor, los de los coautores y el número de vistas); el contenido se obtiene autenticado en GET /pdf/{pdfId}/content. Cada PDF incluye el resumen público de valoraciones ('rating'). Sin 'sort' se devuelve en el orden por defecto",
         "operationId": "getPDFs",
+        "parameters": [
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Orden del listado: RATING (mejor valorados primero), VIEWS (más vistos), RECENT (editados más recientemente) o NAME (alfabético sin distinguir mayúsculas ni acentos). Si se omite, orden por defecto",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["RATING", "VIEWS", "RECENT", "NAME"]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -3081,6 +3278,62 @@
                   "items": {
                     "$ref": "#/components/schemas/SubjectSubscriptionDto"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/pdf-ratings": {
+      "get": {
+        "tags": ["Valoraciones de PDFs"],
+        "summary": "Mis votos en un lote de PDFs",
+        "description": "Pensado para marcar los PDFs ya votados en un listado. Devuelve solo los PDFs que el usuario ha votado, en el orden pedido; los ids repetidos se ignoran. Máximo 100 ids",
+        "operationId": "getMyVotes",
+        "parameters": [
+          {
+            "name": "pdfIds",
+            "in": "query",
+            "description": "Ids de los PDFs separados por comas",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": { "type": "integer", "format": "int64" }
+            },
+            "example": "1,2,3"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Votos del usuario (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/MyPdfVoteDto" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Más de 100 ids o ids mal formados",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/MyPdfVoteDto" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/MyPdfVoteDto" }
                 }
               }
             }
@@ -3662,6 +3915,73 @@
           }
         }
       },
+      "RatePdfDto": {
+        "type": "object",
+        "properties": {
+          "vote": {
+            "type": "string",
+            "description": "Voto: LIKE (👍) o DISLIKE (👎)",
+            "enum": ["LIKE", "DISLIKE"],
+            "example": "LIKE"
+          }
+        },
+        "required": ["vote"]
+      },
+      "PdfRatingDto": {
+        "type": "object",
+        "properties": {
+          "pdfId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Id del PDF",
+            "example": 7
+          },
+          "rating": {
+            "$ref": "#/components/schemas/PdfRatingSummaryDto",
+            "description": "Resumen público de valoraciones del PDF"
+          },
+          "myVote": {
+            "type": ["string", "null"],
+            "description": "Voto del usuario autenticado. Nulo si no ha votado",
+            "enum": ["LIKE", "DISLIKE"],
+            "example": "LIKE"
+          },
+          "canVote": {
+            "type": "boolean",
+            "description": "Si el usuario autenticado puede votar (o cambiar su voto) ahora mismo en este PDF",
+            "example": true
+          },
+          "cannotVoteReason": {
+            "type": ["string", "null"],
+            "description": "Por qué no puede votar. Nulo si puede. AUTHOR (es autor del PDF) tiene prioridad sobre NOT_VIEWED (no lo ha abierto todavía)",
+            "enum": ["NOT_VIEWED", "AUTHOR"],
+            "example": "NOT_VIEWED"
+          }
+        }
+      },
+      "PdfRatingSummaryDto": {
+        "type": "object",
+        "properties": {
+          "likeCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Número de votos positivos (👍)",
+            "example": 12
+          },
+          "dislikeCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Número de votos negativos (👎)",
+            "example": 2
+          },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "description": "Límite inferior de Wilson de la proporción de 👍 (0..1), usado para ordenar. 0 si no hay votos",
+            "example": 0.69
+          }
+        }
+      },
       "UpdatePDFDto": {
         "type": "object",
         "description": "Datos del PDF a actualizar",
@@ -3751,6 +4071,10 @@
             "format": "int64",
             "description": "Número total de veces que se ha abierto el PDF (todos los usuarios; cada apertura cuenta, aunque sea del mismo usuario). 0 si nunca se ha visto",
             "example": 42
+          },
+          "rating": {
+            "$ref": "#/components/schemas/PdfRatingSummaryDto",
+            "description": "Resumen público de valoraciones (👍/👎). Nunca dice quién votó"
           }
         }
       },
@@ -5041,6 +5365,23 @@
             "format": "int64",
             "description": "Número de notificaciones sin leer",
             "example": 3
+          }
+        }
+      },
+      "MyPdfVoteDto": {
+        "type": "object",
+        "properties": {
+          "pdfId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Id del PDF votado",
+            "example": 7
+          },
+          "vote": {
+            "type": "string",
+            "description": "Voto del usuario autenticado en ese PDF",
+            "enum": ["LIKE", "DISLIKE"],
+            "example": "DISLIKE"
           }
         }
       },

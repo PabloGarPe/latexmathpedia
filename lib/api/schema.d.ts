@@ -84,6 +84,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pdf/{pdfId}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Valoración de un PDF y mi voto
+         * @description Resumen público de votos, el voto del usuario autenticado (nulo si no ha votado) y si puede votar ahora. Si no puede, 'cannotVoteReason' indica el motivo: AUTHOR (es autor del PDF) o NOT_VIEWED (todavía no lo ha abierto)
+         */
+        get: operations["getRating"];
+        /**
+         * Voto un PDF o cambio mi voto
+         * @description Idempotente: votar de nuevo sustituye el voto anterior. Solo puede votar quien haya abierto el PDF (GET /pdf/{pdfId}) al menos una vez y no sea su autor. Devuelve la valoración recalculada
+         */
+        put: operations["rate"];
+        post?: never;
+        /**
+         * Retiro mi voto de un PDF
+         * @description Idempotente: devuelve 204 también si no había voto. Siempre permitido, incluso si el usuario ya no podría votar
+         */
+        delete: operations["removeRating"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pdf/update/{pdfId}": {
         parameters: {
             query?: never;
@@ -1046,6 +1074,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/pdf/top-rated": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * PDFs mejor valorados
+         * @description Solo PDFs con al menos 3 votos y más 👍 que 👎, ordenados por puntuación ('rating.score', límite inferior de Wilson) de mayor a menor. Pensado para la hilera 'Mejor valorados' del feed; lista vacía si ninguno cumple
+         */
+        get: operations["getTopRatedPDFs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/pdf/recent": {
         parameters: {
             query?: never;
@@ -1075,7 +1123,7 @@ export interface paths {
         };
         /**
          * Lista el catálogo de PDFs
-         * @description Solo metadatos (incluidos el nombre del autor, los de los coautores y el número de vistas); el contenido se obtiene autenticado en GET /pdf/{pdfId}/content
+         * @description Solo metadatos (incluidos el nombre del autor, los de los coautores y el número de vistas); el contenido se obtiene autenticado en GET /pdf/{pdfId}/content. Cada PDF incluye el resumen público de valoraciones ('rating'). Sin 'sort' se devuelve en el orden por defecto
          */
         get: operations["getPDFs"];
         put?: never;
@@ -1295,6 +1343,26 @@ export interface paths {
          * @description Ordenadas por nombre de asignatura. Lista vacía si no hay ninguna suscripción
          */
         get: operations["getMySubscriptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/pdf-ratings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mis votos en un lote de PDFs
+         * @description Pensado para marcar los PDFs ya votados en un listado. Devuelve solo los PDFs que el usuario ha votado, en el orden pedido; los ids repetidos se ignoran. Máximo 100 ids
+         */
+        get: operations["getMyVotes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1747,6 +1815,61 @@ export interface components {
              */
             quizId?: number;
         };
+        RatePdfDto: {
+            /**
+             * @description Voto: LIKE (👍) o DISLIKE (👎)
+             * @example LIKE
+             * @enum {string}
+             */
+            vote: "LIKE" | "DISLIKE";
+        };
+        PdfRatingDto: {
+            /**
+             * Format: int64
+             * @description Id del PDF
+             * @example 7
+             */
+            pdfId?: number;
+            /** @description Resumen público de valoraciones del PDF */
+            rating?: components["schemas"]["PdfRatingSummaryDto"];
+            /**
+             * @description Voto del usuario autenticado. Nulo si no ha votado
+             * @example LIKE
+             * @enum {string|null}
+             */
+            myVote?: "LIKE" | "DISLIKE" | null;
+            /**
+             * @description Si el usuario autenticado puede votar (o cambiar su voto) ahora mismo en este PDF
+             * @example true
+             */
+            canVote?: boolean;
+            /**
+             * @description Por qué no puede votar. Nulo si puede. AUTHOR (es autor del PDF) tiene prioridad sobre NOT_VIEWED (no lo ha abierto todavía)
+             * @example NOT_VIEWED
+             * @enum {string|null}
+             */
+            cannotVoteReason?: "NOT_VIEWED" | "AUTHOR" | null;
+        };
+        PdfRatingSummaryDto: {
+            /**
+             * Format: int64
+             * @description Número de votos positivos (👍)
+             * @example 12
+             */
+            likeCount?: number;
+            /**
+             * Format: int64
+             * @description Número de votos negativos (👎)
+             * @example 2
+             */
+            dislikeCount?: number;
+            /**
+             * Format: double
+             * @description Límite inferior de Wilson de la proporción de 👍 (0..1), usado para ordenar. 0 si no hay votos
+             * @example 0.69
+             */
+            score?: number;
+        };
         /** @description Datos del PDF a actualizar */
         UpdatePDFDto: {
             /**
@@ -1822,6 +1945,8 @@ export interface components {
              * @example 42
              */
             viewCount?: number;
+            /** @description Resumen público de valoraciones (👍/👎). Nunca dice quién votó */
+            rating?: components["schemas"]["PdfRatingSummaryDto"];
         };
         /** @description Datos de la opción a actualizar */
         UpdateOptionDto: {
@@ -2778,6 +2903,20 @@ export interface components {
              */
             count?: number;
         };
+        MyPdfVoteDto: {
+            /**
+             * Format: int64
+             * @description Id del PDF votado
+             * @example 7
+             */
+            pdfId?: number;
+            /**
+             * @description Voto del usuario autenticado en ese PDF
+             * @example DISLIKE
+             * @enum {string}
+             */
+            vote?: "LIKE" | "DISLIKE";
+        };
         PageQuizAttemptDto: {
             /** Format: int32 */
             totalPages?: number;
@@ -3045,6 +3184,145 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["QuestionDto"];
                 };
+            };
+        };
+    };
+    getRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del PDF */
+                pdfId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valoración del PDF */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description No existe ningún PDF con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+        };
+    };
+    rate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del PDF */
+                pdfId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RatePdfDto"];
+            };
+        };
+        responses: {
+            /** @description Voto guardado; valoración actualizada del PDF */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description Cuerpo inválido (voto ausente o distinto de LIKE/DISLIKE) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description El usuario es autor del PDF o todavía no lo ha abierto */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description No existe ningún PDF con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+        };
+    };
+    removeRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del PDF */
+                pdfId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description El usuario ya no tiene voto en el PDF */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe ningún PDF con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -5114,7 +5392,10 @@ export interface operations {
     };
     getSubjectPDFs: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Orden del listado: RATING (mejor valorados primero), VIEWS (más vistos), RECENT (editados más recientemente) o NAME (alfabético sin distinguir mayúsculas ni acentos). Si se omite, orden por defecto */
+                sort?: "RATING" | "VIEWS" | "RECENT" | "NAME";
+            };
             header?: never;
             path: {
                 /** @description ID de la asignatura */
@@ -5126,6 +5407,15 @@ export interface operations {
         responses: {
             /** @description Lista de pdfs obtenida */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PDFDto"][];
+                };
+            };
+            /** @description Valor de 'sort' no válido */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5256,6 +5546,29 @@ export interface operations {
             };
         };
     };
+    getTopRatedPDFs: {
+        parameters: {
+            query?: {
+                /** @description Máximo de PDFs a devolver (por defecto 10, máximo 20) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PDFDto"][];
+                };
+            };
+        };
+    };
     getRecentPDFs: {
         parameters: {
             query?: {
@@ -5281,7 +5594,10 @@ export interface operations {
     };
     getPDFs: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Orden del listado: RATING (mejor valorados primero), VIEWS (más vistos), RECENT (editados más recientemente) o NAME (alfabético sin distinguir mayúsculas ni acentos). Si se omite, orden por defecto */
+                sort?: "RATING" | "VIEWS" | "RECENT" | "NAME";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -5644,6 +5960,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SubjectSubscriptionDto"][];
+                };
+            };
+        };
+    };
+    getMyVotes: {
+        parameters: {
+            query: {
+                /**
+                 * @description Ids de los PDFs separados por comas
+                 * @example 1,2,3
+                 */
+                pdfIds: number[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Votos del usuario (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MyPdfVoteDto"][];
+                };
+            };
+            /** @description Más de 100 ids o ids mal formados */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MyPdfVoteDto"][];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MyPdfVoteDto"][];
                 };
             };
         };

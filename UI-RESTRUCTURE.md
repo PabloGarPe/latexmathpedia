@@ -445,15 +445,16 @@ arriba sobre la pestaña "Todo", los filtros globales y la insignia de tipo: ya 
   "1,2k") en `pdf-card.tsx` y `quiz-card.tsx`.
 - `components/feed-row.tsx`: carrusel horizontal genérico (scroll-snap, skeleton, fallo aislado
   con "Reintentar", se oculta si llega vacío). Lo usan `pdf-rows.tsx` (Novedades
-  `/public/pdf/recent`, Lo más visto `/public/pdf/top`, Tus más vistos `/pdf/top/me` solo con
+  `/public/pdf/recent`, Lo más visto `/public/pdf/top`, Mejor valorados
+  `/public/pdf/top-rated` (≥ 3 votos; oculta si llega vacía), Tus más vistos `/pdf/top/me` solo con
   sesión y oculta si falla) y `quiz-rows.tsx` (Novedades `/public/quiz/recent`, Los más hechos
   `/public/quiz/top`; vacía hasta el primer intento). Cada hilera es su propia `useQuery`
   (`staleTime` 2 min).
 - "Explorar todo" de cada pestaña (`pdf-explorer.tsx`, `quiz-explorer.tsx`): catálogo completo
   con filtros en cliente por asignatura y tema (+ dificultad en cuestionarios) y orden por
-  recientes / más vistos|hechos / nombre. Lógica y selectores comunes en
+  recientes / más vistos|hechos / (solo PDFs) mejor valorados / nombre. Lógica y selectores comunes en
   `catalog-filters.tsx`; las opciones salen de los propios datos.
-- Invalidación: al llegar el binario de un PDF se invalida `["pdfs", ...]` (salvo `content`) y
+- Invalidación: al llegar el binario de un PDF se invalida `["pdfs", ...]` (salvo `content` y `rating`) y
   `["subjects", ...]` (`useInvalidatePdfViews`); tras enviar un intento, `["quizzes", ...]`
   (salvo `attempt`), `["attempts"]` y `["subjects", ...]` (`useSubmitQuizAttempt`).
 

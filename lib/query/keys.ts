@@ -31,6 +31,10 @@ export const queryKeys = {
     top: (limit: number) => ["pdfs", "top", limit] as const,
     // Lleva el email del usuario en la clave para no servir la caché de otra sesión.
     topMe: (userKey: string, limit: number) => ["pdfs", "top", "me", userKey, limit] as const,
+    // Hilera "Mejor valorados" (pública). Cuelga de ["pdfs"]: la cubren las invalidaciones de listas.
+    topRated: (limit: number) => ["pdfs", "top-rated", limit] as const,
+    // Valoración del PDF y mi voto (visor). Se gestiona aparte de las listas: ver useVotePdf.
+    rating: (pdfId: number) => ["pdfs", pdfId, "rating"] as const,
   },
   quizzes: {
     all: () => ["quizzes"] as const,
