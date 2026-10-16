@@ -40,6 +40,8 @@ import { EditModeToggle } from "@/components/admin/edit-mode-toggle"
 import { NameDialog } from "@/components/admin/name-dialog"
 import { PdfSheet, type PdfSheetTarget } from "@/components/admin/pdf-sheet"
 import { QuizFormDialog } from "@/components/admin/quiz-form-dialog"
+import { SubjectFormDialog } from "@/components/admin/subject-form-dialog"
+import { PlacementBadges } from "@/components/subjects/placement-badges"
 import { SubscribeButton } from "@/components/subscriptions/subscribe-button"
 import { Button } from "@/components/ui/button"
 import {
@@ -62,7 +64,6 @@ import {
   useSubjectPdfs,
   useSubjectQuizzes,
   useSubjectUnits,
-  useUpdateSubject,
   useUpdateSubjectUnit,
 } from "@/hooks/api/use-subjects"
 import { toDisplayPdf, type DisplayPdf } from "@/lib/content/types"
@@ -323,7 +324,6 @@ export default function SubjectDetailPage() {
     isAuthenticated,
   )
 
-  const updateSubject = useUpdateSubject()
   const deleteSubject = useDeleteSubject()
   const createUnit = useCreateSubjectUnit()
   const updateUnit = useUpdateSubjectUnit()
@@ -467,7 +467,7 @@ export default function SubjectDetailPage() {
     } catch (error) {
       toast.error(
         conflict(error)
-          ? "No se puede eliminar: la asignatura todavía tiene temas. Elimínalos antes."
+          ? "No se puede eliminar: la asignatura todavía tiene temas, PDFs o cuestionarios. Elimínalos antes."
           : "No se pudo eliminar la asignatura.",
       )
     }
@@ -594,6 +594,8 @@ export default function SubjectDetailPage() {
             {subject.description && (
               <p className="max-w-prose text-muted-foreground">{subject.description}</p>
             )}
+            {/* Enlazadas al plan de estudios del grado, ancladas al curso. */}
+            <PlacementBadges placements={subject.placements} variant="full" linked />
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-background/70 px-2.5 py-0.5 text-xs">
                 <Layers className="h-3 w-3" />
@@ -711,28 +713,7 @@ export default function SubjectDetailPage() {
         subjectUnitId={quizDialog?.unitId ?? null}
       />
 
-      <NameDialog
-        open={subjectDialogOpen}
-        onOpenChange={setSubjectDialogOpen}
-        title="Editar asignatura"
-        withDescription
-        initial={{ name: subject.name ?? "", description: subject.description ?? "" }}
-        submitLabel="Guardar"
-        onSubmit={async (values) => {
-          try {
-            await updateSubject.mutateAsync({
-              id: subjectId,
-              body: { name: values.name, description: values.description || undefined },
-            })
-            toast.success("Asignatura actualizada.")
-          } catch (error) {
-            toast.error(
-              conflict(error) ? "Ya existe una asignatura con ese nombre." : "No se pudo actualizar la asignatura.",
-            )
-            throw error
-          }
-        }}
-      />
+      <SubjectFormDialog open={subjectDialogOpen} onOpenChange={setSubjectDialogOpen} subject={subject} />
 
       <NameDialog
         open={unitDialog != null}
@@ -762,7 +743,7 @@ export default function SubjectDetailPage() {
         open={deletingSubject}
         onOpenChange={setDeletingSubject}
         title={`¿Eliminar "${subject.name}"?`}
-        description="Esta acción no se puede deshacer. Si la asignatura todavía tiene temas no se podrá eliminar: elimínalos antes."
+        description="Esta acción no se puede deshacer. Si la asignatura todavía tiene temas, PDFs o cuestionarios no se podrá eliminar: elimínalos antes."
         onConfirm={handleDeleteSubject}
       />
     </PageContainer>
