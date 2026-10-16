@@ -15,6 +15,7 @@ import {
   sortUnits,
   updateSubjectUnit,
   type CreateSubjectDto,
+  type SubjectFilters,
   type SubjectUnitDto,
   type CreateSubjectUnitDto,
   type UpdateSubjectDto,
@@ -22,10 +23,17 @@ import {
 } from "@/lib/api/subjects";
 import { queryKeys } from "@/lib/query/keys";
 
-export function useSubjects() {
+// Sin filtros (o con todos vacíos), el catálogo completo bajo ["subjects"]; con filtros, su
+// propia clave. Los campos undefined no cuentan como filtro.
+export function useSubjects(filters: SubjectFilters = {}, enabled = true) {
+  const active = Object.fromEntries(
+    Object.entries(filters).filter(([, value]) => value !== undefined && value !== false),
+  ) as SubjectFilters;
+  const filtered = Object.keys(active).length > 0;
   return useQuery({
-    queryKey: queryKeys.subjects.all(),
-    queryFn: getSubjects,
+    queryKey: filtered ? queryKeys.subjects.filtered(active) : queryKeys.subjects.all(),
+    queryFn: () => getSubjects(active),
+    enabled,
   });
 }
 
@@ -69,6 +77,7 @@ export function useCreateSubject() {
     mutationFn: (body: CreateSubjectDto) => createSubject(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.degrees.all() });
     },
   });
 }
@@ -76,11 +85,13 @@ export function useCreateSubject() {
 // Los PDFs y cuestionarios denormalizan subject.name/subjectUnit.name en su propia
 // respuesta (ver PDFDto/QuizDto), así que un rename/delete de asignatura o tema debe
 // invalidar también esas cachés o se quedan mostrando el nombre antiguo hasta el próximo
-// refetch natural.
+// refetch natural. Lo mismo con los planes de estudio (embeben SubjectDto y dependen de las
+// colocaciones).
 function useInvalidateSubjectQueries() {
   const queryClient = useQueryClient();
   return () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.degrees.all() });
     queryClient.invalidateQueries({ queryKey: queryKeys.pdfs.all() });
     queryClient.invalidateQueries({ queryKey: queryKeys.quizzes.all() });
   };

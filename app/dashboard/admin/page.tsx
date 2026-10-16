@@ -1,11 +1,17 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, BookOpen, ClipboardList, FileText, Megaphone } from "lucide-react"
+import { ArrowRight, BookOpen, ClipboardList, FileText, GraduationCap, Megaphone } from "lucide-react"
 import { PageContainer, PageHeader } from "@/components/page-shell"
 import { useAdminRoute } from "@/hooks/use-protected-route"
 
 const SECTIONS = [
+  {
+    href: "/dashboard/admin/degrees",
+    title: "Grados",
+    description: "Crea y edita grados y sus cursos, y asigna a un grado las asignaturas que aún no están clasificadas.",
+    icon: GraduationCap,
+  },
   {
     href: "/dashboard/admin/pdfs",
     title: "PDFs",

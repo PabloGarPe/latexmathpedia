@@ -14,7 +14,7 @@ export interface paths {
         get?: never;
         /**
          * Actualiza una asignatura del catálogo
-         * @description Requiere rol ADMIN
+         * @description Requiere rol ADMIN. Si 'placements' es nulo no se tocan las colocaciones; si es una lista (también vacía) reemplaza el conjunto completo de colocaciones
          */
         put: operations["updateSubject"];
         post?: never;
@@ -79,6 +79,34 @@ export interface paths {
         put: operations["updateQuestion"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pdf/{pdfId}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Valoración de un PDF y mi voto
+         * @description Resumen público de votos, el voto del usuario autenticado (nulo si no ha votado) y si puede votar ahora. Si no puede, 'cannotVoteReason' indica el motivo: AUTHOR (es autor del PDF) o NOT_VIEWED (todavía no lo ha abierto)
+         */
+        get: operations["getRating"];
+        /**
+         * Voto un PDF o cambio mi voto
+         * @description Idempotente: votar de nuevo sustituye el voto anterior. Solo puede votar quien haya abierto el PDF (GET /pdf/{pdfId}) al menos una vez y no sea su autor. Devuelve la valoración recalculada
+         */
+        put: operations["rate"];
+        post?: never;
+        /**
+         * Retiro mi voto de un PDF
+         * @description Idempotente: devuelve 204 también si no había voto. Siempre permitido, incluso si el usuario ya no podría votar
+         */
+        delete: operations["removeRating"];
         options?: never;
         head?: never;
         patch?: never;
@@ -162,7 +190,7 @@ export interface paths {
         get: operations["getMe"];
         /**
          * Actualiza el perfil del usuario autenticado
-         * @description Sustituye todos los datos del perfil: el username es obligatorio y los demás campos, opcionales; uno que no se envíe (o venga en blanco) se borra. El primer guardado marca el perfil como completado. No toca la foto de perfil
+         * @description Sustituye todos los datos del perfil: el username es obligatorio y los demás campos, opcionales; uno que no se envíe (o venga en blanco) se borra. El primer guardado marca el perfil como completado. El grado y el curso (degreeId, currentYear) siguen la misma regla: nulos se borran. No toca la foto de perfil
          */
         put: operations["updateMe"];
         post?: never;
@@ -196,6 +224,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/subscriptions/degree/{degreeId}/year/{year}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Me suscribo a un curso entero
+         * @description Suscribe a todas las asignaturas colocadas ahora en ese grado y año (y cuatrimestre, si se indica). Es una foto fija: las asignaturas que se coloquen después no se suscriben solas. Idempotente: las que ya estaban suscritas se conservan. Devuelve las suscripciones a las asignaturas de ese curso, ordenadas por nombre
+         */
+        put: operations["subscribeToCourse"];
+        post?: never;
+        /**
+         * Me doy de baja de un curso entero
+         * @description Da de baja de todas las asignaturas colocadas ahora en ese grado y año (y cuatrimestre, si se indica), también de las que estén colocadas además en otro curso al que el usuario siga suscrito. Idempotente: devuelve 204 también si no había ninguna suscripción
+         */
+        delete: operations["unsubscribeFromCourse"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/avatar": {
         parameters: {
             query?: never;
@@ -215,6 +267,26 @@ export interface paths {
          * @description Idempotente: si no tenía foto no hace nada. Devuelve el perfil actualizado
          */
         delete: operations["deleteAvatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/degree/update/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Actualiza un grado del catálogo
+         * @description Requiere rol ADMIN. Reemplaza todos los campos. Si reduce los años, los usuarios con un curso mayor en su perfil lo pierden
+         */
+        put: operations["updateDegree"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -251,7 +323,7 @@ export interface paths {
         put?: never;
         /**
          * Crea una nueva asignatura en el catálogo
-         * @description Requiere rol ADMIN
+         * @description Requiere rol ADMIN. Opcionalmente la coloca en grados con 'placements' (sin colocaciones si es nulo o vacío)
          */
         post: operations["createSubject"];
         delete?: never;
@@ -414,6 +486,26 @@ export interface paths {
          * @description El remitente se rellena a partir del usuario autenticado si no se indica en el body
          */
         post: operations["sendMain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/degree/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crea un nuevo grado en el catálogo
+         * @description Requiere rol ADMIN
+         */
+        post: operations["createDegree"];
         delete?: never;
         options?: never;
         head?: never;
@@ -821,7 +913,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lista todas las asignaturas */
+        /**
+         * Lista las asignaturas con sus colocaciones en grados
+         * @description Ordenadas por nombre. Sin filtros devuelve todas. 'year' y 'semester' exigen 'degreeId' (también 'semester' sin 'year'). 'unassigned=true' lista las asignaturas que no están colocadas en ningún grado y no se puede combinar con 'degreeId'
+         */
         get: operations["getSubjects"];
         put?: never;
         post?: never;
@@ -838,7 +933,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Obtiene una asignatura por su ID */
+        /** Obtiene una asignatura por su ID, con sus colocaciones en grados */
         get: operations["getSubject"];
         put?: never;
         post?: never;
@@ -979,6 +1074,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/pdf/top-rated": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * PDFs mejor valorados
+         * @description Solo PDFs con al menos 3 votos y más 👍 que 👎, ordenados por puntuación ('rating.score', límite inferior de Wilson) de mayor a menor. Pensado para la hilera 'Mejor valorados' del feed; lista vacía si ninguno cumple
+         */
+        get: operations["getTopRatedPDFs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/pdf/recent": {
         parameters: {
             query?: never;
@@ -1008,9 +1123,66 @@ export interface paths {
         };
         /**
          * Lista el catálogo de PDFs
-         * @description Solo metadatos (incluidos el nombre del autor, los de los coautores y el número de vistas); el contenido se obtiene autenticado en GET /pdf/{pdfId}/content
+         * @description Solo metadatos (incluidos el nombre del autor, los de los coautores y el número de vistas); el contenido se obtiene autenticado en GET /pdf/{pdfId}/content. Cada PDF incluye el resumen público de valoraciones ('rating'). Sin 'sort' se devuelve en el orden por defecto
          */
         get: operations["getPDFs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/degree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista todos los grados
+         * @description Ordenados por nombre y universidad
+         */
+        get: operations["getDegrees"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/degree/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obtiene un grado por su ID */
+        get: operations["getDegree"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/degree/{id}/curriculum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Obtiene el plan de estudios de un grado
+         * @description Asignaturas colocadas en el grado agrupadas por año, ordenadas por cuatrimestre (las anuales al final) y nombre. Sin 'year' devuelve todos los años del grado, también los vacíos; con 'year', solo ese
+         */
+        get: operations["getCurriculum"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1171,6 +1343,26 @@ export interface paths {
          * @description Ordenadas por nombre de asignatura. Lista vacía si no hay ninguna suscripción
          */
         get: operations["getMySubscriptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/pdf-ratings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mis votos en un lote de PDFs
+         * @description Pensado para marcar los PDFs ya votados en un listado. Devuelve solo los PDFs que el usuario ha votado, en el orden pedido; los ids repetidos se ignoran. Máximo 100 ids
+         */
+        get: operations["getMyVotes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1359,10 +1551,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/degree/delete/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Elimina un grado del catálogo
+         * @description Requiere rol ADMIN. Los usuarios que lo tenían en su perfil se quedan sin grado ni curso
+         */
+        delete: operations["deleteDegree"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        SubjectPlacementDto: {
+            /**
+             * Format: int64
+             * @description ID del grado en el que se coloca la asignatura. Un mismo grado no puede repetirse en la lista
+             * @example 1
+             */
+            degreeId: number;
+            /**
+             * Format: int32
+             * @description Año (curso) del grado en el que se cursa, entre 1 y los años del grado
+             * @example 4
+             */
+            year: number;
+            /**
+             * Format: int32
+             * @description Cuatrimestre: 1 o 2. Nulo si la asignatura es anual o no se especifica
+             * @example 1
+             */
+            semester?: number | null;
+        };
         /** @description Datos para actualizar la asignatura */
         UpdateSubjectDto: {
             /**
@@ -1372,8 +1604,10 @@ export interface components {
             name: string;
             /** @description Descripción opcional de la asignatura */
             description?: string;
+            /** @description Colocaciones de la asignatura en grados (opcional). En la edición, nulo conserva las colocaciones actuales y una lista (también vacía) las reemplaza todas */
+            placements?: components["schemas"]["SubjectPlacementDto"][] | null;
         };
-        SubjectDto: {
+        SubjectDetailDto: {
             /**
              * Format: int64
              * @description Identificador interno de la asignatura
@@ -1383,6 +1617,38 @@ export interface components {
             name?: string;
             /** @description Descripción opcional de la asignatura */
             description?: string;
+            /** @description Grados en los que está colocada la asignatura. Lista vacía si no está en ninguno */
+            placements?: components["schemas"]["SubjectPlacementInfoDto"][];
+        };
+        SubjectPlacementInfoDto: {
+            /**
+             * Format: int64
+             * @description ID del grado
+             * @example 1
+             */
+            degreeId?: number;
+            /**
+             * @description Nombre del grado
+             * @example Grado en Matemáticas
+             */
+            degreeName?: string;
+            /**
+             * @description Universidad del grado (puede ser nula)
+             * @example Universidad de Sevilla
+             */
+            university?: string | null;
+            /**
+             * Format: int32
+             * @description Año (curso) del grado en el que se cursa
+             * @example 4
+             */
+            year?: number;
+            /**
+             * Format: int32
+             * @description Cuatrimestre (1 o 2). Nulo si la asignatura es anual o no se especifica
+             * @example 1
+             */
+            semester?: number | null;
         };
         /** @description Datos para actualizar el tema */
         UpdateSubjectUnitDto: {
@@ -1481,6 +1747,17 @@ export interface components {
              */
             readonly attemptCount?: number;
         };
+        SubjectDto: {
+            /**
+             * Format: int64
+             * @description Identificador interno de la asignatura
+             */
+            readonly id?: number;
+            /** @description Nombre único de la asignatura */
+            name?: string;
+            /** @description Descripción opcional de la asignatura */
+            description?: string;
+        };
         /** @description Datos de la pregunta a actualizar */
         UpdateQuestionDto: {
             /**
@@ -1537,6 +1814,61 @@ export interface components {
              * @description Identificador del cuestionario al que pertenece la pregunta
              */
             quizId?: number;
+        };
+        RatePdfDto: {
+            /**
+             * @description Voto: LIKE (👍) o DISLIKE (👎)
+             * @example LIKE
+             * @enum {string}
+             */
+            vote: "LIKE" | "DISLIKE";
+        };
+        PdfRatingDto: {
+            /**
+             * Format: int64
+             * @description Id del PDF
+             * @example 7
+             */
+            pdfId?: number;
+            /** @description Resumen público de valoraciones del PDF */
+            rating?: components["schemas"]["PdfRatingSummaryDto"];
+            /**
+             * @description Voto del usuario autenticado. Nulo si no ha votado
+             * @example LIKE
+             * @enum {string|null}
+             */
+            myVote?: "LIKE" | "DISLIKE" | null;
+            /**
+             * @description Si el usuario autenticado puede votar (o cambiar su voto) ahora mismo en este PDF
+             * @example true
+             */
+            canVote?: boolean;
+            /**
+             * @description Por qué no puede votar. Nulo si puede. AUTHOR (es autor del PDF) tiene prioridad sobre NOT_VIEWED (no lo ha abierto todavía)
+             * @example NOT_VIEWED
+             * @enum {string|null}
+             */
+            cannotVoteReason?: "NOT_VIEWED" | "AUTHOR" | null;
+        };
+        PdfRatingSummaryDto: {
+            /**
+             * Format: int64
+             * @description Número de votos positivos (👍)
+             * @example 12
+             */
+            likeCount?: number;
+            /**
+             * Format: int64
+             * @description Número de votos negativos (👎)
+             * @example 2
+             */
+            dislikeCount?: number;
+            /**
+             * Format: double
+             * @description Límite inferior de Wilson de la proporción de 👍 (0..1), usado para ordenar. 0 si no hay votos
+             * @example 0.69
+             */
+            score?: number;
         };
         /** @description Datos del PDF a actualizar */
         UpdatePDFDto: {
@@ -1613,6 +1945,8 @@ export interface components {
              * @example 42
              */
             viewCount?: number;
+            /** @description Resumen público de valoraciones (👍/👎). Nunca dice quién votó */
+            rating?: components["schemas"]["PdfRatingSummaryDto"];
         };
         /** @description Datos de la opción a actualizar */
         UpdateOptionDto: {
@@ -1746,6 +2080,41 @@ export interface components {
              * @example Grado en Matemáticas
              */
             studies?: string | null;
+            /**
+             * Format: int64
+             * @description Identificador de un grado del catálogo (GET /public/degree). Opcional: nulo lo borra. 404 si no existe
+             * @example 1
+             */
+            degreeId?: number | null;
+            /**
+             * Format: int32
+             * @description Curso del grado en el que está (de 1 al número de años del grado). Opcional: nulo lo borra. Exige degreeId (400 si falta) y no puede superar los años del grado (400)
+             * @example 3
+             */
+            currentYear?: number | null;
+        };
+        DegreeDto: {
+            /**
+             * Format: int64
+             * @description Identificador interno del grado
+             */
+            readonly id?: number;
+            /**
+             * @description Nombre del grado
+             * @example Grado en Matemáticas
+             */
+            name?: string;
+            /**
+             * @description Universidad en la que se cursa (texto libre, opcional)
+             * @example Universidad de Sevilla
+             */
+            university?: string | null;
+            /**
+             * Format: int32
+             * @description Número de años (cursos) del grado. Los años son los enteros de 1 a este valor
+             * @example 4
+             */
+            years?: number;
         };
         UserAccountDto: {
             /**
@@ -1785,6 +2154,14 @@ export interface components {
              * @example Grado en Matemáticas
              */
             studies?: string | null;
+            /** @description Grado del catálogo que cursa. Nulo si no lo ha elegido */
+            degree?: components["schemas"]["DegreeDto"];
+            /**
+             * Format: int32
+             * @description Curso del grado en el que está (de 1 a degree.years). Nulo si no lo ha indicado o no tiene grado
+             * @example 3
+             */
+            currentYear?: number | null;
             /** @description Si el usuario tiene foto de perfil. Se descarga de GET /users/{id}/avatar */
             hasAvatar?: boolean;
             /**
@@ -1823,6 +2200,25 @@ export interface components {
              */
             subscribedAt?: string;
         };
+        /** @description Datos para actualizar el grado */
+        UpdateDegreeDto: {
+            /**
+             * @description Nombre del grado. Único, sin distinguir mayúsculas, junto con la universidad
+             * @example Grado en Matemáticas
+             */
+            name: string;
+            /**
+             * @description Universidad en la que se cursa (opcional). Nulo o vacío lo borra
+             * @example Universidad de Sevilla
+             */
+            university?: string | null;
+            /**
+             * Format: int32
+             * @description Número de años (cursos) del grado, entre 1 y 10
+             * @example 4
+             */
+            years: number;
+        };
         /** @description Datos del tema a crear */
         CreateSubjectUnitDto: {
             /**
@@ -1846,6 +2242,8 @@ export interface components {
             name: string;
             /** @description Descripción opcional de la asignatura */
             description?: string;
+            /** @description Colocaciones de la asignatura en grados (opcional). En el alta, nulo o vacío deja la asignatura sin colocaciones */
+            placements?: components["schemas"]["SubjectPlacementDto"][] | null;
         };
         AttemptAnswerSubmissionDto: {
             /**
@@ -2106,6 +2504,25 @@ export interface components {
             /** @description Cuerpo del correo */
             body: string;
         };
+        /** @description Datos del grado a crear */
+        CreateDegreeDto: {
+            /**
+             * @description Nombre del grado. Único, sin distinguir mayúsculas, junto con la universidad
+             * @example Grado en Matemáticas
+             */
+            name: string;
+            /**
+             * @description Universidad en la que se cursa (opcional). Nulo o vacío lo borra
+             * @example Universidad de Sevilla
+             */
+            university?: string | null;
+            /**
+             * Format: int32
+             * @description Número de años (cursos) del grado, entre 1 y 10
+             * @example 4
+             */
+            years: number;
+        };
         ChatMessage: {
             /**
              * @description Quién emitió el mensaje
@@ -2360,6 +2777,32 @@ export interface components {
             difficulty?: "EASY" | "MEDIUM" | "HARD";
             questions?: components["schemas"]["QuestionForAttemptDto"][];
         };
+        CurriculumDto: {
+            /** @description Grado al que pertenece el plan de estudios */
+            degree?: components["schemas"]["DegreeDto"];
+            /** @description Años del plan de estudios en orden. Sin filtro de año incluye todos los años del grado, también los vacíos; con filtro, solo el año pedido */
+            years?: components["schemas"]["CurriculumYearDto"][];
+        };
+        CurriculumSubjectDto: {
+            /** @description Asignatura del plan de estudios */
+            subject?: components["schemas"]["SubjectDto"];
+            /**
+             * Format: int32
+             * @description Cuatrimestre (1 o 2). Nulo si la asignatura es anual o no se especifica
+             * @example 1
+             */
+            semester?: number | null;
+        };
+        CurriculumYearDto: {
+            /**
+             * Format: int32
+             * @description Año (curso) del grado
+             * @example 4
+             */
+            year?: number;
+            /** @description Asignaturas de ese año ordenadas por cuatrimestre (las anuales al final) y nombre. Vacía si no hay ninguna */
+            subjects?: components["schemas"]["CurriculumSubjectDto"][];
+        };
         UserProfile: {
             /** @description Email del usuario, extraído del JWT */
             email?: string;
@@ -2460,6 +2903,20 @@ export interface components {
              */
             count?: number;
         };
+        MyPdfVoteDto: {
+            /**
+             * Format: int64
+             * @description Id del PDF votado
+             * @example 7
+             */
+            pdfId?: number;
+            /**
+             * @description Voto del usuario autenticado en ese PDF
+             * @example DISLIKE
+             * @enum {string}
+             */
+            vote?: "LIKE" | "DISLIKE";
+        };
         PageQuizAttemptDto: {
             /** Format: int32 */
             totalPages?: number;
@@ -2509,7 +2966,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["SubjectDto"];
+                    "*/*": components["schemas"]["SubjectDetailDto"];
+                };
+            };
+            /** @description Colocación inválida: grado repetido en la lista o año fuera de los años del grado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectDetailDto"];
                 };
             };
             /** @description El usuario autenticado no tiene rol ADMIN */
@@ -2518,16 +2984,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["SubjectDto"];
+                    "*/*": components["schemas"]["SubjectDetailDto"];
                 };
             };
-            /** @description No existe ninguna asignatura con ese ID */
+            /** @description No existe ninguna asignatura con ese ID o alguna colocación referencia un grado que no existe */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["SubjectDto"];
+                    "*/*": components["schemas"]["SubjectDetailDto"];
                 };
             };
             /** @description Ya existe una asignatura con ese nombre */
@@ -2536,7 +3002,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["SubjectDto"];
+                    "*/*": components["schemas"]["SubjectDetailDto"];
                 };
             };
         };
@@ -2718,6 +3184,145 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["QuestionDto"];
                 };
+            };
+        };
+    };
+    getRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del PDF */
+                pdfId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valoración del PDF */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description No existe ningún PDF con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+        };
+    };
+    rate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del PDF */
+                pdfId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RatePdfDto"];
+            };
+        };
+        responses: {
+            /** @description Voto guardado; valoración actualizada del PDF */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description Cuerpo inválido (voto ausente o distinto de LIKE/DISLIKE) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description El usuario es autor del PDF o todavía no lo ha abierto */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+            /** @description No existe ningún PDF con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PdfRatingDto"];
+                };
+            };
+        };
+    };
+    removeRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del PDF */
+                pdfId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description El usuario ya no tiene voto en el PDF */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe ningún PDF con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2976,7 +3581,7 @@ export interface operations {
                     "*/*": components["schemas"]["UserAccountDto"];
                 };
             };
-            /** @description Datos de entrada inválidos (username vacío o con formato incorrecto, campos demasiado largos) */
+            /** @description Datos de entrada inválidos (username vacío o con formato incorrecto, campos demasiado largos, currentYear sin degreeId o mayor que los años del grado) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2987,6 +3592,15 @@ export interface operations {
             };
             /** @description No autenticado */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAccountDto"];
+                };
+            };
+            /** @description El grado indicado en degreeId no existe */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3067,6 +3681,108 @@ export interface operations {
             };
             /** @description No autenticado */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    subscribeToCourse: {
+        parameters: {
+            query?: {
+                /** @description Cuatrimestre (1 o 2). Si se omite, incluye las asignaturas de cualquier cuatrimestre y las anuales */
+                semester?: number;
+            };
+            header?: never;
+            path: {
+                /** @description ID del grado */
+                degreeId: number;
+                /** @description Año (curso) del grado, de 1 a sus años */
+                year: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suscripciones del usuario a las asignaturas del curso (vacía si el curso no tiene asignaturas) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectSubscriptionDto"][];
+                };
+            };
+            /** @description El año está fuera de 1..años del grado o el cuatrimestre no es 1 ni 2 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectSubscriptionDto"][];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectSubscriptionDto"][];
+                };
+            };
+            /** @description No existe ningún grado con ese ID */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectSubscriptionDto"][];
+                };
+            };
+        };
+    };
+    unsubscribeFromCourse: {
+        parameters: {
+            query?: {
+                /** @description Cuatrimestre (1 o 2). Si se omite, incluye las asignaturas de cualquier cuatrimestre y las anuales */
+                semester?: number;
+            };
+            header?: never;
+            path: {
+                /** @description ID del grado */
+                degreeId: number;
+                /** @description Año (curso) del grado, de 1 a sus años */
+                year: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description El usuario ya no está suscrito a las asignaturas del curso */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El año está fuera de 1..años del grado o el cuatrimestre no es 1 ni 2 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe ningún grado con ese ID */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3160,6 +3876,60 @@ export interface operations {
             };
         };
     };
+    updateDegree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID del grado a actualizar */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDegreeDto"];
+            };
+        };
+        responses: {
+            /** @description Grado actualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DegreeDto"];
+                };
+            };
+            /** @description El usuario autenticado no tiene rol ADMIN */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DegreeDto"];
+                };
+            };
+            /** @description No existe ningún grado con ese ID */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DegreeDto"];
+                };
+            };
+            /** @description Ya existe un grado con ese nombre y universidad, o hay asignaturas colocadas en los años que desaparecerían */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DegreeDto"];
+                };
+            };
+        };
+    };
     createSubjectUnit: {
         parameters: {
             query?: never;
@@ -3233,7 +4003,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["SubjectDto"];
+                    "*/*": components["schemas"]["SubjectDetailDto"];
+                };
+            };
+            /** @description Colocación inválida: grado repetido en la lista o año fuera de los años del grado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectDetailDto"];
                 };
             };
             /** @description El usuario autenticado no tiene rol ADMIN */
@@ -3242,7 +4021,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["SubjectDto"];
+                    "*/*": components["schemas"]["SubjectDetailDto"];
+                };
+            };
+            /** @description Alguna colocación referencia un grado que no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectDetailDto"];
                 };
             };
             /** @description Ya existe una asignatura con ese nombre */
@@ -3251,7 +4039,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["SubjectDto"];
+                    "*/*": components["schemas"]["SubjectDetailDto"];
                 };
             };
         };
@@ -3682,6 +4470,48 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    createDegree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDegreeDto"];
+            };
+        };
+        responses: {
+            /** @description Grado creado */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DegreeDto"];
+                };
+            };
+            /** @description El usuario autenticado no tiene rol ADMIN */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DegreeDto"];
+                };
+            };
+            /** @description Ya existe un grado con ese nombre y universidad */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DegreeDto"];
+                };
             };
         };
     };
@@ -4451,20 +5281,47 @@ export interface operations {
     };
     getSubjects: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Solo las asignaturas colocadas en este grado */
+                degreeId?: number;
+                /** @description Solo las colocadas en este año del grado (requiere degreeId) */
+                year?: number;
+                /** @description Solo las colocadas en este cuatrimestre, 1 o 2 (requiere degreeId) */
+                semester?: number;
+                /** @description Solo las asignaturas sin colocación en ningún grado (no combinable con degreeId) */
+                unassigned?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description Lista de asignaturas obtenida (puede estar vacía) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["SubjectDto"][];
+                    "*/*": components["schemas"]["SubjectDetailDto"][];
+                };
+            };
+            /** @description Combinación de filtros inválida o 'year'/'semester' fuera de rango */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectDetailDto"][];
+                };
+            };
+            /** @description No existe ningún grado con ese 'degreeId' */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectDetailDto"][];
                 };
             };
         };
@@ -4481,13 +5338,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description Asignatura obtenida */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["SubjectDto"];
+                    "*/*": components["schemas"]["SubjectDetailDto"];
+                };
+            };
+            /** @description No existe ninguna asignatura con ese ID */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SubjectDetailDto"];
                 };
             };
         };
@@ -4526,7 +5392,10 @@ export interface operations {
     };
     getSubjectPDFs: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Orden del listado: RATING (mejor valorados primero), VIEWS (más vistos), RECENT (editados más recientemente) o NAME (alfabético sin distinguir mayúsculas ni acentos). Si se omite, orden por defecto */
+                sort?: "RATING" | "VIEWS" | "RECENT" | "NAME";
+            };
             header?: never;
             path: {
                 /** @description ID de la asignatura */
@@ -4538,6 +5407,15 @@ export interface operations {
         responses: {
             /** @description Lista de pdfs obtenida */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PDFDto"][];
+                };
+            };
+            /** @description Valor de 'sort' no válido */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4668,6 +5546,29 @@ export interface operations {
             };
         };
     };
+    getTopRatedPDFs: {
+        parameters: {
+            query?: {
+                /** @description Máximo de PDFs a devolver (por defecto 10, máximo 20) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PDFDto"][];
+                };
+            };
+        };
+    };
     getRecentPDFs: {
         parameters: {
             query?: {
@@ -4693,7 +5594,10 @@ export interface operations {
     };
     getPDFs: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Orden del listado: RATING (mejor valorados primero), VIEWS (más vistos), RECENT (editados más recientemente) o NAME (alfabético sin distinguir mayúsculas ni acentos). Si se omite, orden por defecto */
+                sort?: "RATING" | "VIEWS" | "RECENT" | "NAME";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4707,6 +5611,104 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PDFDto"][];
+                };
+            };
+        };
+    };
+    getDegrees: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DegreeDto"][];
+                };
+            };
+        };
+    };
+    getDegree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID del grado */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Grado obtenido */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DegreeDto"];
+                };
+            };
+            /** @description No existe ningún grado con ese ID */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DegreeDto"];
+                };
+            };
+        };
+    };
+    getCurriculum: {
+        parameters: {
+            query?: {
+                /** @description Solo este año del grado */
+                year?: number;
+                /** @description Solo este cuatrimestre, 1 o 2 */
+                semester?: number;
+            };
+            header?: never;
+            path: {
+                /** @description ID del grado */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Plan de estudios obtenido */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CurriculumDto"];
+                };
+            };
+            /** @description 'year' fuera de 1..años del grado o 'semester' distinto de 1 y 2 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CurriculumDto"];
+                };
+            };
+            /** @description No existe ningún grado con ese ID */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CurriculumDto"];
                 };
             };
         };
@@ -4958,6 +5960,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SubjectSubscriptionDto"][];
+                };
+            };
+        };
+    };
+    getMyVotes: {
+        parameters: {
+            query: {
+                /**
+                 * @description Ids de los PDFs separados por comas
+                 * @example 1,2,3
+                 */
+                pdfIds: number[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Votos del usuario (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MyPdfVoteDto"][];
+                };
+            };
+            /** @description Más de 100 ids o ids mal formados */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MyPdfVoteDto"][];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MyPdfVoteDto"][];
                 };
             };
         };
@@ -5274,6 +6320,48 @@ export interface operations {
             };
             /** @description No existe o no es del usuario */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteDegree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID del grado a eliminar */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Grado eliminado */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El usuario autenticado no tiene rol ADMIN */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe ningún grado con ese ID */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No se puede eliminar el grado porque tiene asignaturas colocadas */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

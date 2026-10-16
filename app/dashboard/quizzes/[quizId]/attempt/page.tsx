@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
 import { useQuizForAttempt, useSubmitQuizAttempt } from "@/hooks/api/use-quizzes"
 import type { QuizAttemptResultDto } from "@/lib/api/quizzes"
+import { SCORE_TONE_TEXT, scoreTone } from "@/lib/quiz-score"
 import { cn } from "@/lib/utils"
 
 export default function QuizAttemptPage() {
@@ -260,7 +261,7 @@ function ScoreRing({ percentage, correct, total }: { percentage: number; correct
   const radius = 54
   const circumference = 2 * Math.PI * radius
   const offset = circumference * (1 - Math.min(Math.max(percentage, 0), 100) / 100)
-  const color = percentage >= 70 ? "text-green-500" : percentage >= 50 ? "text-amber-500" : "text-red-500"
+  const color = SCORE_TONE_TEXT[scoreTone(percentage)]
 
   return (
     <div className="relative h-36 w-36">

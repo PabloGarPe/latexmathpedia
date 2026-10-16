@@ -3,18 +3,12 @@
 import { useState } from "react"
 import { CircleHelp, Crown, Trophy } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
+import { PageNav } from "@/components/page-nav"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { UserAvatar } from "@/components/user-avatar"
 import { useQuizLeaderboard } from "@/hooks/api/use-quizzes"
 import type { LeaderboardEntryDto } from "@/lib/api/quizzes"
+import { formatScore } from "@/lib/quiz-score"
 import { cn } from "@/lib/utils"
 
 const PAGE_SIZE = 10
@@ -52,10 +46,6 @@ const avatarOf = (entry: LeaderboardEntryDto) => ({
   hasAvatar: entry.hasAvatar,
   avatarUpdatedAt: entry.avatarUpdatedAt,
 })
-
-function formatScore(score?: number) {
-  return score != null ? score.toFixed(1) : "-"
-}
 
 function PodiumPlace({ entry, place }: { entry: LeaderboardEntryDto; place: 1 | 2 | 3 }) {
   const style = PODIUM_STYLE[place]
@@ -170,47 +160,7 @@ export function QuizLeaderboard({ quizId }: { quizId: number }) {
           </>
         )}
 
-        {totalPages > 1 && (
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setPage((p) => Math.max(0, p - 1))
-                  }}
-                  className={page === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <PaginationItem key={i}>
-                  <PaginationLink
-                    href="#"
-                    isActive={i === page}
-                    className="cursor-pointer"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setPage(i)
-                    }}
-                  >
-                    {i + 1}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setPage((p) => Math.min(totalPages - 1, p + 1))
-                  }}
-                  className={page >= totalPages - 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        )}
+        <PageNav page={page} totalPages={totalPages} onPageChange={setPage} />
       </CardContent>
     </Card>
   )
