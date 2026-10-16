@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createQuiz,
   deleteQuiz,
@@ -118,6 +118,8 @@ export function useMyAttempts(page: number, size = 10) {
   return useQuery({
     queryKey: queryKeys.attempts.page(page, size),
     queryFn: () => getMyAttempts(page, size),
+    // Al cambiar de página se sigue viendo la anterior hasta que llega la nueva (sin parpadeo).
+    placeholderData: keepPreviousData,
   });
 }
 
