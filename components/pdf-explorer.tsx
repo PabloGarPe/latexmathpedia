@@ -3,6 +3,7 @@
 import { CatalogFilterBar, useCatalogFilters, type SortOption } from "@/components/catalog-filters";
 import ContentCard from "@/components/content-card";
 import type { DisplayPdf } from "@/lib/content/types";
+import { compareByRating } from "@/lib/pdf-rating";
 
 const SORT_OPTIONS: SortOption<DisplayPdf>[] = [
   {
@@ -12,6 +13,11 @@ const SORT_OPTIONS: SortOption<DisplayPdf>[] = [
       new Date(b.lastTimeEdited || 0).getTime() - new Date(a.lastTimeEdited || 0).getTime(),
   },
   { key: "popular", label: "Más vistos", compare: (a, b) => b.viewCount - a.viewCount },
+  {
+    key: "rating",
+    label: "Mejor valorados",
+    compare: (a, b) => compareByRating(a.rating, b.rating) || b.viewCount - a.viewCount,
+  },
   {
     key: "name",
     label: "Nombre (A-Z)",

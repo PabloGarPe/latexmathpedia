@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import PdfViewer from "@/components/pdf-viewer"
+import { PdfRatingButtons } from "@/components/pdf-rating-buttons"
 import { ContentUnavailable } from "@/components/content-unavailable"
 import { ApiError } from "@/lib/api/errors"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
@@ -69,7 +70,12 @@ export default function PdfViewerPage() {
             {pdf.subjectUnit?.name && ` · ${pdf.subjectUnit.name}`}
           </Link>
         )}
-        <h1 className="text-2xl font-bold tracking-tight">{pdf?.name ?? "Documento"}</h1>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <h1 className="min-w-0 text-2xl font-bold tracking-tight">{pdf?.name ?? "Documento"}</h1>
+          {/* La valoración solo se pide con el binario ya recibido: GET /pdf/{id} registra la vista
+              y, antes, el back respondería NOT_VIEWED. Mientras carga, el componente reserva el hueco. */}
+          {!isError && <PdfRatingButtons pdfId={pdfId} enabled={hasContent} />}
+        </div>
         {authors.length > 0 && (
           // Principal primero. Los nombres no son enlaces: no hay perfil público de otros usuarios.
           <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">

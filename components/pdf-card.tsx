@@ -1,6 +1,7 @@
-import { CalendarIcon, EyeIcon, FileIcon, UserRound } from "lucide-react";
+import { CalendarIcon, EyeIcon, FileIcon, ThumbsUp, UserRound } from "lucide-react";
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from "@/hooks/use-toast";
+import { positiveRatio, ratingVotes } from "@/lib/pdf-rating";
 import { formatCompactCount } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -17,9 +18,11 @@ type PDFCardProps = {
     authors?: string;
     // Vistas totales (todos los usuarios); se muestra en compacto a partir de 1000.
     viewCount?: number;
+    // Votos 👍/👎 del PDF. Solo se pinta el % de 👍 (nunca `score`) y a partir de MIN_VOTES_TO_SHOW votos.
+    rating?: { likeCount: number; dislikeCount: number };
 }
 
-function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, viewCount = 0 }: PDFCardProps) {
+function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, viewCount = 0, rating }: PDFCardProps) {
     const { isAuthenticated } = useAuth();
     const toast = useToast();
     const router = useRouter();
@@ -59,6 +62,11 @@ function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, vie
     };
 
     const titleParts = getTitleParts();
+
+    const likePercent = positiveRatio(rating);
+    const ratingLabel = likePercent === null
+        ? ""
+        : `${likePercent} % de valoraciones positivas (${ratingVotes(rating)} ${ratingVotes(rating) === 1 ? "voto" : "votos"})`;
 
     const generateBackgroundColor = () => {
         const colors = [
@@ -140,6 +148,13 @@ function PDFCard({ title, href, date, subjectName, subjectUnitName, authors, vie
                         <span className="text-sm tabular-nums">{formatCompactCount(viewCount)}</span>
                         <span className="sr-only">{viewCount === 1 ? "vista" : "vistas"}</span>
                     </div>
+                    {likePercent !== null && (
+                        <div className="flex items-center gap-1.5" title={ratingLabel}>
+                            <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span className="text-sm tabular-nums" aria-hidden="true">{likePercent} %</span>
+                            <span className="sr-only">{ratingLabel}</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* El enlace/botón se estira (after:) sobre toda la tarjeta: se puede pulsar en cualquier punto. */}

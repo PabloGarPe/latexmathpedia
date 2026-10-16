@@ -6,6 +6,9 @@ import { ApiError } from "@/lib/api/errors";
 export type PDFDto = components["schemas"]["PDFDto"];
 export type CreatePDFDto = components["schemas"]["CreatePDFDto"];
 export type UpdatePDFDto = components["schemas"]["UpdatePDFDto"];
+export type PdfRatingDto = components["schemas"]["PdfRatingDto"];
+export type PdfRatingSummaryDto = components["schemas"]["PdfRatingSummaryDto"];
+export type PdfVote = components["schemas"]["RatePdfDto"]["vote"];
 
 // Catálogo completo (solo metadatos). Es el único listado que expone el backend, tanto para
 // usuarios anónimos como autenticados y admin; el contenido se pide aparte con getPdfContent.
@@ -26,6 +29,15 @@ export async function getRecentPdfs(limit: number) {
 
 export async function getTopPdfs(limit: number) {
   const { data, response } = await apiClient.GET("/public/pdf/top", {
+    params: { query: { limit } },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo cargar la hilera de PDFs");
+  return data;
+}
+
+// Hilera "Mejor valorados" (pública): solo PDFs con 3 votos o más y más 👍 que 👎; [] si ninguno cumple.
+export async function getTopRatedPdfs(limit: number) {
+  const { data, response } = await apiClient.GET("/public/pdf/top-rated", {
     params: { query: { limit } },
   });
   if (!response.ok || !data) throw new ApiError(response.status, "No se pudo cargar la hilera de PDFs");
@@ -61,6 +73,35 @@ export async function getPdfContent(pdfId: number) {
   // Con status para distinguir el 404 (borrado) de otros fallos.
   if (!response.ok || data === undefined) throw new ApiError(response.status, "No se pudo cargar el PDF");
   return data;
+}
+
+// Valoración del PDF y mi voto (requiere JWT). Si todavía no se ha pedido el binario con
+// getPdfContent llega con cannotVoteReason NOT_VIEWED: es esa petición la que registra la vista.
+export async function getPdfRating(pdfId: number) {
+  const { data, response } = await apiClient.GET("/pdf/{pdfId}/rating", {
+    params: { path: { pdfId } },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo cargar la valoración");
+  return data;
+}
+
+// Vota o cambia el voto (idempotente). Devuelve la valoración ya recalculada. Un 403 (autor o PDF
+// no abierto) llega con el cuerpo vacío: el motivo está en cannotVoteReason de getPdfRating.
+export async function ratePdf(pdfId: number, vote: PdfVote) {
+  const { data, response } = await apiClient.PUT("/pdf/{pdfId}/rating", {
+    params: { path: { pdfId } },
+    body: { vote },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo guardar la valoración");
+  return data;
+}
+
+// Retira mi voto (204, también si no había). No devuelve la valoración recalculada.
+export async function removePdfRating(pdfId: number) {
+  const { response } = await apiClient.DELETE("/pdf/{pdfId}/rating", {
+    params: { path: { pdfId } },
+  });
+  if (!response.ok) throw new ApiError(response.status, "No se pudo retirar la valoración");
 }
 
 // create/update son multipart/form-data: parte "data" (JSON) + parte "file" (PDF). La parte

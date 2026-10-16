@@ -17,6 +17,8 @@ export type DisplayPdf = {
   // Principal primero, luego coautores. Vacío en PDFs antiguos sin autores.
   authors: AuthorDto[];
   viewCount: number;
+  // Resumen público de votos. `score` es solo para ordenar (ver lib/pdf-rating.ts).
+  rating: { likeCount: number; dislikeCount: number; score: number };
 };
 
 // Unión discriminada que homogeneiza los tres tipos de recurso que hoy mezcla el feed
@@ -40,6 +42,11 @@ export function toDisplayPdf(pdf: components["schemas"]["PDFDto"], fallbackId: n
     subjectUnitName: pdf.subjectUnit?.name,
     authors: pdf.authors ?? [],
     viewCount: pdf.viewCount ?? 0,
+    rating: {
+      likeCount: pdf.rating?.likeCount ?? 0,
+      dislikeCount: pdf.rating?.dislikeCount ?? 0,
+      score: pdf.rating?.score ?? 0,
+    },
   };
 }
 
