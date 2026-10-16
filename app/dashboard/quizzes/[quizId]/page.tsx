@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, ArrowRight, Gauge, ListChecks, Medal, Pencil, Percent, Repeat, Target, Trash } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { EditModeToggle } from "@/components/admin/edit-mode-toggle"
 import { ContentUnavailable } from "@/components/content-unavailable"
@@ -13,31 +12,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { QuizDifficultyBadge } from "@/components/ui/quiz-difficulty-badge"
 import { QuizLeaderboard } from "@/components/quiz-leaderboard"
-import { cn } from "@/lib/utils"
+import { StatTile } from "@/components/quizzes/stat-tile"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
 import { useEditMode } from "@/contexts/edit-mode-context"
 import { useDeleteQuiz, useQuiz, useQuizStats } from "@/hooks/api/use-quizzes"
 import { useToast } from "@/hooks/use-toast"
-
-function StatTile({
-  icon: Icon,
-  label,
-  value,
-  className,
-}: {
-  icon: LucideIcon
-  label: string
-  value: string | number
-  className?: string
-}) {
-  return (
-    <div className={cn("flex flex-col gap-1 rounded-lg border bg-card p-4", className)}>
-      <Icon className="h-4 w-4 text-purple-500" />
-      <p className="text-2xl font-bold tabular-nums">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
-  )
-}
 
 function QuizStatsSection({ quizId }: { quizId: number }) {
   const { data: stats, isLoading } = useQuizStats(quizId)
