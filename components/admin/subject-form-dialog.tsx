@@ -27,6 +27,8 @@ import { ApiError } from "@/lib/api/errors"
 import type { SubjectDetailDto, SubjectDto } from "@/lib/api/subjects"
 import {
   degreeYears,
+  formatDegree,
+  formatSemesterLong,
   formatYearLong,
   SEMESTER_ANNUAL,
   SEMESTER_OPTIONS,
@@ -89,6 +91,10 @@ type Values = {
   description: string
   placements: PlacementValues[]
 }
+
+// Triggers de las filas de colocaciones: ocupan su celda y recortan el valor con "…". Sin el
+// min-w-0 del valor (es un hijo flex), el texto no se encoge y desborda la fila.
+const TRIGGER = "w-full min-w-0 *:data-[slot=select-value]:min-w-0"
 
 function SubjectForm({
   subject,
@@ -237,11 +243,13 @@ function SubjectForm({
                   const rowErrors = errors.placements?.[index]
                   const degree = degreeById.get(placements[index]?.degreeId ?? "")
                   return (
+                    // Dos líneas: grado + quitar arriba (los nombres de grado son largos y necesitan todo
+                    // el ancho) y curso + cuatrimestre debajo.
                     <li
                       key={field.id}
-                      className="grid gap-2 rounded-lg border bg-muted/20 p-3 sm:grid-cols-[minmax(0,1fr)_8rem_12rem_auto] sm:items-start"
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 rounded-lg border bg-muted/20 p-3"
                     >
-                      <div className="grid gap-1">
+                      <div className="grid min-w-0 gap-1">
                         <Controller
                           control={control}
                           name={`placements.${index}.degreeId`}
@@ -258,10 +266,25 @@ function SubjectForm({
                                 }
                               }}
                             >
-                              <SelectTrigger className="w-full" aria-label="Grado" aria-invalid={!!rowErrors?.degreeId}>
-                                <SelectValue placeholder="Grado" />
+                              <SelectTrigger
+                                className={TRIGGER}
+                                aria-label="Grado"
+                                aria-invalid={!!rowErrors?.degreeId}
+                                title={formatDegree(degree) || undefined}
+                              >
+                                {/* Texto propio y recortado: el del item (nombre + universidad en dos líneas) no cabe en el trigger. */}
+                                <SelectValue placeholder="Elige un grado">
+                                  {degree && (
+                                    <span className="truncate">
+                                      {degree.name}
+                                      {degree.university && (
+                                        <span className="text-muted-foreground"> · {degree.university}</span>
+                                      )}
+                                    </span>
+                                  )}
+                                </SelectValue>
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="max-w-[calc(100vw-2rem)]">
                                 {degrees.map((option) => (
                                   <SelectItem
                                     key={option.id}
@@ -271,10 +294,14 @@ function SubjectForm({
                                       usedDegreeIds.has(String(option.id)) && String(option.id) !== degreeField.value
                                     }
                                   >
-                                    <span>{option.name}</span>
-                                    {option.university && (
-                                      <span className="text-xs text-muted-foreground">{option.university}</span>
-                                    )}
+                                    <div className="flex min-w-0 flex-col items-start">
+                                      <span className="whitespace-normal">{option.name}</span>
+                                      {option.university && (
+                                        <span className="whitespace-normal text-xs text-muted-foreground">
+                                          {option.university}
+                                        </span>
+                                      )}
+                                    </div>
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -286,57 +313,72 @@ function SubjectForm({
                         )}
                       </div>
 
-                      <div className="grid gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Quitar de este grado"
+                        className="cursor-pointer text-muted-foreground hover:text-destructive"
+                        onClick={() => remove(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+
+                      <div className="col-span-2 grid grid-cols-2 items-start gap-2">
+                        <div className="grid min-w-0 gap-1">
+                          <Controller
+                            control={control}
+                            name={`placements.${index}.year`}
+                            render={({ field: yearField }) => (
+                              <Select value={yearField.value} onValueChange={yearField.onChange} disabled={!degree}>
+                                <SelectTrigger
+                                  className={TRIGGER}
+                                  aria-label="Curso"
+                                  aria-invalid={!!rowErrors?.year}
+                                >
+                                  <SelectValue placeholder="Curso">
+                                    {yearField.value && (
+                                      <span className="truncate">{formatYearLong(Number(yearField.value))}</span>
+                                    )}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {degreeYears(degree).map((year) => (
+                                    <SelectItem key={year} value={String(year)}>
+                                      {formatYearLong(year)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {rowErrors?.year && <p className="text-sm text-destructive">{rowErrors.year.message}</p>}
+                        </div>
+
                         <Controller
                           control={control}
-                          name={`placements.${index}.year`}
-                          render={({ field: yearField }) => (
-                            <Select value={yearField.value} onValueChange={yearField.onChange} disabled={!degree}>
-                              <SelectTrigger className="w-full" aria-label="Curso" aria-invalid={!!rowErrors?.year}>
-                                <SelectValue placeholder="Curso" />
+                          name={`placements.${index}.semester`}
+                          render={({ field: semesterField }) => (
+                            <Select value={semesterField.value} onValueChange={semesterField.onChange}>
+                              <SelectTrigger className={TRIGGER} aria-label="Cuatrimestre">
+                                {/* En el trigger, "Anual" a secas: "Anual / sin especificar" no cabe en media fila. */}
+                                <SelectValue placeholder="Cuatrimestre">
+                                  <span className="truncate">
+                                    {formatSemesterLong(semesterFromValue(semesterField.value))}
+                                  </span>
+                                </SelectValue>
                               </SelectTrigger>
                               <SelectContent>
-                                {degreeYears(degree).map((year) => (
-                                  <SelectItem key={year} value={String(year)}>
-                                    {formatYearLong(year)}
+                                {SEMESTER_OPTIONS.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           )}
                         />
-                        {rowErrors?.year && <p className="text-sm text-destructive">{rowErrors.year.message}</p>}
                       </div>
-
-                      <Controller
-                        control={control}
-                        name={`placements.${index}.semester`}
-                        render={({ field: semesterField }) => (
-                          <Select value={semesterField.value} onValueChange={semesterField.onChange}>
-                            <SelectTrigger className="w-full" aria-label="Cuatrimestre">
-                              <SelectValue placeholder="Cuatrimestre" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {SEMESTER_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Quitar de este grado"
-                        className="cursor-pointer justify-self-end text-muted-foreground hover:text-destructive"
-                        onClick={() => remove(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </li>
                   )
                 })}
