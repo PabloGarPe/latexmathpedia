@@ -52,6 +52,10 @@
     },
     { "name": "Perfil", "description": "Datos del usuario autenticado" },
     {
+      "name": "Degrees",
+      "description": "Gestión de grados (crear/borrar/actualizar requiere rol ADMIN)"
+    },
+    {
       "name": "Mail",
       "description": "Envío de correos en nombre del usuario autenticado"
     },
@@ -74,6 +78,10 @@
     {
       "name": "Suscripciones",
       "description": "Asignaturas a las que está suscrito el usuario autenticado. Requiere JWT, no requiere rol ADMIN"
+    },
+    {
+      "name": "Grados públicos",
+      "description": "Consulta del catálogo de grados y de sus planes de estudios sin necesidad de autenticación"
     }
   ],
   "paths": {
@@ -81,7 +89,7 @@
       "put": {
         "tags": ["Subjects"],
         "summary": "Actualiza una asignatura del catálogo",
-        "description": "Requiere rol ADMIN",
+        "description": "Requiere rol ADMIN. Si 'placements' es nulo no se tocan las colocaciones; si es una lista (también vacía) reemplaza el conjunto completo de colocaciones",
         "operationId": "updateSubject",
         "parameters": [
           {
@@ -104,25 +112,41 @@
           "200": {
             "description": "Asignatura actualizada",
             "content": {
-              "*/*": { "schema": { "$ref": "#/components/schemas/SubjectDto" } }
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
+            }
+          },
+          "400": {
+            "description": "Colocación inválida: grado repetido en la lista o año fuera de los años del grado",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
             }
           },
           "404": {
-            "description": "No existe ninguna asignatura con ese ID",
+            "description": "No existe ninguna asignatura con ese ID o alguna colocación referencia un grado que no existe",
             "content": {
-              "*/*": { "schema": { "$ref": "#/components/schemas/SubjectDto" } }
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
             }
           },
           "401": {
             "description": "El usuario autenticado no tiene rol ADMIN",
             "content": {
-              "*/*": { "schema": { "$ref": "#/components/schemas/SubjectDto" } }
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
             }
           },
           "409": {
             "description": "Ya existe una asignatura con ese nombre",
             "content": {
-              "*/*": { "schema": { "$ref": "#/components/schemas/SubjectDto" } }
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
             }
           }
         }
@@ -556,7 +580,7 @@
       "put": {
         "tags": ["Perfil"],
         "summary": "Actualiza el perfil del usuario autenticado",
-        "description": "Sustituye todos los datos del perfil: el username es obligatorio y los demás campos, opcionales; uno que no se envíe (o venga en blanco) se borra. El primer guardado marca el perfil como completado. No toca la foto de perfil",
+        "description": "Sustituye todos los datos del perfil: el username es obligatorio y los demás campos, opcionales; uno que no se envíe (o venga en blanco) se borra. El primer guardado marca el perfil como completado. El grado y el curso (degreeId, currentYear) siguen la misma regla: nulos se borran. No toca la foto de perfil",
         "operationId": "updateMe",
         "requestBody": {
           "content": {
@@ -576,7 +600,7 @@
             }
           },
           "400": {
-            "description": "Datos de entrada inválidos (username vacío o con formato incorrecto, campos demasiado largos)",
+            "description": "Datos de entrada inválidos (username vacío o con formato incorrecto, campos demasiado largos, currentYear sin degreeId o mayor que los años del grado)",
             "content": {
               "*/*": {
                 "schema": { "$ref": "#/components/schemas/UserAccountDto" }
@@ -585,6 +609,14 @@
           },
           "401": {
             "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/UserAccountDto" }
+              }
+            }
+          },
+          "404": {
+            "description": "El grado indicado en degreeId no existe",
             "content": {
               "*/*": {
                 "schema": { "$ref": "#/components/schemas/UserAccountDto" }
@@ -672,6 +704,130 @@
         }
       }
     },
+    "/me/subscriptions/degree/{degreeId}/year/{year}": {
+      "put": {
+        "tags": ["Suscripciones"],
+        "summary": "Me suscribo a un curso entero",
+        "description": "Suscribe a todas las asignaturas colocadas ahora en ese grado y año (y cuatrimestre, si se indica). Es una foto fija: las asignaturas que se coloquen después no se suscriben solas. Idempotente: las que ya estaban suscritas se conservan. Devuelve las suscripciones a las asignaturas de ese curso, ordenadas por nombre",
+        "operationId": "subscribeToCourse",
+        "parameters": [
+          {
+            "name": "degreeId",
+            "in": "path",
+            "description": "ID del grado",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "year",
+            "in": "path",
+            "description": "Año (curso) del grado, de 1 a sus años",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32" }
+          },
+          {
+            "name": "semester",
+            "in": "query",
+            "description": "Cuatrimestre (1 o 2). Si se omite, incluye las asignaturas de cualquier cuatrimestre y las anuales",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suscripciones del usuario a las asignaturas del curso (vacía si el curso no tiene asignaturas)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El año está fuera de 1..años del grado o el cuatrimestre no es 1 ni 2",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún grado con ese ID",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubjectSubscriptionDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Suscripciones"],
+        "summary": "Me doy de baja de un curso entero",
+        "description": "Da de baja de todas las asignaturas colocadas ahora en ese grado y año (y cuatrimestre, si se indica), también de las que estén colocadas además en otro curso al que el usuario siga suscrito. Idempotente: devuelve 204 también si no había ninguna suscripción",
+        "operationId": "unsubscribeFromCourse",
+        "parameters": [
+          {
+            "name": "degreeId",
+            "in": "path",
+            "description": "ID del grado",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "year",
+            "in": "path",
+            "description": "Año (curso) del grado, de 1 a sus años",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32" }
+          },
+          {
+            "name": "semester",
+            "in": "query",
+            "description": "Cuatrimestre (1 o 2). Si se omite, incluye las asignaturas de cualquier cuatrimestre y las anuales",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "El usuario ya no está suscrito a las asignaturas del curso"
+          },
+          "400": {
+            "description": "El año está fuera de 1..años del grado o el cuatrimestre no es 1 ni 2"
+          },
+          "401": { "description": "No autenticado" },
+          "404": { "description": "No existe ningún grado con ese ID" }
+        }
+      }
+    },
     "/me/avatar": {
       "put": {
         "tags": ["Perfil"],
@@ -755,6 +911,57 @@
         }
       }
     },
+    "/degree/update/{id}": {
+      "put": {
+        "tags": ["Degrees"],
+        "summary": "Actualiza un grado del catálogo",
+        "description": "Requiere rol ADMIN. Reemplaza todos los campos. Si reduce los años, los usuarios con un curso mayor en su perfil lo pierden",
+        "operationId": "updateDegree",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID del grado a actualizar",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateDegreeDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Grado actualizado",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/DegreeDto" } }
+            }
+          },
+          "404": {
+            "description": "No existe ningún grado con ese ID",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/DegreeDto" } }
+            }
+          },
+          "401": {
+            "description": "El usuario autenticado no tiene rol ADMIN",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/DegreeDto" } }
+            }
+          },
+          "409": {
+            "description": "Ya existe un grado con ese nombre y universidad, o hay asignaturas colocadas en los años que desaparecerían",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/DegreeDto" } }
+            }
+          }
+        }
+      }
+    },
     "/subject/{subjectId}/unit/create": {
       "post": {
         "tags": ["Subjects"],
@@ -818,7 +1025,7 @@
       "post": {
         "tags": ["Subjects"],
         "summary": "Crea una nueva asignatura en el catálogo",
-        "description": "Requiere rol ADMIN",
+        "description": "Requiere rol ADMIN. Opcionalmente la coloca en grados con 'placements' (sin colocaciones si es nulo o vacío)",
         "operationId": "createSubject",
         "requestBody": {
           "content": {
@@ -832,19 +1039,41 @@
           "201": {
             "description": "Asignatura creada",
             "content": {
-              "*/*": { "schema": { "$ref": "#/components/schemas/SubjectDto" } }
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
+            }
+          },
+          "400": {
+            "description": "Colocación inválida: grado repetido en la lista o año fuera de los años del grado",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
+            }
+          },
+          "404": {
+            "description": "Alguna colocación referencia un grado que no existe",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
             }
           },
           "409": {
             "description": "Ya existe una asignatura con ese nombre",
             "content": {
-              "*/*": { "schema": { "$ref": "#/components/schemas/SubjectDto" } }
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
             }
           },
           "401": {
             "description": "El usuario autenticado no tiene rol ADMIN",
             "content": {
-              "*/*": { "schema": { "$ref": "#/components/schemas/SubjectDto" } }
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
             }
           }
         }
@@ -1229,6 +1458,42 @@
           "200": { "description": "Correo enviado correctamente" },
           "500": {
             "description": "El proveedor de correo no pudo procesar el envío"
+          }
+        }
+      }
+    },
+    "/degree/create": {
+      "post": {
+        "tags": ["Degrees"],
+        "summary": "Crea un nuevo grado en el catálogo",
+        "description": "Requiere rol ADMIN",
+        "operationId": "createDegree",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateDegreeDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Grado creado",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/DegreeDto" } }
+            }
+          },
+          "409": {
+            "description": "Ya existe un grado con ese nombre y universidad",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/DegreeDto" } }
+            }
+          },
+          "401": {
+            "description": "El usuario autenticado no tiene rol ADMIN",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/DegreeDto" } }
+            }
           }
         }
       }
@@ -2064,16 +2329,69 @@
     "/public/subject": {
       "get": {
         "tags": ["Asignaturas públicas"],
-        "summary": "Lista todas las asignaturas",
+        "summary": "Lista las asignaturas con sus colocaciones en grados",
+        "description": "Ordenadas por nombre. Sin filtros devuelve todas. 'year' y 'semester' exigen 'degreeId' (también 'semester' sin 'year'). 'unassigned=true' lista las asignaturas que no están colocadas en ningún grado y no se puede combinar con 'degreeId'",
         "operationId": "getSubjects",
+        "parameters": [
+          {
+            "name": "degreeId",
+            "in": "query",
+            "description": "Solo las asignaturas colocadas en este grado",
+            "required": false,
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "description": "Solo las colocadas en este año del grado (requiere degreeId)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          },
+          {
+            "name": "semester",
+            "in": "query",
+            "description": "Solo las colocadas en este cuatrimestre, 1 o 2 (requiere degreeId)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          },
+          {
+            "name": "unassigned",
+            "in": "query",
+            "description": "Solo las asignaturas sin colocación en ningún grado (no combinable con degreeId)",
+            "required": false,
+            "schema": { "type": "boolean", "default": false }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "Lista de asignaturas obtenida (puede estar vacía)",
             "content": {
               "*/*": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/SubjectDto" }
+                  "items": { "$ref": "#/components/schemas/SubjectDetailDto" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Combinación de filtros inválida o 'year'/'semester' fuera de rango",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/SubjectDetailDto" }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún grado con ese 'degreeId'",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/SubjectDetailDto" }
                 }
               }
             }
@@ -2084,7 +2402,7 @@
     "/public/subject/{id}": {
       "get": {
         "tags": ["Asignaturas públicas"],
-        "summary": "Obtiene una asignatura por su ID",
+        "summary": "Obtiene una asignatura por su ID, con sus colocaciones en grados",
         "operationId": "getSubject",
         "parameters": [
           {
@@ -2097,9 +2415,19 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "Asignatura obtenida",
             "content": {
-              "*/*": { "schema": { "$ref": "#/components/schemas/SubjectDto" } }
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ninguna asignatura con ese ID",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/SubjectDetailDto" }
+              }
             }
           }
         }
@@ -2367,6 +2695,114 @@
                   "type": "array",
                   "items": { "$ref": "#/components/schemas/PDFDto" }
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/degree": {
+      "get": {
+        "tags": ["Grados públicos"],
+        "summary": "Lista todos los grados",
+        "description": "Ordenados por nombre y universidad",
+        "operationId": "getDegrees",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/DegreeDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/degree/{id}": {
+      "get": {
+        "tags": ["Grados públicos"],
+        "summary": "Obtiene un grado por su ID",
+        "operationId": "getDegree",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID del grado",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Grado obtenido",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/DegreeDto" } }
+            }
+          },
+          "404": {
+            "description": "No existe ningún grado con ese ID",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/DegreeDto" } }
+            }
+          }
+        }
+      }
+    },
+    "/public/degree/{id}/curriculum": {
+      "get": {
+        "tags": ["Grados públicos"],
+        "summary": "Obtiene el plan de estudios de un grado",
+        "description": "Asignaturas colocadas en el grado agrupadas por año, ordenadas por cuatrimestre (las anuales al final) y nombre. Sin 'year' devuelve todos los años del grado, también los vacíos; con 'year', solo ese",
+        "operationId": "getCurriculum",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID del grado",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "description": "Solo este año del grado",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          },
+          {
+            "name": "semester",
+            "in": "query",
+            "description": "Solo este cuatrimestre, 1 o 2",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan de estudios obtenido",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CurriculumDto" }
+              }
+            }
+          },
+          "400": {
+            "description": "'year' fuera de 1..años del grado o 'semester' distinto de 1 y 2",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CurriculumDto" }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún grado con ese ID",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CurriculumDto" }
               }
             }
           }
@@ -2875,10 +3311,62 @@
           "404": { "description": "No existe o no es del usuario" }
         }
       }
+    },
+    "/degree/delete/{id}": {
+      "delete": {
+        "tags": ["Degrees"],
+        "summary": "Elimina un grado del catálogo",
+        "description": "Requiere rol ADMIN. Los usuarios que lo tenían en su perfil se quedan sin grado ni curso",
+        "operationId": "deleteDegree",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID del grado a eliminar",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Grado eliminado" },
+          "404": { "description": "No existe ningún grado con ese ID" },
+          "409": {
+            "description": "No se puede eliminar el grado porque tiene asignaturas colocadas"
+          },
+          "401": { "description": "El usuario autenticado no tiene rol ADMIN" }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "SubjectPlacementDto": {
+        "type": "object",
+        "properties": {
+          "degreeId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "ID del grado en el que se coloca la asignatura. Un mismo grado no puede repetirse en la lista",
+            "example": 1
+          },
+          "year": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Año (curso) del grado en el que se cursa, entre 1 y los años del grado",
+            "example": 4,
+            "minimum": 1
+          },
+          "semester": {
+            "type": ["integer", "null"],
+            "format": "int32",
+            "description": "Cuatrimestre: 1 o 2. Nulo si la asignatura es anual o no se especifica",
+            "example": 1,
+            "maximum": 2,
+            "minimum": 1
+          }
+        },
+        "required": ["degreeId", "year"]
+      },
       "UpdateSubjectDto": {
         "type": "object",
         "description": "Datos para actualizar la asignatura",
@@ -2894,11 +3382,16 @@
             "description": "Descripción opcional de la asignatura",
             "maxLength": 500,
             "minLength": 0
+          },
+          "placements": {
+            "type": ["array", "null"],
+            "description": "Colocaciones de la asignatura en grados (opcional). En la edición, nulo conserva las colocaciones actuales y una lista (también vacía) las reemplaza todas",
+            "items": { "$ref": "#/components/schemas/SubjectPlacementDto" }
           }
         },
         "required": ["name"]
       },
-      "SubjectDto": {
+      "SubjectDetailDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -2914,6 +3407,44 @@
           "description": {
             "type": "string",
             "description": "Descripción opcional de la asignatura"
+          },
+          "placements": {
+            "type": "array",
+            "description": "Grados en los que está colocada la asignatura. Lista vacía si no está en ninguno",
+            "items": { "$ref": "#/components/schemas/SubjectPlacementInfoDto" }
+          }
+        }
+      },
+      "SubjectPlacementInfoDto": {
+        "type": "object",
+        "properties": {
+          "degreeId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "ID del grado",
+            "example": 1
+          },
+          "degreeName": {
+            "type": "string",
+            "description": "Nombre del grado",
+            "example": "Grado en Matemáticas"
+          },
+          "university": {
+            "type": ["string", "null"],
+            "description": "Universidad del grado (puede ser nula)",
+            "example": "Universidad de Sevilla"
+          },
+          "year": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Año (curso) del grado en el que se cursa",
+            "example": 4
+          },
+          "semester": {
+            "type": ["integer", "null"],
+            "format": "int32",
+            "description": "Cuatrimestre (1 o 2). Nulo si la asignatura es anual o no se especifica",
+            "example": 1
           }
         }
       },
@@ -3042,6 +3573,25 @@
             "description": "Número total de veces que se ha hecho el cuestionario (todos los usuarios; cada envío cuenta, aunque sea del mismo usuario). 0 si nadie lo ha hecho",
             "example": 128,
             "readOnly": true
+          }
+        }
+      },
+      "SubjectDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identificador interno de la asignatura",
+            "readOnly": true
+          },
+          "name": {
+            "type": "string",
+            "description": "Nombre único de la asignatura"
+          },
+          "description": {
+            "type": "string",
+            "description": "Descripción opcional de la asignatura"
           }
         }
       },
@@ -3404,9 +3954,49 @@
             "example": "Grado en Matemáticas",
             "maxLength": 150,
             "minLength": 0
+          },
+          "degreeId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "Identificador de un grado del catálogo (GET /public/degree). Opcional: nulo lo borra. 404 si no existe",
+            "example": 1
+          },
+          "currentYear": {
+            "type": ["integer", "null"],
+            "format": "int32",
+            "description": "Curso del grado en el que está (de 1 al número de años del grado). Opcional: nulo lo borra. Exige degreeId (400 si falta) y no puede superar los años del grado (400)",
+            "example": 3,
+            "minimum": 1
           }
         },
         "required": ["username"]
+      },
+      "DegreeDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identificador interno del grado",
+            "readOnly": true
+          },
+          "name": {
+            "type": "string",
+            "description": "Nombre del grado",
+            "example": "Grado en Matemáticas"
+          },
+          "university": {
+            "type": ["string", "null"],
+            "description": "Universidad en la que se cursa (texto libre, opcional)",
+            "example": "Universidad de Sevilla"
+          },
+          "years": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de años (cursos) del grado. Los años son los enteros de 1 a este valor",
+            "example": 4
+          }
+        }
       },
       "UserAccountDto": {
         "type": "object",
@@ -3450,6 +4040,17 @@
             "type": ["string", "null"],
             "description": "Estudios que cursa",
             "example": "Grado en Matemáticas"
+          },
+          "degree": {
+            "type": "null",
+            "$ref": "#/components/schemas/DegreeDto",
+            "description": "Grado del catálogo que cursa. Nulo si no lo ha elegido"
+          },
+          "currentYear": {
+            "type": ["integer", "null"],
+            "format": "int32",
+            "description": "Curso del grado en el que está (de 1 a degree.years). Nulo si no lo ha indicado o no tiene grado",
+            "example": 3
           },
           "hasAvatar": {
             "type": "boolean",
@@ -3498,6 +4099,35 @@
           }
         }
       },
+      "UpdateDegreeDto": {
+        "type": "object",
+        "description": "Datos para actualizar el grado",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nombre del grado. Único, sin distinguir mayúsculas, junto con la universidad",
+            "example": "Grado en Matemáticas",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "university": {
+            "type": ["string", "null"],
+            "description": "Universidad en la que se cursa (opcional). Nulo o vacío lo borra",
+            "example": "Universidad de Sevilla",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "years": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de años (cursos) del grado, entre 1 y 10",
+            "example": 4,
+            "maximum": 10,
+            "minimum": 1
+          }
+        },
+        "required": ["name", "years"]
+      },
       "CreateSubjectUnitDto": {
         "type": "object",
         "description": "Datos del tema a crear",
@@ -3532,6 +4162,11 @@
             "description": "Descripción opcional de la asignatura",
             "maxLength": 500,
             "minLength": 0
+          },
+          "placements": {
+            "type": ["array", "null"],
+            "description": "Colocaciones de la asignatura en grados (opcional). En el alta, nulo o vacío deja la asignatura sin colocaciones",
+            "items": { "$ref": "#/components/schemas/SubjectPlacementDto" }
           }
         },
         "required": ["name"]
@@ -3885,6 +4520,35 @@
         },
         "required": ["body", "subject"]
       },
+      "CreateDegreeDto": {
+        "type": "object",
+        "description": "Datos del grado a crear",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nombre del grado. Único, sin distinguir mayúsculas, junto con la universidad",
+            "example": "Grado en Matemáticas",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "university": {
+            "type": ["string", "null"],
+            "description": "Universidad en la que se cursa (opcional). Nulo o vacío lo borra",
+            "example": "Universidad de Sevilla",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "years": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de años (cursos) del grado, entre 1 y 10",
+            "example": 4,
+            "maximum": 10,
+            "minimum": 1
+          }
+        },
+        "required": ["name", "years"]
+      },
       "ChatMessage": {
         "type": "object",
         "properties": {
@@ -4208,6 +4872,51 @@
           "questions": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/QuestionForAttemptDto" }
+          }
+        }
+      },
+      "CurriculumDto": {
+        "type": "object",
+        "properties": {
+          "degree": {
+            "$ref": "#/components/schemas/DegreeDto",
+            "description": "Grado al que pertenece el plan de estudios"
+          },
+          "years": {
+            "type": "array",
+            "description": "Años del plan de estudios en orden. Sin filtro de año incluye todos los años del grado, también los vacíos; con filtro, solo el año pedido",
+            "items": { "$ref": "#/components/schemas/CurriculumYearDto" }
+          }
+        }
+      },
+      "CurriculumSubjectDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/SubjectDto",
+            "description": "Asignatura del plan de estudios"
+          },
+          "semester": {
+            "type": ["integer", "null"],
+            "format": "int32",
+            "description": "Cuatrimestre (1 o 2). Nulo si la asignatura es anual o no se especifica",
+            "example": 1
+          }
+        }
+      },
+      "CurriculumYearDto": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Año (curso) del grado",
+            "example": 4
+          },
+          "subjects": {
+            "type": "array",
+            "description": "Asignaturas de ese año ordenadas por cuatrimestre (las anuales al final) y nombre. Vacía si no hay ninguna",
+            "items": { "$ref": "#/components/schemas/CurriculumSubjectDto" }
           }
         }
       },

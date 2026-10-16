@@ -5,6 +5,7 @@ import {
   BookOpen,
   ClipboardList,
   Command,
+  GraduationCap,
   LifeBuoy,
   ListChecks,
   Megaphone,
@@ -35,6 +36,12 @@ const dataSubjectsCatalog = {
       title: "Asignaturas",
       url: "/dashboard/subjects",
       icon: BookOpen,
+      isActive: false,
+    },
+    {
+      title: "Grados",
+      url: "/dashboard/degrees",
+      icon: GraduationCap,
       isActive: false,
     },
   ],
@@ -79,6 +86,12 @@ const data = {
 
 const dataAdminPanel = {
   adminPanel: [
+    {
+      title: "Grados",
+      url: "/dashboard/admin/degrees",
+      icon: GraduationCap,
+      isActive: false,
+    },
     {
       title: "PDFs",
       url: "/dashboard/admin/pdfs",

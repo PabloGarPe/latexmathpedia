@@ -4,10 +4,22 @@
 export const queryKeys = {
   subjects: {
     all: () => ["subjects"] as const,
+    // Catálogo filtrado (GET /public/subject con degreeId/year/semester/unassigned). Sin filtros
+    // se usa `all()`. Cuelga de ["subjects"]: lo cubren las invalidaciones de asignaturas.
+    filtered: (filters: { degreeId?: number; year?: number; semester?: number; unassigned?: boolean }) =>
+      ["subjects", "filtered", filters] as const,
     detail: (subjectId: number) => ["subjects", subjectId] as const,
     units: (subjectId: number) => ["subjects", subjectId, "units"] as const,
     pdfs: (subjectId: number) => ["subjects", subjectId, "pdfs"] as const,
     quizzes: (subjectId: number) => ["subjects", subjectId, "quizzes"] as const,
+  },
+  // Grados y planes de estudio (públicos). El plan embebe SubjectDto, así que los cambios de
+  // asignatura invalidan también ["degrees"].
+  degrees: {
+    all: () => ["degrees"] as const,
+    detail: (degreeId: number) => ["degrees", degreeId] as const,
+    curriculum: (degreeId: number, filters: { year?: number; semester?: number } = {}) =>
+      ["degrees", degreeId, "curriculum", filters] as const,
   },
   pdfs: {
     all: () => ["pdfs"] as const,

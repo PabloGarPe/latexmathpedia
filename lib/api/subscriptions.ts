@@ -30,3 +30,27 @@ export async function unsubscribe(subjectId: number) {
   });
   if (!response.ok) throw new ApiError(response.status, "No se pudo cancelar la suscripción");
 }
+
+// Suscribirse a un curso entero = suscripciones normales a las asignaturas colocadas *ahora* en
+// (grado, año[, cuatrimestre]); es una foto fija, no hay suscripción "al curso". Sin `semester`
+// entran todas (también las anuales); con él, solo las de ese cuatrimestre.
+// 404 si el grado no existe; 400 si `year` no está en 1..years o `semester` no es 1 ni 2.
+export type CourseRef = { degreeId: number; year: number; semester?: number };
+
+// Idempotente. Devuelve las suscripciones a todas las asignaturas del curso (nuevas y previas).
+export async function subscribeToCourse({ degreeId, year, semester }: CourseRef) {
+  const { data, response } = await apiClient.PUT("/me/subscriptions/degree/{degreeId}/year/{year}", {
+    params: { path: { degreeId, year }, query: { semester } },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo suscribir al curso");
+  return data;
+}
+
+// Idempotente (204). Ojo: da de baja de las asignaturas del curso aunque también estén en otro
+// curso/grado al que el usuario siga suscrito.
+export async function unsubscribeFromCourse({ degreeId, year, semester }: CourseRef) {
+  const { response } = await apiClient.DELETE("/me/subscriptions/degree/{degreeId}/year/{year}", {
+    params: { path: { degreeId, year }, query: { semester } },
+  });
+  if (!response.ok) throw new ApiError(response.status, "No se pudo cancelar la suscripción al curso");
+}
