@@ -8,6 +8,7 @@ import { SearchForm } from "@/components/search-form"
 import { useSearch } from "@/contexts/search-context" // Importar el contexto de búsqueda
 import { usePdfs } from "@/hooks/api/use-pdfs"
 import { useQuiz } from "@/hooks/api/use-quizzes"
+import { useDegree } from "@/hooks/api/use-degrees"
 import { useSubject } from "@/hooks/api/use-subjects"
 import {
   Breadcrumb,
@@ -32,6 +33,7 @@ function capitalizeFirstLetter(string: string) {
 // Segmentos de la URL en inglés que se muestran traducidos.
 const SEGMENT_LABELS: Record<string, string> = {
   subjects: "Asignaturas",
+  degrees: "Grados",
   quizzes: "Cuestionarios",
   pdfs: "PDFs",
 }
@@ -53,7 +55,10 @@ function useCrumbs(pathSegments: string[]): Crumb[] {
   const pdfId = isAdmin ? null : idAfter("pdfs")
   const quizId = isAdmin ? null : idAfter("quizzes")
 
+  const degreeId = idAfter("degrees")
+
   const subject = useSubject(subjectId)
+  const degree = useDegree(degreeId)
   const pdfs = usePdfs(pdfId != null)
   // En admin (editor de cuestionario) el breadcrumb sigue la URL, pero con el nombre en vez del id.
   const quiz = useQuiz(isAdmin ? idAfter("quizzes") : quizId)
@@ -68,6 +73,7 @@ function useCrumbs(pathSegments: string[]): Crumb[] {
     const parent = pathSegments[index - 1]
     const name =
       parent === "subjects" ? subject.data?.name
+      : parent === "degrees" ? degree.data?.name
       : parent === "quizzes" ? quiz.data?.name
       : undefined
     return name ?? SEGMENT_LABELS[segment] ?? capitalizeFirstLetter(segment)
