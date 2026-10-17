@@ -1,12 +1,13 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { Controller, useForm } from "react-hook-form"
 import { z } from "zod"
 import { AlertTriangle, CheckCircle2, ChevronDown, Loader2, Trash } from "lucide-react"
 import { useState } from "react"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import {
+  CLAMPED_RICH_TEXT_CLASS,
   QUESTION_TYPES,
   QUESTION_TYPE_LABEL,
   questionIssue,
@@ -17,8 +18,8 @@ import { Segmented } from "@/components/admin/quiz-editor/segmented"
 import { SortableRow } from "@/components/admin/quiz-editor/sortable"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { RichText, RichTextEditor } from "@/components/rich-text"
 import { Separator } from "@/components/ui/separator"
-import { Textarea } from "@/components/ui/textarea"
 import { useDeleteQuestion, useUpdateQuestion } from "@/hooks/api/use-questions"
 import { useToast } from "@/hooks/use-toast"
 import type { OptionDto } from "@/lib/api/options"
@@ -45,7 +46,7 @@ function QuestionForm({ quizId, question }: { quizId: number; question: Question
     explanation: question.explanation ?? "",
   }
   const {
-    register,
+    control,
     handleSubmit,
     watch,
     setValue,
@@ -81,7 +82,19 @@ function QuestionForm({ quizId, question }: { quizId: number; question: Question
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid gap-2">
         <Label htmlFor={`question-text-${question.id}`}>Enunciado</Label>
-        <Textarea id={`question-text-${question.id}`} rows={2} className="resize-y" {...register("text")} />
+        <Controller
+          control={control}
+          name="text"
+          render={({ field, fieldState }) => (
+            <RichTextEditor
+              {...field}
+              id={`question-text-${question.id}`}
+              variant="full"
+              minRows={2}
+              aria-invalid={fieldState.invalid}
+            />
+          )}
+        />
         {errors.text && <p className="text-sm text-destructive">{errors.text.message}</p>}
       </div>
 
@@ -98,12 +111,20 @@ function QuestionForm({ quizId, question }: { quizId: number; question: Question
 
       <div className="grid gap-2">
         <Label htmlFor={`question-explanation-${question.id}`}>Explicación (opcional)</Label>
-        <Textarea
-          id={`question-explanation-${question.id}`}
-          rows={2}
-          placeholder="Se muestra al corregir, tanto si acierta como si falla."
-          className="resize-y"
-          {...register("explanation")}
+        <Controller
+          control={control}
+          name="explanation"
+          render={({ field, fieldState }) => (
+            <RichTextEditor
+              {...field}
+              value={field.value ?? ""}
+              id={`question-explanation-${question.id}`}
+              variant="full"
+              minRows={2}
+              placeholder="Se muestra al corregir, tanto si acierta como si falla."
+              aria-invalid={fieldState.invalid}
+            />
+          )}
         />
       </div>
 
@@ -177,7 +198,15 @@ export function QuestionCard({
                 {index}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="line-clamp-2 font-medium">{question.text}</span>
+                {/* Recortado a 2 líneas; una fórmula en bloque se corta por el overflow-hidden del clamp. */}
+                <span className="line-clamp-2 overflow-hidden font-medium">
+                  <RichText
+                    variant="compact"
+                    interactive={false}
+                    content={question.text ?? ""}
+                    className={CLAMPED_RICH_TEXT_CLASS}
+                  />
+                </span>
                 <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span>{QUESTION_TYPE_LABEL[question.type as keyof typeof QUESTION_TYPE_LABEL] ?? question.type}</span>
                   {sorted && <span>{sorted.length} {sorted.length === 1 ? "opción" : "opciones"}</span>}

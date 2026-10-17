@@ -153,6 +153,10 @@ function ImportQuizDialog() {
             <Label htmlFor="import-file">Archivo JSON</Label>
             <Input id="import-file" type="file" accept="application/json" ref={fileInputRef} onChange={handleFileChange} />
             {fileName && <p className="text-xs text-muted-foreground">Seleccionado: {fileName}</p>}
+            <p className="text-xs text-muted-foreground">
+              Los campos <code>text</code>, <code>explanation</code> y las opciones admiten Markdown y LaTeX. En JSON las
+              barras invertidas se escriben dobles: <code>{String.raw`"$\\frac{1}{2}$"`}</code>.
+            </p>
           </div>
           <SubjectUnitPicker
             subjectId={subjectIdValue ?? null}

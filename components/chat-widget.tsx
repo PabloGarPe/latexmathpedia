@@ -232,7 +232,7 @@ export function ChatWidget() {
     return (
         <div className="flex align-end justify-end w-[90%] md:w-full max-w-sm gap-6 z-50 fixed bottom-4 right-4 max-h-[80vh]">
             {open ? (
-                <div className="flex flex-col bg-background border rounded-lg shadow-xl w-full max-w-md h-auto">
+                <div className="flex flex-col bg-background border rounded-lg shadow-xl w-full max-w-md h-auto max-h-[80vh]">
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b bg-primary text-primary-foreground rounded-t-lg">
                         <div className="flex items-center gap-2">
@@ -249,7 +249,7 @@ export function ChatWidget() {
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
                         {messages.length === 0 ? (
                             <div className="text-center text-muted-foreground py-8">
                                 <BotMessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -266,7 +266,7 @@ export function ChatWidget() {
                                     className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
                                 >
                                     <div
-                                        className={`max-w-[80%] rounded-lg px-4 py-2 ${msg.role === 'user'
+                                        className={`max-w-[80%] min-w-0 rounded-lg px-4 py-2 ${msg.role === 'user'
                                                 ? 'bg-primary text-primary-foreground'
                                                 : 'bg-muted text-foreground'
                                             }`}
@@ -308,7 +308,7 @@ export function ChatWidget() {
                         )}
                         {isLoading && (
                             <div className="flex justify-start">
-                                <div className="bg-muted rounded-lg px-4 py-2">
+                                <div className="bg-muted text-foreground rounded-lg px-4 py-2">
                                     <div className="flex gap-1">
                                         <span className="w-2 h-2 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                                         <span className="w-2 h-2 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
