@@ -1,101 +1,15 @@
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { RichText } from "@/components/rich-text";
 
 interface MessageContentProps {
     content: string;
 }
 
+/**
+ * Contenido de una burbuja del chat. Usa el renderer de texto enriquecido (Markdown + LaTeX): el
+ * texto hereda el color de la burbuja (`text-primary-foreground` / `text-foreground`), así que se ve
+ * bien en claro y oscuro. Los enlaces de Markdown, con o sin paréntesis, los resuelve CommonMark;
+ * no se inyecta HTML crudo.
+ */
 export function MessageContent({ content }: MessageContentProps) {
-    const escapeHtml = (unsafe: string): string =>
-        unsafe
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-
-    const isSafeUrl = (url: string): boolean => {
-        const trimmed = url.trim().toLowerCase();
-        return trimmed.startsWith('http://') || trimmed.startsWith('https://');
-    };
-
-    const preprocessContent = (text: string): string => {
-        const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-
-        return text.replace(markdownLinkRegex, (match, linkText, url) => {
-            if (linkText.includes('(') || linkText.includes(')')) {
-                if (!isSafeUrl(url)) {
-                    // If the URL is not safe, render the text without turning it into a link.
-                    return linkText;
-                }
-                const safeLinkText = escapeHtml(linkText);
-                const safeUrl = escapeHtml(url);
-                return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeLinkText}</a>`;
-            }
-            return match;
-        });
-    };
-
-    return (
-        <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                    // Customize the Markdown components
-                    a: ({ node, ...props }) => (
-                        <a
-                            {...props}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline text-chart-2 hover:text-chart-3 break-all"
-                        />
-                    ),
-                    code: ({ node, inline, className, children, ...props }: any) => {
-                        const match = /language-(\w+)/.exec(className || '');
-                        return !inline ? (
-                            <code
-                                className={`block bg-muted p-2 rounded my-2 overflow-x-auto ${className}`}
-                                {...props}
-                            >
-                                {children}
-                            </code>
-                        ) : (
-                            <code
-                                className="bg-muted px-1 py-0.5 rounded text-xs"
-                                {...props}
-                            >
-                                {children}
-                            </code>
-                        );
-                    },
-                    pre: ({ node, ...props }) => (
-                        <pre className="bg-muted p-3 rounded-lg overflow-x-auto my-2" {...props} />
-                    ),
-                    ul: ({ node, ...props }) => (
-                        <ul className="list-disc list-inside my-2" {...props} />
-                    ),
-                    ol: ({ node, ...props }) => (
-                        <ol className="list-decimal list-inside my-2" {...props} />
-                    ),
-                    li: ({ node, ...props }) => (
-                        <li className="ml-2" {...props} />
-                    ),
-                    p: ({ node, ...props }) => (
-                        <p className="mb-2 last:mb-0" {...props} />
-                    ),
-                    h1: ({ node, ...props }) => (
-                        <h1 className="text-lg font-bold mt-4 mb-2" {...props} />
-                    ),
-                    h2: ({ node, ...props }) => (
-                        <h2 className="text-base font-bold mt-3 mb-2" {...props} />
-                    ),
-                    h3: ({ node, ...props }) => (
-                        <h3 className="text-sm font-bold mt-2 mb-1" {...props} />
-                    ),
-                }}
-            >
-                {preprocessContent(content)}
-            </ReactMarkdown>
-        </div>
-    );
+    return <RichText content={content} variant="compact" className="text-sm" />;
 }

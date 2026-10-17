@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { arrayMove } from "@dnd-kit/sortable"
 import { Check, Loader2, Plus, Trash } from "lucide-react"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { SortableList, SortableRow } from "@/components/admin/quiz-editor/sortable"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { RichTextEditor, toPlainText } from "@/components/rich-text"
 import {
   useCreateOption,
   useDeleteOption,
@@ -33,9 +33,15 @@ function OptionRow({
   const setCorrect = useSetCorrectOption()
   const [text, setText] = useState(option.text ?? "")
   const [confirming, setConfirming] = useState(false)
+  // Escape marca el siguiente blur como descarte: `text` en este closure aún sería el editado.
+  const discardRef = useRef(false)
 
-  // Se guarda al salir del campo o con Intro; Escape descarta el cambio.
+  // Se guarda al salir del campo o con Intro (Mayús+Intro es salto de línea); Escape descarta el cambio.
   const save = async () => {
+    if (discardRef.current) {
+      discardRef.current = false
+      return
+    }
     const next = text.trim()
     if (next === (option.text ?? "") || option.id == null) return
     if (!next) {
@@ -72,16 +78,18 @@ function OptionRow({
   }
 
   return (
-    <SortableRow id={option.id as number} label={option.text ?? "opción"}>
+    <SortableRow id={option.id as number} label={toPlainText(option.text ?? "") || "opción"}>
       {({ handle, dragging }) => (
         <div
           className={cn(
-            "flex items-center gap-1.5 rounded-lg border bg-background py-1.5 pl-1 pr-2 transition-colors",
+            "flex items-start gap-1.5 rounded-lg border bg-background py-1.5 pl-1 pr-2 transition-colors",
             option.correct && "border-green-500/60 bg-green-500/5",
             dragging && "shadow-lg",
           )}
         >
-          {handle}
+          {/* Asa, radio y papelera bajan para quedar a la altura de la primera línea de texto: encima
+              del textarea va la barra de formato compacta (h-6 + gap-1.5). */}
+          <div className="mt-[1.9375rem] shrink-0">{handle}</div>
           <button
             type="button"
             role="radio"
@@ -91,7 +99,7 @@ function OptionRow({
             onClick={markCorrect}
             disabled={setCorrect.isPending}
             className={cn(
-              "flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors",
+              "mt-[2.1875rem] flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors",
               option.correct
                 ? "border-green-500 bg-green-500 text-white"
                 : "border-muted-foreground/40 text-transparent hover:border-green-500 hover:text-green-500/60",
@@ -99,15 +107,21 @@ function OptionRow({
           >
             {setCorrect.isPending ? <Loader2 className="h-3 w-3 animate-spin text-current" /> : <Check className="h-3.5 w-3.5" />}
           </button>
-          <Input
+          <RichTextEditor
+            variant="compact"
             value={text}
             aria-label="Texto de la opción"
-            className="h-8 border-transparent bg-transparent shadow-none dark:bg-transparent focus-visible:border-input focus-visible:bg-background"
-            onChange={(event) => setText(event.target.value)}
+            className="min-w-0 flex-1"
+            textareaClassName="border-transparent bg-transparent shadow-none dark:bg-transparent focus-visible:border-input focus-visible:bg-background"
+            onChange={setText}
             onBlur={save}
             onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur()
+              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault()
+                event.currentTarget.blur()
+              }
               if (event.key === "Escape") {
+                discardRef.current = true
                 setText(option.text ?? "")
                 event.currentTarget.blur()
               }
@@ -117,7 +131,7 @@ function OptionRow({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0 cursor-pointer text-muted-foreground hover:text-destructive"
+            className="mt-[1.9375rem] h-8 w-8 shrink-0 cursor-pointer text-muted-foreground hover:text-destructive"
             aria-label="Eliminar opción"
             disabled={deleteOption.isPending}
             onClick={() => setConfirming(true)}
@@ -226,19 +240,27 @@ export function OptionList({
             event.preventDefault()
             void handleAdd()
           }}
-          className="flex items-center gap-2"
+          className="flex items-start gap-2"
         >
-          <Input
+          <RichTextEditor
+            variant="compact"
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={setDraft}
             placeholder="Añadir otra opción…"
             aria-label="Texto de la nueva opción"
+            className="min-w-0 flex-1"
+            // Intro añade la opción; Mayús+Intro es salto de línea.
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return
+              event.preventDefault()
+              void handleAdd()
+            }}
           />
           <Button
             type="submit"
             variant="outline"
             size="sm"
-            className="shrink-0 cursor-pointer"
+            className="mt-[1.9375rem] shrink-0 cursor-pointer"
             disabled={!draft.trim() || createOption.isPending}
           >
             <Plus className="h-4 w-4" />

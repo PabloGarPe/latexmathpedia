@@ -8,10 +8,11 @@ import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, EyeOff, ListChecks, Pencil
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { QuestionCard } from "@/components/admin/quiz-editor/question-card"
 import { QuestionComposer } from "@/components/admin/quiz-editor/question-composer"
-import { questionIssue, sortByPosition } from "@/components/admin/quiz-editor/constants"
+import { CLAMPED_RICH_TEXT_CLASS, questionIssue, sortByPosition } from "@/components/admin/quiz-editor/constants"
 import { SortableList } from "@/components/admin/quiz-editor/sortable"
 import { QuizFormDialog } from "@/components/admin/quiz-form-dialog"
 import { PageContainer } from "@/components/page-shell"
+import { RichText } from "@/components/rich-text"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -281,7 +282,14 @@ export default function QuizEditorPage() {
                             {number}
                           </span>
                           <span className="min-w-0">
-                            <span className="line-clamp-1 font-medium">{question.text}</span>
+                            <span className="line-clamp-1 overflow-hidden font-medium">
+                              <RichText
+                                variant="compact"
+                                interactive={false}
+                                content={question.text ?? ""}
+                                className={CLAMPED_RICH_TEXT_CLASS}
+                              />
+                            </span>
                             <span className="text-xs text-muted-foreground">{issue}</span>
                           </span>
                         </button>

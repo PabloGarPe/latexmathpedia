@@ -2,15 +2,14 @@
 
 import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useFieldArray, useForm } from "react-hook-form"
+import { Controller, useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import { Check, Loader2, Plus, X } from "lucide-react"
 import { QUESTION_TYPES, QUESTION_TYPE_LABEL } from "@/components/admin/quiz-editor/constants"
 import { Segmented } from "@/components/admin/quiz-editor/segmented"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor } from "@/components/rich-text"
 import { useCreateOption } from "@/hooks/api/use-options"
 import { useCreateQuestion } from "@/hooks/api/use-questions"
 import { useToast } from "@/hooks/use-toast"
@@ -72,7 +71,6 @@ export function QuestionComposer({
   const [open, setOpen] = useState(defaultOpen)
 
   const {
-    register,
     handleSubmit,
     watch,
     setValue,
@@ -154,7 +152,20 @@ export function QuestionComposer({
 
       <div className="grid gap-2">
         <Label htmlFor="composer-text">Enunciado</Label>
-        <Textarea id="composer-text" rows={2} className="resize-y bg-background" {...register("text")} />
+        <Controller
+          control={control}
+          name="text"
+          render={({ field, fieldState }) => (
+            <RichTextEditor
+              {...field}
+              id="composer-text"
+              variant="full"
+              minRows={2}
+              aria-invalid={fieldState.invalid}
+              textareaClassName="bg-background"
+            />
+          )}
+        />
         {errors.text && <p className="text-sm text-destructive">{errors.text.message}</p>}
       </div>
 
@@ -212,7 +223,7 @@ export function QuestionComposer({
               <div
                 key={field.id}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg border bg-background py-1.5 pl-2 pr-1.5",
+                  "flex items-start gap-2 rounded-lg border bg-background py-1.5 pl-2 pr-1.5",
                   correct === index && "border-green-500/60 bg-green-500/5",
                 )}
               >
@@ -223,7 +234,7 @@ export function QuestionComposer({
                   aria-label={`Marcar la opción ${index + 1} como correcta`}
                   onClick={() => setValue("correct", index, { shouldValidate: true })}
                   className={cn(
-                    "flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors",
+                    "mt-[2.1875rem] flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors",
                     correct === index
                       ? "border-green-500 bg-green-500 text-white"
                       : "border-muted-foreground/40 text-transparent hover:border-green-500 hover:text-green-500/60",
@@ -231,18 +242,37 @@ export function QuestionComposer({
                 >
                   <Check className="h-3.5 w-3.5" />
                 </button>
-                <Input
-                  placeholder={`Opción ${index + 1}`}
-                  aria-label={`Texto de la opción ${index + 1}`}
-                  className="h-8 border-transparent bg-transparent shadow-none dark:bg-transparent focus-visible:border-input focus-visible:bg-background"
-                  {...register(`options.${index}.text`)}
+                {/* El radio y la X bajan para quedar a la altura de la primera línea de texto: encima del
+                    textarea va la barra de formato compacta (h-6 + gap-1.5). */}
+                <Controller
+                  control={control}
+                  name={`options.${index}.text`}
+                  render={({ field, fieldState }) => (
+                    <RichTextEditor
+                      {...field}
+                      variant="compact"
+                      placeholder={`Opción ${index + 1}`}
+                      aria-label={`Texto de la opción ${index + 1}`}
+                      aria-invalid={fieldState.invalid}
+                      className="min-w-0 flex-1"
+                      textareaClassName="border-transparent bg-transparent shadow-none dark:bg-transparent focus-visible:border-input focus-visible:bg-background"
+                      // Intro pasa a la siguiente opción (o crea una si es la última); Mayús+Intro es salto
+                      // de línea. No se envía el formulario: en un textarea no hay envío implícito.
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return
+                        event.preventDefault()
+                        if (index < fields.length - 1) setFocus(`options.${index + 1}.text`)
+                        else if (fields.length < MAX_OPTIONS) append({ text: "" })
+                      }}
+                    />
+                  )}
                 />
                 {fields.length > MIN_OPTIONS && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 shrink-0 cursor-pointer text-muted-foreground hover:text-destructive"
+                    className="mt-[1.9375rem] h-8 w-8 shrink-0 cursor-pointer text-muted-foreground hover:text-destructive"
                     aria-label={`Quitar la opción ${index + 1}`}
                     onClick={() => {
                       remove(index)
@@ -272,12 +302,21 @@ export function QuestionComposer({
 
       <div className="grid gap-2">
         <Label htmlFor="composer-explanation">Explicación (opcional)</Label>
-        <Textarea
-          id="composer-explanation"
-          rows={2}
-          placeholder="Se muestra al corregir, tanto si acierta como si falla."
-          className="resize-y bg-background"
-          {...register("explanation")}
+        <Controller
+          control={control}
+          name="explanation"
+          render={({ field, fieldState }) => (
+            <RichTextEditor
+              {...field}
+              value={field.value ?? ""}
+              id="composer-explanation"
+              variant="full"
+              minRows={2}
+              placeholder="Se muestra al corregir, tanto si acierta como si falla."
+              aria-invalid={fieldState.invalid}
+              textareaClassName="bg-background"
+            />
+          )}
         />
       </div>
 

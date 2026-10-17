@@ -21,3 +21,8 @@ export function questionIssue(options: OptionDto[] | undefined): string | null {
   if (!options.some((option) => option.correct)) return "Falta marcar la respuesta correcta"
   return null
 }
+
+// Para pintar un enunciado con RichText compact dentro de un resumen recortado (line-clamp): las
+// fórmulas en bloque pasan a fluir en línea y sin scroll propio, y lo que sobra lo corta el clamp.
+export const CLAMPED_RICH_TEXT_CLASS =
+  "[&_.katex-display]:my-0 [&_.katex-display]:inline-block [&_.katex-display]:overflow-hidden [&_.katex-display]:align-middle"

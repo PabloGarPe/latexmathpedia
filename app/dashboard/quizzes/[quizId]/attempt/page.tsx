@@ -5,9 +5,10 @@ import { useParams, useRouter } from "next/navigation"
 import { CircleAlert, CircleCheck, CircleX, RotateCcw, Trophy } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { ContentUnavailable } from "@/components/content-unavailable"
+import { RichText } from "@/components/rich-text"
 import { PageContainer } from "@/components/page-shell"
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -161,27 +162,38 @@ export default function QuizAttemptPage() {
                 ) : (
                   <CircleX className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
                 )}
-                <CardTitle className="text-base font-medium">
-                  {index + 1}. {question.text}
-                </CardTitle>
+                {/* No es un CardTitle (<h3>): el enunciado puede traer párrafos, listas o fórmulas en bloque. */}
+                <div role="heading" aria-level={3} className="flex min-w-0 flex-1 items-start gap-1.5 text-base font-medium leading-snug">
+                  <span className="shrink-0">{index + 1}.</span>
+                  <RichText variant="full" content={question.text ?? ""} className="min-w-0 flex-1" />
+                </div>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <p>
-                  Tu respuesta:{" "}
-                  <span className={answer.correct ? "text-green-600" : "text-destructive"}>
-                    {selectedOption?.text ?? "Sin responder"}
-                  </span>
-                </p>
+                <div className="flex gap-1.5">
+                  <span className="shrink-0">Tu respuesta:</span>
+                  {selectedOption ? (
+                    <RichText
+                      variant="compact"
+                      content={selectedOption.text ?? ""}
+                      className={cn("min-w-0 flex-1", answer.correct ? "text-green-600" : "text-destructive")}
+                    />
+                  ) : (
+                    <span className="text-destructive">Sin responder</span>
+                  )}
+                </div>
                 {!answer.correct && correctOption && (
-                  <p>
-                    Respuesta correcta: <span className="text-green-600">{correctOption.text}</span>
-                  </p>
+                  <div className="flex gap-1.5">
+                    <span className="shrink-0">Respuesta correcta:</span>
+                    <RichText variant="compact" content={correctOption.text ?? ""} className="min-w-0 flex-1 text-green-600" />
+                  </div>
                 )}
                 {answer.explanation && (
                   <Alert>
                     <CircleAlert className="h-4 w-4" />
                     <AlertTitle>Explicación</AlertTitle>
-                    <AlertDescription>{answer.explanation}</AlertDescription>
+                    <AlertDescription>
+                      <RichText variant="full" content={answer.explanation} className="w-full" />
+                    </AlertDescription>
                   </Alert>
                 )}
               </CardContent>
@@ -210,7 +222,10 @@ export default function QuizAttemptPage() {
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-purple-100 text-sm font-bold text-purple-800 dark:bg-purple-900 dark:text-purple-100">
               {index + 1}
             </span>
-            <CardTitle className="pt-0.5 text-base font-medium leading-snug">{question.text}</CardTitle>
+            {/* No es un CardTitle (<h3>): el enunciado puede traer párrafos, listas o fórmulas en bloque. */}
+            <div role="heading" aria-level={3} className="min-w-0 flex-1 pt-0.5 text-base font-medium leading-snug">
+              <RichText variant="full" content={question.text ?? ""} />
+            </div>
           </CardHeader>
           <CardContent>
             <RadioGroup
@@ -232,7 +247,13 @@ export default function QuizAttemptPage() {
                   <span className="w-4 shrink-0 text-xs font-semibold text-muted-foreground">
                     {String.fromCharCode(65 + optionIndex)}
                   </span>
-                  <span className="flex-1">{option.text}</span>
+                  {/* leading-snug: el Label trae leading-none y una opción larga o con fórmulas se apelmazaría. */}
+                  <RichText
+                    variant="compact"
+                    interactive={false}
+                    content={option.text ?? ""}
+                    className="min-w-0 flex-1 leading-snug"
+                  />
                 </Label>
               ))}
             </RadioGroup>
