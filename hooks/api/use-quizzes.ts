@@ -16,11 +16,13 @@ import {
   getQuizLeaderboard,
   getQuizQuestions,
   getQuizStats,
+  importQuestions,
   importQuiz,
   setQuizVisibility,
   submitQuizAttempt,
   updateQuiz,
   type CreateQuizDto,
+  type QuestionExportableDto,
   type QuizExportableDto,
   type SubmitQuizAttemptDto,
   type UpdateQuizDto,
@@ -187,20 +189,43 @@ export function useDeleteQuiz() {
   });
 }
 
+// Importa un cuestionario completo. Con `publish` true queda visible (y el back notifica a todos);
+// con false, oculto. Invalida como las demás mutaciones de cuestionarios: listados (admin y
+// públicos), hileras del feed y las asignaturas (cada una lista sus cuestionarios).
 export function useImportQuiz() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
       subjectId,
       subjectUnitId,
+      publish,
       body,
     }: {
       subjectId: number;
       subjectUnitId: number | null;
+      publish: boolean;
       body: QuizExportableDto;
-    }) => importQuiz(subjectId, subjectUnitId, body),
+    }) => importQuiz(subjectId, subjectUnitId, publish, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.quizzes.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all() });
+    },
+  });
+}
+
+// Añade preguntas (con sus opciones) al final de un cuestionario existente, todo o nada. Invalida
+// las preguntas del quiz y el quiz entero (["quizzes", id] cubre también el "para intento", así el
+// alumno ve las nuevas) y las asignaturas. Las opciones de las preguntas nuevas aún no están en
+// caché (["questions", id, "options"]), así que no hay nada que refrescar ahí.
+export function useImportQuestions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ quizId, questions }: { quizId: number; questions: QuestionExportableDto[] }) =>
+      importQuestions(quizId, questions),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.quizzes.questions(variables.quizId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.quizzes.detail(variables.quizId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all() });
     },
   });
 }

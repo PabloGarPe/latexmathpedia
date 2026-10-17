@@ -1,15 +1,16 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { arrayMove } from "@dnd-kit/sortable"
-import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, EyeOff, ListChecks, Pencil, Trash } from "lucide-react"
+import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, EyeOff, FileJson, ListChecks, Pencil, Trash } from "lucide-react"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { QuestionCard } from "@/components/admin/quiz-editor/question-card"
 import { QuestionComposer } from "@/components/admin/quiz-editor/question-composer"
 import { CLAMPED_RICH_TEXT_CLASS, questionIssue, sortByPosition } from "@/components/admin/quiz-editor/constants"
 import { SortableList } from "@/components/admin/quiz-editor/sortable"
+import { ImportQuestionsSheet } from "@/components/admin/quiz-import/import-questions-sheet"
 import { QuizFormDialog } from "@/components/admin/quiz-form-dialog"
 import { PageContainer } from "@/components/page-shell"
 import { RichText } from "@/components/rich-text"
@@ -54,8 +55,19 @@ export default function QuizEditorPage() {
   const [openIds, setOpenIds] = useState<number[]>([])
   const [editingQuiz, setEditingQuiz] = useState(false)
   const [deletingQuiz, setDeletingQuiz] = useState(false)
+  const [importingQuestions, setImportingQuestions] = useState(false)
+  // Primera pregunta recién importada: cuando la lista ya la pinta (tras el refetch) se lleva hasta ella.
+  const [scrollToId, setScrollToId] = useState<number | null>(null)
   // Arrastrar una pregunta abierta es incómodo (es muy alta): al empezar se pliegan y al soltar se restauran.
   const openBeforeDrag = useRef<number[] | null>(null)
+
+  useEffect(() => {
+    if (scrollToId == null) return
+    const element = document.getElementById(`question-${scrollToId}`)
+    if (!element) return
+    element.scrollIntoView({ behavior: "smooth", block: "start" })
+    setScrollToId(null)
+  }, [scrollToId, sortedQuestions])
 
   const noQuestions = !questionsLoading && sortedQuestions.length === 0
   const publishBlocked = noQuestions ? "Añade al menos una pregunta" : undefined
@@ -179,9 +191,22 @@ export default function QuizEditorPage() {
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section className="space-y-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-lg font-semibold">Preguntas</h2>
-            <p className="text-xs text-muted-foreground">Arrastra el asa para reordenarlas</p>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex flex-wrap items-baseline gap-x-3">
+              <h2 className="text-lg font-semibold">Preguntas</h2>
+              <p className="text-xs text-muted-foreground">Arrastra el asa para reordenarlas</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="cursor-pointer"
+              disabled={questionsLoading}
+              onClick={() => setImportingQuestions(true)}
+            >
+              <FileJson className="h-4 w-4" />
+              Importar preguntas (JSON)
+            </Button>
           </div>
 
           {questionsLoading ? (
@@ -223,6 +248,19 @@ export default function QuizEditorPage() {
                 </div>
               </SortableList>
             )
+          )}
+
+          {noQuestions && (
+            <p className="text-sm text-muted-foreground">
+              ¿Ya tienes las preguntas en JSON?{" "}
+              <button
+                type="button"
+                onClick={() => setImportingQuestions(true)}
+                className="cursor-pointer font-medium text-foreground underline underline-offset-2 hover:text-purple-600 dark:hover:text-purple-300"
+              >
+                Impórtalas
+              </button>
+            </p>
           )}
 
           {!questionsLoading && (
@@ -304,6 +342,18 @@ export default function QuizEditorPage() {
       </div>
 
       <QuizFormDialog open={editingQuiz} onOpenChange={setEditingQuiz} quiz={quiz} />
+
+      <ImportQuestionsSheet
+        open={importingQuestions}
+        onOpenChange={setImportingQuestions}
+        quizId={quizId}
+        existingCount={sortedQuestions.length}
+        published={!isQuizHidden(quiz)}
+        onImported={(created) => {
+          const first = created.find((question) => question.id != null)
+          if (first?.id != null) setScrollToId(first.id)
+        }}
+      />
 
       <ConfirmDialog
         open={deletingQuiz}

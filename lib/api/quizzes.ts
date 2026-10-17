@@ -19,6 +19,7 @@ export type UpdateQuizDto = components["schemas"]["UpdateQuizDto"];
 export type QuizExportableDto = components["schemas"]["QuizExportableDto"];
 export type QuestionExportableDto = components["schemas"]["QuestionExportableDto"];
 export type OptionExportableDto = components["schemas"]["OptionExportableDto"];
+export type ImportQuestionsDto = components["schemas"]["ImportQuestionsDto"];
 export type QuizAttemptStatsDto = components["schemas"]["QuizAttemptStatsDto"];
 export type LeaderboardEntryDto = components["schemas"]["LeaderboardEntryDto"];
 export type PageLeaderboardEntryDto = components["schemas"]["PageLeaderboardEntryDto"];
@@ -179,16 +180,53 @@ export async function exportQuiz(id: number) {
   return data;
 }
 
+// Mensaje para un fallo de importación según el status. Los 400 del back llegan con el cuerpo VACÍO
+// (no dicen qué regla falló), así que el front valida antes de enviar (lib/quiz-import.ts); este
+// mensaje solo sale si aun así el back rechaza algo que el cliente dejó pasar.
+function importErrorMessage(status: number, kind: "quiz" | "questions"): string {
+  if (status === 400) {
+    return kind === "quiz"
+      ? "El backend ha rechazado el cuestionario: revisa que cada pregunta tenga el texto y las opciones " +
+          "rellenos, exactamente una opción correcta (y solo dos opciones en Verdadero/Falso), y que la " +
+          "descripción no pase de 500 caracteres."
+      : "El backend ha rechazado las preguntas: revisa que cada una tenga el texto y las opciones rellenos " +
+          "y exactamente una opción correcta (y solo dos opciones en Verdadero/Falso).";
+  }
+  if (status === 404) {
+    return kind === "quiz"
+      ? "La asignatura o el tema seleccionados ya no existen."
+      : "El cuestionario ya no existe.";
+  }
+  if (status === 409) return "Ya existe un cuestionario con ese nombre.";
+  if (status === 401 || status === 403) return "Tu sesión no tiene permiso para importar. Vuelve a iniciar sesión.";
+  return kind === "quiz" ? "No se pudo importar el cuestionario." : "No se pudieron importar las preguntas.";
+}
+
+// `publish` va siempre explícito: true publica al momento y notifica a todos los usuarios; false lo
+// deja oculto (se publica luego con setQuizVisibility). Se comprueba `response.ok` y no `error`: un
+// 400 sin cuerpo llega con `error` vacío y no lanzaría.
 export async function importQuiz(
   subjectId: number,
   subjectUnitId: number | null,
+  publish: boolean,
   body: QuizExportableDto
 ) {
-  const { data, error, response } = await apiClient.POST("/quiz/import", {
-    params: { query: { subjectId, subjectUnitId: subjectUnitId ?? undefined } },
+  const { data, response } = await apiClient.POST("/quiz/import", {
+    params: { query: { subjectId, subjectUnitId: subjectUnitId ?? undefined, publish } },
     body,
   });
-  if (error) throw new ApiError(response.status, "No se pudo importar el cuestionario");
+  if (!response.ok || !data) throw new ApiError(response.status, importErrorMessage(response.status, "quiz"));
+  return data;
+}
+
+// Añade preguntas al final de un cuestionario existente (todo o nada, misma validación que
+// importQuiz). No cambia la visibilidad ni notifica. Devuelve las preguntas creadas, en orden.
+export async function importQuestions(quizId: number, questions: QuestionExportableDto[]) {
+  const { data, response } = await apiClient.POST("/quiz/{id}/questions/import", {
+    params: { path: { id: quizId } },
+    body: { questions },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status, importErrorMessage(response.status, "questions"));
   return data;
 }
 
