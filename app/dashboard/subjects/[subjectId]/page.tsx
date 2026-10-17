@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowLeft,
   BookOpen,
+  FileJson,
   FileText,
   GripVertical,
   Layers,
@@ -67,6 +69,7 @@ import {
   useUpdateSubjectUnit,
 } from "@/hooks/api/use-subjects"
 import { toDisplayPdf, type DisplayPdf } from "@/lib/content/types"
+import { quizImportHref } from "@/lib/quiz-import"
 import { ApiError } from "@/lib/api/errors"
 import type { QuizDto } from "@/lib/api/quizzes"
 import type { SubjectUnitDto } from "@/lib/api/subjects"
@@ -103,6 +106,8 @@ function Counter({
 type UnitEditing = {
   onAddPdf: () => void
   onAddQuiz: () => void
+  // Página de importación desde JSON con la asignatura/tema ya elegidos.
+  importQuizHref: string
   // "General" no es un tema real: no se renombra, ni se borra, ni se reordena.
   onRename?: () => void
   onDelete?: () => void
@@ -225,6 +230,12 @@ function UnitItem({
             <Button type="button" size="sm" variant="outline" className="cursor-pointer" onClick={editing.onAddQuiz}>
               <ListChecks className="h-4 w-4" />
               Añadir cuestionario
+            </Button>
+            <Button type="button" size="sm" variant="outline" className="cursor-pointer" asChild>
+              <Link href={editing.importQuizHref} title="Importar un cuestionario desde un archivo JSON">
+                <FileJson className="h-4 w-4" />
+                Importar JSON
+              </Link>
             </Button>
             {/* En pantallas estrechas no caben en la fila del tema (ahí solo queda el asa). */}
             {editing.onRename && (
@@ -506,6 +517,12 @@ export default function SubjectDetailPage() {
           onAddPdf: () =>
             setPdfSheet({ mode: "create", subjectId, subjectUnitId: unit?.id ?? null }),
           onAddQuiz: () => setQuizDialog({ unitId: unit?.id ?? null }),
+          importQuizHref: quizImportHref({
+            subjectId,
+            subjectUnitId: unit?.id ?? null,
+            // Al volver se reabre el tema desde el que se importó (?unit=).
+            returnTo: `/dashboard/subjects/${subjectId}${unit?.id != null ? `?unit=${unit.id}` : ""}`,
+          }),
           ...(unit && {
             onRename: () => setUnitDialog({ unit }),
             onDelete: () => setUnitToDelete(unit),

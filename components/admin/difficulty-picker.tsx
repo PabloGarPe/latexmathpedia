@@ -12,13 +12,14 @@ const STYLE: Record<Difficulty, { dot: string; selected: string }> = {
   HARD: { dot: "bg-red-500", selected: "border-red-500 bg-red-500/10" },
 }
 
-// Selector segmentado de dificultad (tres opciones: no merece un desplegable).
+// Selector segmentado de dificultad (tres opciones: no merece un desplegable). `value` null = sin
+// elegir todavía (un JSON de solo preguntas no trae dificultad).
 export function DifficultyPicker({
   value,
   onChange,
   disabled,
 }: {
-  value: Difficulty
+  value: Difficulty | null
   onChange: (value: Difficulty) => void
   disabled?: boolean
 }) {
