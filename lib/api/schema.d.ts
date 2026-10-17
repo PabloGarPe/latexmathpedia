@@ -352,6 +352,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/quiz/{id}/questions/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Añade preguntas desde JSON al final de un cuestionario existente
+         * @description Usa el mismo formato de pregunta que el export/import de cuestionarios. Se añaden todas o ninguna. Se ignoran las position del JSON: las preguntas nuevas van a continuación de la última (max(position) + 1 en adelante, o 1..n si el cuestionario está vacío) en el orden de la lista, y las opciones de cada pregunta se numeran 1..m. Se aplica la misma validación que al importar un cuestionario. No cambia la visibilidad del cuestionario ni notifica a nadie. Requiere rol ADMIN
+         */
+        post: operations["importQuestions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/quiz/import": {
         parameters: {
             query?: never;
@@ -363,7 +383,7 @@ export interface paths {
         put?: never;
         /**
          * Importa un cuestionario completo desde JSON
-         * @description El JSON no incluye asignatura ni tema; se seleccionan aparte al importar. Se importa completo, así que se publica al momento (visible) y se notifica a los usuarios. Requiere rol ADMIN
+         * @description El JSON no incluye asignatura ni tema; se seleccionan aparte al importar. Con publish = true (por defecto) se publica al momento (visible) y se notifica a los usuarios. Con publish = false se queda OCULTO, como al crearlo con POST /quiz/create, sin notificar a nadie; se publica después con PATCH /quiz/{id}/visibility. Se ignoran las position del JSON: las preguntas se numeran 1..n en el orden de la lista, y las opciones de cada pregunta, 1..m. Cada pregunta MULTIPLE_CHOICE debe tener al menos 2 opciones y cada TRUE_FALSE exactamente 2, en ambos casos con exactamente una correcta. Una explanation vacía se guarda como null. Requiere rol ADMIN
          */
         post: operations["importQuiz"];
         delete?: never;
@@ -2348,6 +2368,11 @@ export interface components {
             /** @description Lista de respuestas del intento de cuestionario */
             answers?: components["schemas"]["AttemptAnswerResultDto"][];
         };
+        /** @description Preguntas a añadir */
+        ImportQuestionsDto: {
+            /** @description Preguntas a añadir al final del cuestionario, en el orden de la lista. Se ignora la position de cada pregunta y de cada opción: se numeran según su orden en la lista */
+            questions: components["schemas"]["QuestionExportableDto"][];
+        };
         OptionExportableDto: {
             text: string;
             correct?: boolean;
@@ -4098,6 +4123,60 @@ export interface operations {
             };
         };
     };
+    importQuestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID del cuestionario al que se añaden las preguntas */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportQuestionsDto"];
+            };
+        };
+        responses: {
+            /** @description Preguntas creadas, en el orden de la lista */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuestionDto"][];
+                };
+            };
+            /** @description Datos de entrada inválidos (p. ej. una pregunta sin exactamente una opción correcta) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuestionDto"][];
+                };
+            };
+            /** @description No autorizado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuestionDto"][];
+                };
+            };
+            /** @description No existe ningún cuestionario con el ID proporcionado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuestionDto"][];
+                };
+            };
+        };
+    };
     importQuiz: {
         parameters: {
             query: {
@@ -4105,6 +4184,8 @@ export interface operations {
                 subjectId: number;
                 /** @description ID del tema al que se asocia el cuestionario importado */
                 subjectUnitId?: number;
+                /** @description true (por defecto) para publicarlo al momento y notificar a los usuarios; false para dejarlo oculto y publicarlo después con PATCH /quiz/{id}/visibility */
+                publish?: boolean;
             };
             header?: never;
             path?: never;
@@ -4125,7 +4206,7 @@ export interface operations {
                     "*/*": components["schemas"]["QuizDto"];
                 };
             };
-            /** @description Datos de entrada inválidos */
+            /** @description Datos de entrada inválidos (p. ej. una pregunta sin exactamente una opción correcta o una descripción de más de 500 caracteres) */
             400: {
                 headers: {
                     [name: string]: unknown;

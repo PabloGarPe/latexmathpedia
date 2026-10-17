@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { ListChecks, Loader2 } from "lucide-react"
+import { FileJson, ListChecks, Loader2 } from "lucide-react"
 import { DifficultyPicker } from "@/components/admin/difficulty-picker"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
@@ -19,6 +19,7 @@ import { useSubjects, useSubjectUnits } from "@/hooks/api/use-subjects"
 import { useToast } from "@/hooks/use-toast"
 import { ApiError } from "@/lib/api/errors"
 import type { QuizDto } from "@/lib/api/quizzes"
+import { quizImportHref } from "@/lib/quiz-import"
 
 const schema = z
   .object({
@@ -82,6 +83,7 @@ function QuizForm({
 }) {
   const toast = useToast()
   const router = useRouter()
+  const pathname = usePathname()
   const createQuiz = useCreateQuiz()
   const updateQuiz = useUpdateQuiz()
   const editing = quiz != null
@@ -139,6 +141,15 @@ function QuizForm({
     }
   }
 
+  // "¿Ya lo tienes en JSON?": cierra el diálogo y lleva a la importación con la ubicación que haya
+  // ahora en el formulario; "Volver" regresa a esta misma ruta (el search se lee al pulsar).
+  const goToImport = () => {
+    onClose()
+    router.push(
+      quizImportHref({ subjectId, subjectUnitId, returnTo: `${pathname}${window.location.search}` }),
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
@@ -184,6 +195,16 @@ function QuizForm({
           )}
           {errors.subjectId && <p className="text-sm text-destructive">{errors.subjectId.message}</p>}
         </div>
+
+        {!editing && (
+          <p className="flex flex-wrap items-center gap-x-1 border-t pt-4 text-sm text-muted-foreground">
+            ¿Ya lo tienes en JSON?
+            <Button type="button" variant="link" size="sm" className="h-auto cursor-pointer p-0" onClick={goToImport}>
+              <FileJson className="h-3.5 w-3.5" />
+              Impórtalo
+            </Button>
+          </p>
+        )}
       </div>
 
       <div className="flex items-center justify-end gap-2 border-t bg-muted/30 px-6 py-4">

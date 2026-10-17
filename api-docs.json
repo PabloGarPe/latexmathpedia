@@ -1280,11 +1280,82 @@
         }
       }
     },
+    "/quiz/{id}/questions/import": {
+      "post": {
+        "tags": ["Quiz"],
+        "summary": "Añade preguntas desde JSON al final de un cuestionario existente",
+        "description": "Usa el mismo formato de pregunta que el export/import de cuestionarios. Se añaden todas o ninguna. Se ignoran las position del JSON: las preguntas nuevas van a continuación de la última (max(position) + 1 en adelante, o 1..n si el cuestionario está vacío) en el orden de la lista, y las opciones de cada pregunta se numeran 1..m. Se aplica la misma validación que al importar un cuestionario. No cambia la visibilidad del cuestionario ni notifica a nadie. Requiere rol ADMIN",
+        "operationId": "importQuestions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID del cuestionario al que se añaden las preguntas",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ImportQuestionsDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Preguntas creadas, en el orden de la lista",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuestionDto" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos de entrada inválidos (p. ej. una pregunta sin exactamente una opción correcta)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuestionDto" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuestionDto" }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún cuestionario con el ID proporcionado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/QuestionDto" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/quiz/import": {
       "post": {
         "tags": ["Quiz"],
         "summary": "Importa un cuestionario completo desde JSON",
-        "description": "El JSON no incluye asignatura ni tema; se seleccionan aparte al importar. Se importa completo, así que se publica al momento (visible) y se notifica a los usuarios. Requiere rol ADMIN",
+        "description": "El JSON no incluye asignatura ni tema; se seleccionan aparte al importar. Con publish = true (por defecto) se publica al momento (visible) y se notifica a los usuarios. Con publish = false se queda OCULTO, como al crearlo con POST /quiz/create, sin notificar a nadie; se publica después con PATCH /quiz/{id}/visibility. Se ignoran las position del JSON: las preguntas se numeran 1..n en el orden de la lista, y las opciones de cada pregunta, 1..m. Cada pregunta MULTIPLE_CHOICE debe tener al menos 2 opciones y cada TRUE_FALSE exactamente 2, en ambos casos con exactamente una correcta. Una explanation vacía se guarda como null. Requiere rol ADMIN",
         "operationId": "importQuiz",
         "parameters": [
           {
@@ -1300,6 +1371,13 @@
             "description": "ID del tema al que se asocia el cuestionario importado",
             "required": false,
             "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "publish",
+            "in": "query",
+            "description": "true (por defecto) para publicarlo al momento y notificar a los usuarios; false para dejarlo oculto y publicarlo después con PATCH /quiz/{id}/visibility",
+            "required": false,
+            "schema": { "type": "boolean", "default": true }
           }
         ],
         "requestBody": {
@@ -1318,7 +1396,7 @@
             }
           },
           "400": {
-            "description": "Datos de entrada inválidos",
+            "description": "Datos de entrada inválidos (p. ej. una pregunta sin exactamente una opción correcta o una descripción de más de 500 caracteres)",
             "content": {
               "*/*": { "schema": { "$ref": "#/components/schemas/QuizDto" } }
             }
@@ -3750,7 +3828,9 @@
           "description": {
             "type": ["string", "null"],
             "description": "Descripción del cuestionario",
-            "example": "Cuestionario sobre operaciones con matrices"
+            "example": "Cuestionario sobre operaciones con matrices",
+            "maxLength": 500,
+            "minLength": 0
           },
           "difficulty": {
             "type": "string",
@@ -4618,6 +4698,19 @@
           }
         }
       },
+      "ImportQuestionsDto": {
+        "type": "object",
+        "description": "Preguntas a añadir",
+        "properties": {
+          "questions": {
+            "type": "array",
+            "description": "Preguntas a añadir al final del cuestionario, en el orden de la lista. Se ignora la position de cada pregunta y de cada opción: se numeran según su orden en la lista",
+            "items": { "$ref": "#/components/schemas/QuestionExportableDto" },
+            "minItems": 1
+          }
+        },
+        "required": ["questions"]
+      },
       "OptionExportableDto": {
         "type": "object",
         "properties": {
@@ -4650,7 +4743,7 @@
         "description": "Cuestionario a importar",
         "properties": {
           "name": { "type": "string", "minLength": 1 },
-          "description": { "type": "string" },
+          "description": { "type": "string", "maxLength": 500, "minLength": 0 },
           "difficulty": {
             "type": "string",
             "enum": ["EASY", "MEDIUM", "HARD"]
@@ -4676,7 +4769,9 @@
           "description": {
             "type": ["string", "null"],
             "description": "Descripción del cuestionario",
-            "example": "Cuestionario sobre operaciones con matrices"
+            "example": "Cuestionario sobre operaciones con matrices",
+            "maxLength": 500,
+            "minLength": 0
           },
           "difficulty": {
             "type": "string",

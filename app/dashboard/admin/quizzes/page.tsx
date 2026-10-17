@@ -1,24 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { useRef, useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { useState } from "react"
 import { AlertCircleIcon, Download, Search, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,29 +26,15 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { SubjectUnitPicker } from "@/components/ui/subject-unit-picker"
 import { PageContainer, PageHeader } from "@/components/page-shell"
 import { QuizFormDialog } from "@/components/admin/quiz-form-dialog"
 import { QuizVisibilityToggle, isQuizHidden } from "@/components/admin/quiz-visibility"
 import { QuizDifficultyBadge } from "@/components/ui/quiz-difficulty-badge"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminRoute } from "@/hooks/use-protected-route"
-import { useDeleteQuiz, useImportQuiz, useAllQuizzes } from "@/hooks/api/use-quizzes"
-import { exportQuiz, type QuizDto, type QuizExportableDto } from "@/lib/api/quizzes"
-import { conflictMessage } from "@/lib/api/errors"
+import { useDeleteQuiz, useAllQuizzes } from "@/hooks/api/use-quizzes"
+import { exportQuiz, type QuizDto } from "@/lib/api/quizzes"
 import { formatDate } from "@/lib/utils"
-
-const importQuizSchema = z
-  .object({
-    subjectId: z.number().nullable(),
-    subjectUnitId: z.number().nullable(),
-  })
-  .refine((data) => data.subjectId != null, {
-    message: "Selecciona una asignatura",
-    path: ["subjectId"],
-  })
-
-type ImportQuizFormValues = z.infer<typeof importQuizSchema>
 
 function CreateQuizButton() {
   const [open, setOpen] = useState(false)
@@ -72,111 +45,6 @@ function CreateQuizButton() {
       </Button>
       <QuizFormDialog open={open} onOpenChange={setOpen} />
     </>
-  )
-}
-
-function ImportQuizDialog() {
-  const toast = useToast()
-  const [open, setOpen] = useState(false)
-  const [fileName, setFileName] = useState<string | null>(null)
-  const fileContentRef = useRef<QuizExportableDto | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const importQuiz = useImportQuiz()
-
-  const {
-    handleSubmit,
-    watch,
-    setValue,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<ImportQuizFormValues>({
-    resolver: zodResolver(importQuizSchema),
-    defaultValues: { subjectId: null, subjectUnitId: null },
-  })
-
-  const subjectIdValue = watch("subjectId")
-  const subjectUnitIdValue = watch("subjectUnitId")
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      const text = await file.text()
-      fileContentRef.current = JSON.parse(text) as QuizExportableDto
-      setFileName(file.name)
-    } catch (error) {
-      fileContentRef.current = null
-      setFileName(null)
-      toast.error("El archivo no es un JSON válido.")
-    }
-  }
-
-  const onSubmit = async (values: ImportQuizFormValues) => {
-    if (!fileContentRef.current) {
-      toast.error("Selecciona primero un archivo JSON para importar.")
-      return
-    }
-    try {
-      await importQuiz.mutateAsync({
-        subjectId: values.subjectId as number,
-        subjectUnitId: values.subjectUnitId,
-        body: fileContentRef.current,
-      })
-      toast.success("Cuestionario importado y publicado.")
-      setOpen(false)
-      reset({ subjectId: null, subjectUnitId: null })
-      fileContentRef.current = null
-      setFileName(null)
-      if (fileInputRef.current) fileInputRef.current.value = ""
-    } catch (error) {
-      toast.error(conflictMessage(error, "Error al importar el cuestionario."))
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="cursor-pointer">
-          <Upload className="h-4 w-4" />
-          Importar JSON
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Importar cuestionario</DialogTitle>
-          <DialogDescription>
-            El JSON no incluye asignatura ni tema: selecciónalos aquí para el cuestionario importado.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="import-file">Archivo JSON</Label>
-            <Input id="import-file" type="file" accept="application/json" ref={fileInputRef} onChange={handleFileChange} />
-            {fileName && <p className="text-xs text-muted-foreground">Seleccionado: {fileName}</p>}
-            <p className="text-xs text-muted-foreground">
-              Los campos <code>text</code>, <code>explanation</code> y las opciones admiten Markdown y LaTeX. En JSON las
-              barras invertidas se escriben dobles: <code>{String.raw`"$\\frac{1}{2}$"`}</code>.
-            </p>
-          </div>
-          <SubjectUnitPicker
-            subjectId={subjectIdValue ?? null}
-            subjectUnitId={subjectUnitIdValue ?? null}
-            onSubjectChange={(id) => {
-              setValue("subjectId", id, { shouldValidate: true })
-              setValue("subjectUnitId", null)
-            }}
-            onSubjectUnitChange={(id) => setValue("subjectUnitId", id)}
-          />
-          {errors.subjectId && <p className="text-sm text-destructive">{errors.subjectId.message}</p>}
-
-          <DialogFooter>
-            <Button type="submit" className="cursor-pointer" disabled={isSubmitting || importQuiz.isPending}>
-              Importar
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }
 
@@ -312,7 +180,12 @@ export default function AdminQuizzesPage() {
         description="Vista global: busca, crea, importa, exporta o edita cualquier cuestionario."
         actions={
           <div className="flex gap-2">
-            <ImportQuizDialog />
+            <Button variant="outline" className="cursor-pointer" asChild>
+              <Link href="/dashboard/admin/quizzes/import">
+                <Upload className="h-4 w-4" />
+                Importar JSON
+              </Link>
+            </Button>
             <CreateQuizButton />
           </div>
         }

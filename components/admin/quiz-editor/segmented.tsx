@@ -2,7 +2,8 @@
 
 import { cn } from "@/lib/utils"
 
-// Selector segmentado genérico (radiogroup de botones) para pocas opciones excluyentes.
+// Selector segmentado genérico (radiogroup de botones) para pocas opciones excluyentes. `value`
+// null = sin selección (p. ej. un borrador importado sin tipo).
 export function Segmented<T extends string>({
   value,
   onChange,
@@ -10,7 +11,7 @@ export function Segmented<T extends string>({
   label,
   className,
 }: {
-  value: T
+  value: T | null
   onChange: (value: T) => void
   options: readonly { value: T; label: string }[]
   label: string
