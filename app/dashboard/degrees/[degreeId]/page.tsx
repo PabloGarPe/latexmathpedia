@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, BookOpen, GraduationCap, Layers, Pencil, Trash } from "lucide-react"
+import { ArrowLeft, BookOpen, CalendarRange, GraduationCap, Layers, Pencil, Trash } from "lucide-react"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { DegreeFormDialog, DELETE_DEGREE_DESCRIPTION, useDeleteDegreeAction } from "@/components/admin/degree-form-dialog"
 import { EditModeToggle } from "@/components/admin/edit-mode-toggle"
@@ -20,12 +20,35 @@ import { useEditMode } from "@/contexts/edit-mode-context"
 import { useCurriculum } from "@/hooks/api/use-degrees"
 import { useMe } from "@/hooks/api/use-profile"
 import { ApiError } from "@/lib/api/errors"
-import { formatSemesterShort, formatYearLong } from "@/lib/degrees"
+import { formatSemesterLong, formatSemesterShort, formatYearLong, type Semester } from "@/lib/degrees"
 import { getSubjectTheme } from "@/lib/subject-theme"
 import { cn } from "@/lib/utils"
 
 // Filtro de cuatrimestre del plan. Se aplica en cliente sobre lo ya cargado.
 const ALL_SEMESTERS = "all"
+
+// Bloques de cada curso, en orden. Cada uno lleva su color para distinguirlos de un vistazo
+// (las clases van enteras para que Tailwind las detecte).
+const SEMESTER_GROUPS: { semester: Semester; band: string; chip: string; bar: string }[] = [
+  {
+    semester: 1,
+    band: "bg-sky-500/[0.07] dark:bg-sky-500/10",
+    chip: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+    bar: "bg-sky-500",
+  },
+  {
+    semester: 2,
+    band: "bg-amber-500/[0.07] dark:bg-amber-500/10",
+    chip: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+    bar: "bg-amber-500",
+  },
+  {
+    semester: null,
+    band: "bg-violet-500/[0.07] dark:bg-violet-500/10",
+    chip: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+    bar: "bg-violet-500",
+  },
+]
 
 export default function DegreeCurriculumPage() {
   const params = useParams<{ degreeId: string }>()
@@ -211,35 +234,60 @@ export default function DegreeCurriculumPage() {
               </div>
 
               {entries.length > 0 ? (
-                <ul className="divide-y">
-                  {entries.map((entry) => {
-                    const subject = entry.subject
-                    if (subject?.id == null) return null
-                    const subjectTheme = getSubjectTheme(subject.id)
+                <div className="divide-y">
+                  {SEMESTER_GROUPS.map((group) => {
+                    // El anual agrupa también las que no especifican cuatrimestre.
+                    const groupEntries = entries.filter((entry) =>
+                      group.semester == null ? entry.semester !== 1 && entry.semester !== 2 : entry.semester === group.semester,
+                    )
+                    if (groupEntries.length === 0) return null
                     return (
-                      <li key={subject.id} className="flex items-center gap-3 px-5 py-3">
-                        <span
-                          className={cn(
-                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                            subjectTheme.chip,
-                          )}
-                        >
-                          <BookOpen className="h-4 w-4" />
-                        </span>
-                        <Link
-                          href={`/dashboard/subjects/${subject.id}`}
-                          className="min-w-0 flex-1 truncate font-medium transition-colors hover:text-primary hover:underline"
-                        >
-                          {subject.name}
-                        </Link>
-                        <Badge variant="outline" className="shrink-0 font-normal">
-                          {formatSemesterShort(entry.semester)}
-                        </Badge>
-                        <SubscribeButton compact subjectId={subject.id} subjectName={subject.name} />
-                      </li>
+                      <div key={group.semester ?? "annual"}>
+                        <div className={cn("relative flex items-center gap-2.5 px-5 py-2", group.band)}>
+                          <span className={cn("absolute inset-y-0 left-0 w-1", group.bar)} aria-hidden />
+                          <span
+                            className={cn(
+                              "inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-xs font-semibold",
+                              group.chip,
+                            )}
+                          >
+                            {group.semester == null ? <CalendarRange className="h-3.5 w-3.5" /> : formatSemesterShort(group.semester)}
+                          </span>
+                          <h4 className="text-sm font-semibold">{formatSemesterLong(group.semester)}</h4>
+                          <span className="text-xs text-muted-foreground">
+                            {groupEntries.length} {groupEntries.length === 1 ? "asignatura" : "asignaturas"}
+                          </span>
+                        </div>
+                        <ul className="divide-y">
+                          {groupEntries.map((entry) => {
+                            const subject = entry.subject
+                            if (subject?.id == null) return null
+                            const subjectTheme = getSubjectTheme(subject.id)
+                            return (
+                              <li key={subject.id} className="flex items-center gap-3 px-5 py-3">
+                                <span
+                                  className={cn(
+                                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                                    subjectTheme.chip,
+                                  )}
+                                >
+                                  <BookOpen className="h-4 w-4" />
+                                </span>
+                                <Link
+                                  href={`/dashboard/subjects/${subject.id}`}
+                                  className="min-w-0 flex-1 truncate font-medium transition-colors hover:text-primary hover:underline"
+                                >
+                                  {subject.name}
+                                </Link>
+                                <SubscribeButton compact subjectId={subject.id} subjectName={subject.name} />
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
                     )
                   })}
-                </ul>
+                </div>
               ) : (
                 <p className="px-5 py-4 text-sm text-muted-foreground">
                   {semester == null
