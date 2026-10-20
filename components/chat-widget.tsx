@@ -14,6 +14,7 @@ import { MessageContent } from "./message-content";
 import { Button } from "./ui/button";
 import { useSendChatMessage } from "@/hooks/api/use-chatbot";
 import type { ChatResource } from "@/lib/api/chatbot";
+import { isInternalPath } from "@/lib/utils";
 
 interface Message {
     role: 'user' | 'assistant';
@@ -277,7 +278,7 @@ export function ChatWidget() {
                                         <div className="mt-1.5 max-w-[80%] space-y-1">
                                             {msg.relevantResources.map((resource, resourceIdx) => {
                                                 const Icon = (resource.type && RESOURCE_ICON[resource.type]) || Link2;
-                                                const isInternal = resource.url?.startsWith("/");
+                                                const isInternal = isInternalPath(resource.url);
                                                 const linkContent = (
                                                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline">
                                                         <Icon className="h-3.5 w-3.5 shrink-0" />

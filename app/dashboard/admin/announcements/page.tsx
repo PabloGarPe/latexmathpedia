@@ -19,8 +19,7 @@ import { UserAvatar } from "@/components/user-avatar"
 import { useCreateAnnouncement } from "@/hooks/api/use-notifications"
 import { useAdminRoute } from "@/hooks/use-protected-route"
 import { useToast } from "@/hooks/use-toast"
-import { isInternalPath } from "@/lib/notifications/registry"
-import { cn } from "@/lib/utils"
+import { cn, isInternalPath } from "@/lib/utils"
 
 const TITLE_MAX = 120
 const MESSAGE_MAX = 500

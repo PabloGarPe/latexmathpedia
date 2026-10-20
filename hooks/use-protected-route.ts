@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import { isInternalPath } from '@/lib/utils';
 
 /**
  * Hook para proteger rutas que requieren autenticación
@@ -65,7 +66,8 @@ export const useAuthRoute = (redirectTo: string = '/dashboard') => {
       const urlParams = new URLSearchParams(window.location.search);
       const redirectPath = urlParams.get('redirect');
       
-      if (redirectPath) {
+      // Solo se respeta ?redirect= si es una ruta interna (evita la redirección abierta)
+      if (isInternalPath(redirectPath)) {
         router.push(redirectPath);
       } else {
         router.push(redirectTo);
