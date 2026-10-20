@@ -11,7 +11,8 @@ COPY . .
 # Las NEXT_PUBLIC_* se incrustan en el JS del navegador durante el build:
 # cambiarlas obliga a reconstruir la imagen.
 ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_AUTH_MODE
+# Keycloak por defecto; el modo mock (con selector de admin) se pide con --build-arg
+ARG NEXT_PUBLIC_AUTH_MODE=keycloak
 ARG NEXT_PUBLIC_BASE_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_AUTH_MODE=$NEXT_PUBLIC_AUTH_MODE \
