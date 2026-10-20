@@ -18,12 +18,7 @@ export default async function proxy(request: NextRequest) {
     return handler(request, { params: Promise.resolve({}) })
   }
 
-  const response = NextResponse.next()
-
-  // Headers para mejorar el manejo de cookies en Safari
-  response.headers.set('Access-Control-Allow-Credentials', 'true')
-
-  return response
+  return NextResponse.next()
 }
 
 export const config = {
