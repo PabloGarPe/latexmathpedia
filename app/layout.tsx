@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/auth-context";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "react-hot-toast";
 import { Analytics } from "@vercel/analytics/next";
+import { AdsenseScript } from "@/components/adsense-script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -143,8 +144,6 @@ export default function RootLayout({
           content="https://mathtexpedia.es/icon-meta.png"
         />
         <meta name="twitter:image" content="https://mathtexpedia.es/icon-meta.png" />
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6477110291995241"
-     crossOrigin="anonymous"></script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -158,6 +157,7 @@ export default function RootLayout({
         >
           <QueryProvider>
             <AuthProvider>
+              <AdsenseScript />
               {children}
             </AuthProvider>
           </QueryProvider>
