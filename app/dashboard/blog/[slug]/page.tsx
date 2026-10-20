@@ -12,6 +12,9 @@ import { DemBox } from '@/components/mdx/DemBox';
 import { EjBox } from '@/components/mdx/EjBox';
 import { EjemBox } from '@/components/mdx/EjemBox';
 
+// Todos los posts se conocen en el build: cualquier otro slug da 404 y nunca se construye una ruta de fichero con él
+export const dynamicParams = false
+
 export async function generateStaticParams() {
   const postsDir = path.join(process.cwd(), "content/posts")
   const filenames = fs.readdirSync(postsDir)
