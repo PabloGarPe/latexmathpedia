@@ -11,16 +11,6 @@ const nextConfig: NextConfig = {
 
   // Configuración para componentes externos
   serverExternalPackages: [],
-
-  // Configuración de imágenes si usas next/image
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**',
-      },
-    ],
-  },
 };
 
 export default nextConfig;
