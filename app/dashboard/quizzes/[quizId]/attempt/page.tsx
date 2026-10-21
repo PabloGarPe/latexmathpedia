@@ -10,13 +10,14 @@ import { Label } from "@/components/ui/label"
 import { ContentUnavailable } from "@/components/content-unavailable"
 import { RichText } from "@/components/rich-text"
 import { PageContainer } from "@/components/page-shell"
+import { ShareQuizButton } from "@/components/quizzes/share-quiz-button"
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
 import { useQuizForAttempt, useSubmitQuizAttempt } from "@/hooks/api/use-quizzes"
 import type { QuizAttemptResultDto } from "@/lib/api/quizzes"
-import { SCORE_TONE_TEXT, scoreTone } from "@/lib/quiz-score"
+import { SCORE_TONE_TEXT, formatScore, scoreTone } from "@/lib/quiz-score"
 import { cn } from "@/lib/utils"
 
 export default function QuizAttemptPage() {
@@ -139,6 +140,14 @@ export default function QuizAttemptPage() {
             <RotateCcw className="h-4 w-4" />
             Reintentar
           </Button>
+          <ShareQuizButton
+            quizId={quizId}
+            text={
+              result.score != null
+                ? `He sacado ${formatScore(result.score)}/10 en "${quiz.name}". ¿Me superas?`
+                : `He acertado ${correct}/${total} en "${quiz.name}". ¿Me superas?`
+            }
+          />
         </div>
 
         <h2 className="pt-2 text-lg font-semibold">Revisión</h2>
