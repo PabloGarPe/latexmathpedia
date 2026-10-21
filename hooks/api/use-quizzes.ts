@@ -159,12 +159,15 @@ export function useQuizQuestions(quizId: number | null | undefined) {
   });
 }
 
+// Crear, editar y eliminar invalidan los listados (admin y públicos), las hileras del feed y las
+// asignaturas: la ficha pinta los suyos con ["subjects", id, "quizzes"], fuera de ["quizzes"].
 export function useCreateQuiz() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: CreateQuizDto) => createQuiz(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.quizzes.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all() });
     },
   });
 }
@@ -175,6 +178,7 @@ export function useUpdateQuiz() {
     mutationFn: ({ id, body }: { id: number; body: UpdateQuizDto }) => updateQuiz(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.quizzes.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all() });
     },
   });
 }
@@ -185,6 +189,7 @@ export function useDeleteQuiz() {
     mutationFn: (id: number) => deleteQuiz(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.quizzes.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all() });
     },
   });
 }
