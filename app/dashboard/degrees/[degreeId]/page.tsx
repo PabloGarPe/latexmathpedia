@@ -206,7 +206,6 @@ export default function DegreeCurriculumPage() {
       <div className="space-y-4">
         {years.map(({ year, entries }) => {
           const myYear = myDegree && me?.currentYear === year
-          const subjectIds = entries.map((entry) => entry.subject?.id).filter((id): id is number => id != null)
           return (
             // El margen compensa la cabecera fija al saltar al ancla.
             <section
@@ -225,12 +224,7 @@ export default function DegreeCurriculumPage() {
                     {entries.length} {entries.length === 1 ? "asignatura" : "asignaturas"}
                   </span>
                 </div>
-                <CourseSubscribeButton
-                  degreeId={degreeId}
-                  year={year}
-                  semester={semester}
-                  subjectIds={subjectIds}
-                />
+                <CourseSubscribeButton degreeId={degreeId} year={year} semester={semester} />
               </div>
 
               {entries.length > 0 ? (

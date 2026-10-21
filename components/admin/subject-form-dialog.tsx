@@ -202,7 +202,7 @@ function SubjectForm({
         <div className="grid gap-1">
           <Label>Grados</Label>
           <p className="text-sm text-muted-foreground">
-            Dónde se cursa la asignatura. Es opcional, y un grado solo puede aparecer una vez.
+            Dónde se cursa la asignatura. Es opcional, y un grado solo puede aparecer una vez. Los usuarios suscritos a los cursos donde la coloques recibirán la suscripción automáticamente.
           </p>
         </div>
 
