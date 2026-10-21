@@ -70,6 +70,8 @@ export const queryKeys = {
   // Asignaturas suscritas del usuario de la sesión (se vacía con queryClient.clear() al salir).
   subscriptions: {
     all: () => ["me", "subscriptions"] as const,
+    // Cuelga de `all()`: invalidar las suscripciones a asignaturas refresca también las de curso.
+    courses: () => ["me", "subscriptions", "courses"] as const,
   },
   // Por usuario: al cerrar sesión se vacía la caché (queryClient.clear()).
   notifications: {

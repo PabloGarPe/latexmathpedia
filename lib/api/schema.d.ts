@@ -234,13 +234,13 @@ export interface paths {
         get?: never;
         /**
          * Me suscribo a un curso entero
-         * @description Suscribe a todas las asignaturas colocadas ahora en ese grado y año (y cuatrimestre, si se indica). Es una foto fija: las asignaturas que se coloquen después no se suscriben solas. Idempotente: las que ya estaban suscritas se conservan. Devuelve las suscripciones a las asignaturas de ese curso, ordenadas por nombre
+         * @description Suscribe a todas las asignaturas colocadas ahora en ese grado y año (y cuatrimestre, si se indica) y recuerda la suscripción al curso: las asignaturas que se coloquen después en él se suscriben solas (las anuales, solo si la suscripción es al año entero). Suscribirse al año entero sustituye a las suscripciones a sus cuatrimestres. Idempotente: las que ya estaban suscritas se conservan. Devuelve las suscripciones a las asignaturas de ese curso, ordenadas por nombre
          */
         put: operations["subscribeToCourse"];
         post?: never;
         /**
          * Me doy de baja de un curso entero
-         * @description Da de baja de todas las asignaturas colocadas ahora en ese grado y año (y cuatrimestre, si se indica), también de las que estén colocadas además en otro curso al que el usuario siga suscrito. Idempotente: devuelve 204 también si no había ninguna suscripción
+         * @description Da de baja de todas las asignaturas colocadas ahora en ese grado y año (y cuatrimestre, si se indica), también de las que estén colocadas además en otro curso al que el usuario siga suscrito, y olvida la suscripción al curso. Darse de baja del año entero borra también las de sus cuatrimestres; darse de baja de un cuatrimestre estando suscrito al año entero deja la suscripción solo al otro cuatrimestre. Idempotente: devuelve 204 también si no había ninguna suscripción
          */
         delete: operations["unsubscribeFromCourse"];
         options?: never;
@@ -1363,6 +1363,26 @@ export interface paths {
          * @description Ordenadas por nombre de asignatura. Lista vacía si no hay ninguna suscripción
          */
         get: operations["getMySubscriptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/subscriptions/courses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista los cursos a los que estoy suscrito
+         * @description Cursos (grado, año y cuatrimestre) a los que me he suscrito con PUT /degree/{degreeId}/year/{year}: las asignaturas que se coloquen después en ellos se me suscriben solas. semester nulo es el año entero. Por grado y año hay o una entrada del año entero o entradas para el cuatrimestre 1 y/o 2. Ordenados por nombre del grado, año y cuatrimestre (el año entero primero). Lista vacía si no hay ninguna
+         */
+        get: operations["getMyCourseSubscriptions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2927,6 +2947,26 @@ export interface components {
              * @example 3
              */
             count?: number;
+        };
+        CourseSubscriptionDto: {
+            /** @description Grado del curso */
+            degree?: components["schemas"]["DegreeDto"];
+            /**
+             * Format: int32
+             * @description Año (curso) del grado, de 1 a sus años
+             * @example 2
+             */
+            year?: number;
+            /**
+             * Format: int32
+             * @description Cuatrimestre (1 o 2); nulo si está suscrito al año entero (cualquier cuatrimestre y las anuales)
+             */
+            semester?: number | null;
+            /**
+             * Format: date-time
+             * @description Cuándo se suscribió
+             */
+            subscribedAt?: string;
         };
         MyPdfVoteDto: {
             /**
@@ -6041,6 +6081,35 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SubjectSubscriptionDto"][];
+                };
+            };
+        };
+    };
+    getMyCourseSubscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suscripciones a curso del usuario (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CourseSubscriptionDto"][];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CourseSubscriptionDto"][];
                 };
             };
         };
