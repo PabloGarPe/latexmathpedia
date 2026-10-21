@@ -1,6 +1,7 @@
 "use client"
 import { Github, Instagram, Linkedin, Mail, Link as LinkIcon } from 'lucide-react';
 import Link from 'next/link';
+import { showCookieSettings } from '@/lib/cookie-consent';
 
 export function MainFooter() {
     const currentYear = new Date().getFullYear();
@@ -110,6 +111,9 @@ export function MainFooter() {
                             <Link href="/dashboard/legal/cookies-policy" className="text-muted-foreground hover:text-foreground transition-colors w-fit">
                                 Política de Cookies
                             </Link>
+                            <button type="button" onClick={showCookieSettings} className="text-muted-foreground hover:text-foreground transition-colors w-fit cursor-pointer">
+                                Configurar cookies
+                            </button>
                         </nav>
                     </div>
                 </div>

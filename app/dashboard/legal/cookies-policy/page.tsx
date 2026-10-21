@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 
 export default function CookiesPolicyPage() {
-  const lastUpdated = "11 de enero de 2026"
+  const lastUpdated = "21 de octubre de 2026"
 
   return (
     <div className="min-h-screen">
@@ -350,9 +350,13 @@ export default function CookiesPolicyPage() {
             </CardHeader>
             <CardContent className="space-y-3 text-sm md:text-base">
               <p className="text-muted-foreground">
-                Al utilizar nuestro sitio web, consientes el uso de cookies de acuerdo con esta Política de 
-                Cookies. Si no estás de acuerdo con el uso de cookies, debes ajustar la configuración de tu 
-                navegador o abstenerte de usar nuestro sitio.
+                Las cookies esenciales se utilizan siempre, ya que son necesarias para el funcionamiento del
+                sitio. Las cookies no técnicas, como las de publicidad de Google AdSense, solo se utilizan si
+                las aceptas en el aviso de cookies que se muestra al visitar el sitio.
+              </p>
+              <p className="text-muted-foreground">
+                Puedes cambiar o retirar tu consentimiento en cualquier momento desde el enlace
+                “Configurar cookies”, en el pie de página.
               </p>
             </CardContent>
           </Card>
