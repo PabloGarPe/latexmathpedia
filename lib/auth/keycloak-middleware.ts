@@ -33,10 +33,5 @@ export const protectRoutes = auth((request) => {
     return NextResponse.redirect(new URL('/dashboard', request.nextUrl.origin))
   }
 
-  const response = NextResponse.next()
-
-  // Headers para mejorar el manejo de cookies en Safari
-  response.headers.set('Access-Control-Allow-Credentials', 'true')
-
-  return response
+  return NextResponse.next()
 })
