@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { QuizDifficultyBadge } from "@/components/ui/quiz-difficulty-badge"
 import { QuizLeaderboard } from "@/components/quiz-leaderboard"
+import { ShareQuizButton } from "@/components/quizzes/share-quiz-button"
 import { StatTile } from "@/components/quizzes/stat-tile"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
 import { useEditMode } from "@/contexts/edit-mode-context"
@@ -193,14 +194,22 @@ export default function QuizDetailPage() {
               )}
             </div>
           )}
-          <Button
-            size="lg"
-            className="cursor-pointer gap-2"
-            onClick={() => router.push(`/dashboard/quizzes/${quizId}/attempt`)}
-          >
-            Empezar cuestionario
-            <ArrowRight className="h-4 w-4" />
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="lg"
+              className="cursor-pointer gap-2"
+              onClick={() => router.push(`/dashboard/quizzes/${quizId}/attempt`)}
+            >
+              Empezar cuestionario
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <ShareQuizButton
+              quizId={quizId}
+              size="lg"
+              className="bg-background/80 backdrop-blur"
+              text={`Te reto a hacer el cuestionario "${quiz.name}" en MathTexpedia.`}
+            />
+          </div>
         </div>
       </header>
 
