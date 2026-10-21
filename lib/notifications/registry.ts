@@ -1,5 +1,6 @@
 import { Bell, BookOpen, Megaphone, UserRound, type LucideIcon } from "lucide-react"
 import type { NotificationDto } from "@/lib/api/notifications"
+import { isInternalPath } from "@/lib/utils"
 
 // Todo lo que varía por tipo de notificación vive aquí. El catálogo del backend puede crecer, así
 // que los lookups son `Record<string, …>` con fallback: un tipo/categoría/canal nuevo nunca rompe.
@@ -68,12 +69,6 @@ const SCOPES: Record<string, string> = {
 
 export function scopeLabel(scope: string) {
   return SCOPES[scope] ?? scope
-}
-
-// Ruta interna segura: empieza por "/" y no por "//", sin "\". Defensa en profundidad: el
-// backend ya lo valida, pero nunca se navega a algo que no sea una ruta del propio front.
-export function isInternalPath(link?: string | null): link is string {
-  return typeof link === "string" && link.startsWith("/") && !link.startsWith("//") && !link.includes("\\")
 }
 
 // Destino de una notificación, o null si solo hay que marcarla como leída.

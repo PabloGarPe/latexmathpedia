@@ -5,6 +5,21 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Ruta interna segura: del propio front y nunca de otro origen. No basta con mirar prefijos
+// ("/", "//", "\"): el parser de URLs ignora tabuladores y saltos de línea y trata "\" como "/",
+// así que "/\t/evil.com" o "/\\evil.com" pasan el filtro y acaban en otro origen. Por eso se
+// resuelve con el mismo parser que usa el navegador contra un origen ficticio y se comprueba
+// que el origen no cambia (el try/catch cubre las URLs que no se pueden parsear).
+export function isInternalPath(link?: string | null): link is string {
+  if (typeof link !== "string" || !link.startsWith("/")) return false
+  const base = "http://internal.invalid"
+  try {
+    return new URL(link, base).origin === base
+  } catch {
+    return false
+  }
+}
+
 // Contador compacto a partir de 1000 ("1,2k", "3M"). Trunca en vez de redondear para que
 // 1999 no se vea como "2k"; sin decimal cuando sería ",0".
 export function formatCompactCount(value: number): string {

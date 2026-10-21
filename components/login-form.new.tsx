@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils"
+import { cn, isInternalPath } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { FaGoogle } from "react-icons/fa";
 import Link from "next/link";
@@ -26,7 +26,8 @@ export function LoginForm({
 
   // Auth.js redirige aquí con ?error=... si falla el login en Keycloak
   const authError = searchParams.get("error");
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const redirect = searchParams.get("redirect");
+  const redirectTo = isInternalPath(redirect) ? redirect : "/dashboard";
 
   const handleLogin = async (idpHint?: string) => {
     setIsLoading(true);
