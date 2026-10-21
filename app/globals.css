@@ -80,6 +80,8 @@
 }
 
 .dark {
+  /* Los controles nativos (barras de scroll, inputs…) también se pintan en oscuro. */
+  color-scheme: dark;
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.21 0.006 285.885);
@@ -116,6 +118,28 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+  }
+  /* Barras de scroll finas (arriba) con los colores del tema y el carril transparente, así que el
+     scroll forzado de .katex-display no deja hueco visible. scrollbar-color se hereda y basta con
+     ponerlo en la raíz; scrollbar-width no, por eso va en el selector universal. */
+  html {
+    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 50%, transparent) transparent;
+  }
+  /* Lo mismo para navegadores sin scrollbar-color (Safari). */
+  @supports not (scrollbar-color: auto) {
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      border-radius: 9999px;
+      background: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
+    }
   }
   body {
     @apply bg-background text-foreground;
