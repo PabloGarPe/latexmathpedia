@@ -1,19 +1,21 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Mail, MessageSquare, Github, Instagram, Twitter } from "lucide-react"
+import { Mail, MessageSquare, Github, Instagram, Twitter, LogIn } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-hot-toast"
 import { useSendMail } from "@/hooks/api/use-mail";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function ContactUsPage() {
     const sendMail = useSendMail();
+    const { isAuthenticated, loading, email, login } = useAuth();
     const [formData, setFormData] = useState({
         name: "",
-        email: "",
         subject: "",
         message: ""
     })
@@ -32,12 +34,11 @@ export default function ContactUsPage() {
 
         try {
             await sendMail.mutateAsync({
-                from: formData.email,
                 subject: `[MathTexPedia] ${formData.subject}`,
-                body: `Nombre: ${formData.name}\nEmail: ${formData.email}\n\nMensaje:\n${formData.message}`,
+                body: `Nombre: ${formData.name}\nEmail: ${email}\n\nMensaje:\n${formData.message}`,
             })
             toast.success("Mensaje enviado con éxito. ¡Gracias por contactarnos!")
-            setFormData({ name: "", email: "", subject: "", message: "" })
+            setFormData({ name: "", subject: "", message: "" })
         } catch (error) {
             toast.error("Error al enviar el mensaje. Por favor, intenta nuevamente.")
         } finally {
@@ -92,10 +93,8 @@ export default function ContactUsPage() {
                                                 id="email"
                                                 name="email"
                                                 type="email"
-                                                placeholder="tu@email.com"
-                                                value={formData.email}
-                                                onChange={handleChange}
-                                                required
+                                                value={email}
+                                                readOnly
                                             />
                                         </div>
                                     </div>
@@ -126,13 +125,31 @@ export default function ContactUsPage() {
                                         />
                                     </div>
 
-                                    <Button
-                                        type="submit"
-                                        className="w-full md:w-auto cursor-pointer"
-                                        disabled={isSubmitting}
-                                    >
-                                        {isSubmitting ? "Enviando..." : "Enviar mensaje"}
-                                    </Button>
+                                    {!loading && !isAuthenticated ? (
+                                        <Alert>
+                                            <LogIn className="h-4 w-4" />
+                                            <AlertTitle>Inicia sesión para escribirnos</AlertTitle>
+                                            <AlertDescription>
+                                                <p>Te responderemos al email de tu cuenta.</p>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    className="mt-2 cursor-pointer"
+                                                    onClick={() => login({ redirectTo: "/dashboard/contact/contact-us" })}
+                                                >
+                                                    Iniciar sesión
+                                                </Button>
+                                            </AlertDescription>
+                                        </Alert>
+                                    ) : (
+                                        <Button
+                                            type="submit"
+                                            className="w-full md:w-auto cursor-pointer"
+                                            disabled={isSubmitting || loading}
+                                        >
+                                            {isSubmitting ? "Enviando..." : "Enviar mensaje"}
+                                        </Button>
+                                    )}
                                 </form>
                             </CardContent>
                         </Card>
