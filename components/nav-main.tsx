@@ -1,6 +1,7 @@
 "use client"
 
 import { type LucideIcon } from "lucide-react"
+import Link from "next/link"
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -27,10 +28,12 @@ export function NavMain({
         {items.map((item) => (
           <SidebarMenuItem key={item.title}>
             <SidebarMenuButton asChild tooltip={item.title}>
-              <a href={item.url}>
+              {/* Link y no <a>: un <a> recarga la página entera, se pierde la caché de
+                  TanStack Query y toda la sidebar vuelve a pedirse y a salir "Cargando". */}
+              <Link href={item.url}>
                 <item.icon />
                 <span>{item.title}</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         ))}
