@@ -89,48 +89,48 @@ export async function getSubjectQuizzes(subjectId: number) {
 }
 
 export async function createSubject(body: CreateSubjectDto) {
-  const { data, error, response } = await apiClient.POST("/subject/create", { body });
-  if (error) throw new ApiError(response.status, "No se pudo crear la asignatura");
+  const { data, response } = await apiClient.POST("/subject/create", { body });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo crear la asignatura");
   return data;
 }
 
 export async function updateSubject(id: number, body: UpdateSubjectDto) {
-  const { data, error, response } = await apiClient.PUT("/subject/update/{id}", {
+  const { data, response } = await apiClient.PUT("/subject/update/{id}", {
     params: { path: { id } },
     body,
   });
-  if (error) throw new ApiError(response.status, "No se pudo actualizar la asignatura");
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo actualizar la asignatura");
   return data;
 }
 
 export async function deleteSubject(id: number) {
-  const { error, response } = await apiClient.DELETE("/subject/delete/{id}", {
+  const { response } = await apiClient.DELETE("/subject/delete/{id}", {
     params: { path: { id } },
   });
-  if (error) throw new ApiError(response.status, "No se pudo eliminar la asignatura");
+  if (!response.ok) throw new ApiError(response.status, "No se pudo eliminar la asignatura");
 }
 
 export async function createSubjectUnit(subjectId: number, body: CreateSubjectUnitDto) {
-  const { data, error, response } = await apiClient.POST("/subject/{subjectId}/unit/create", {
+  const { data, response } = await apiClient.POST("/subject/{subjectId}/unit/create", {
     params: { path: { subjectId } },
     body,
   });
-  if (error) throw new ApiError(response.status, "No se pudo crear el tema");
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo crear el tema");
   return data;
 }
 
 export async function updateSubjectUnit(id: number, body: UpdateSubjectUnitDto) {
-  const { data, error, response } = await apiClient.PUT("/subject/unit/update/{id}", {
+  const { data, response } = await apiClient.PUT("/subject/unit/update/{id}", {
     params: { path: { id } },
     body,
   });
-  if (error) throw new ApiError(response.status, "No se pudo actualizar el tema");
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo actualizar el tema");
   return data;
 }
 
 export async function deleteSubjectUnit(id: number) {
-  const { error, response } = await apiClient.DELETE("/subject/unit/delete/{id}", {
+  const { response } = await apiClient.DELETE("/subject/unit/delete/{id}", {
     params: { path: { id } },
   });
-  if (error) throw new ApiError(response.status, "No se pudo eliminar el tema");
+  if (!response.ok) throw new ApiError(response.status, "No se pudo eliminar el tema");
 }

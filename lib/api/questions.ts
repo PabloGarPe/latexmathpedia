@@ -9,25 +9,25 @@ export type CreateQuestionDto = components["schemas"]["CreateQuestionDto"];
 export type UpdateQuestionDto = components["schemas"]["UpdateQuestionDto"];
 
 export async function createQuestion(body: CreateQuestionDto) {
-  const { data, error, response } = await apiClient.POST("/question/create", { body });
-  if (error) throw new ApiError(response.status, "No se pudo crear la pregunta");
+  const { data, response } = await apiClient.POST("/question/create", { body });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo crear la pregunta");
   return data;
 }
 
 export async function updateQuestion(id: number, body: UpdateQuestionDto) {
-  const { data, error, response } = await apiClient.PUT("/question/update/{id}", {
+  const { data, response } = await apiClient.PUT("/question/update/{id}", {
     params: { path: { id } },
     body,
   });
-  if (error) throw new ApiError(response.status, "No se pudo actualizar la pregunta");
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo actualizar la pregunta");
   return data;
 }
 
 export async function deleteQuestion(id: number) {
-  const { error, response } = await apiClient.DELETE("/question/delete/{id}", {
+  const { response } = await apiClient.DELETE("/question/delete/{id}", {
     params: { path: { id } },
   });
-  if (error) throw new ApiError(response.status, "No se pudo eliminar la pregunta");
+  if (!response.ok) throw new ApiError(response.status, "No se pudo eliminar la pregunta");
 }
 
 // No estaba en la lista original de T-17 parte 2, pero el editor necesita las opciones de
