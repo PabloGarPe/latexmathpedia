@@ -200,6 +200,11 @@ export function ChatWidget() {
             });
 
             if (data.status === "ERROR") {
+                // Aquí el back cuenta el motivo (límite diario, fallo interno...) en `response`
+                if (data.response) {
+                    setMessages(prev => [...prev, { role: 'assistant', content: data.response! }]);
+                    return;
+                }
                 throw new Error("El chatbot devolvió un error");
             }
 
