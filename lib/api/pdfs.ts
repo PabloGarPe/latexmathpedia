@@ -168,10 +168,10 @@ export function updatePdf(pdfId: number, data: UpdatePDFDto, file?: File, onProg
 }
 
 export async function deletePdf(pdfId: number) {
-  const { error } = await apiClient.DELETE("/pdf/delete/{pdfId}", {
+  const { response } = await apiClient.DELETE("/pdf/delete/{pdfId}", {
     params: { path: { pdfId } },
   });
-  if (error) throw error;
+  if (!response.ok) throw new ApiError(response.status, "No se pudo eliminar el PDF");
 }
 
 // El back responde a los errores de create/update con el cuerpo vacío, así que solo el

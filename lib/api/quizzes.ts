@@ -111,11 +111,11 @@ export async function getQuizForAttempt(id: number) {
 }
 
 export async function submitQuizAttempt(id: number, body: SubmitQuizAttemptDto) {
-  const { data, error, response } = await apiClient.POST("/quiz/{id}/submit", {
+  const { data, response } = await apiClient.POST("/quiz/{id}/submit", {
     params: { path: { id } },
     body,
   });
-  if (error) throw new ApiError(response.status, "No se pudo enviar el intento del cuestionario");
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo enviar el intento del cuestionario");
   return data;
 }
 
@@ -141,25 +141,25 @@ export async function getMyAttempts(page: number, size: number) {
 // --- Administración (T-17 parte 2) ---
 
 export async function createQuiz(body: CreateQuizDto) {
-  const { data, error, response } = await apiClient.POST("/quiz/create", { body });
-  if (error) throw new ApiError(response.status, "No se pudo crear el cuestionario");
+  const { data, response } = await apiClient.POST("/quiz/create", { body });
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo crear el cuestionario");
   return data;
 }
 
 export async function updateQuiz(id: number, body: UpdateQuizDto) {
-  const { data, error, response } = await apiClient.PUT("/quiz/update/{id}", {
+  const { data, response } = await apiClient.PUT("/quiz/update/{id}", {
     params: { path: { id } },
     body,
   });
-  if (error) throw new ApiError(response.status, "No se pudo actualizar el cuestionario");
+  if (!response.ok || !data) throw new ApiError(response.status, "No se pudo actualizar el cuestionario");
   return data;
 }
 
 export async function deleteQuiz(id: number) {
-  const { error, response } = await apiClient.DELETE("/quiz/delete/{id}", {
+  const { response } = await apiClient.DELETE("/quiz/delete/{id}", {
     params: { path: { id } },
   });
-  if (error) throw new ApiError(response.status, "No se pudo eliminar el cuestionario");
+  if (!response.ok) throw new ApiError(response.status, "No se pudo eliminar el cuestionario");
 }
 
 // QuestionDto (con explanation, sin ocultar la respuesta correcta) es distinto del
