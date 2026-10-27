@@ -1,11 +1,22 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, BookOpen, ClipboardList, FileText, GraduationCap, Megaphone } from "lucide-react"
+import type { ReactNode } from "react"
+import { ArrowRight, BookOpen, ClipboardList, FileText, GraduationCap, Megaphone, MessageSquare } from "lucide-react"
+import { CommentsCardSummary } from "@/components/admin/comment-moderation/summary"
 import { PageContainer, PageHeader } from "@/components/page-shell"
 import { useAdminRoute } from "@/hooks/use-protected-route"
 
-const SECTIONS = [
+type Section = {
+  href: string
+  title: string
+  description: string
+  icon: typeof BookOpen
+  // Contenido extra bajo la descripción (contadores, avisos). Solo texto: la tarjeta es un enlace.
+  extra?: ReactNode
+}
+
+const SECTIONS: Section[] = [
   {
     href: "/dashboard/admin/degrees",
     title: "Grados",
@@ -23,6 +34,13 @@ const SECTIONS = [
     title: "Cuestionarios",
     description: "Crea, importa y exporta cuestionarios, y edita sus preguntas y opciones.",
     icon: ClipboardList,
+  },
+  {
+    href: "/dashboard/admin/comments",
+    title: "Comentarios",
+    description: "Revisa los comentarios marcados por la IA o denunciados, y los que esperan con la moderación automática caída.",
+    icon: MessageSquare,
+    extra: <CommentsCardSummary />,
   },
   {
     href: "/dashboard/admin/announcements",
@@ -52,7 +70,7 @@ function Admin() {
       <PageHeader title="Panel de administración" description="Vistas globales para revisar y gestionar el contenido." />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {SECTIONS.map(({ href, title, description, icon: Icon }) => (
+        {SECTIONS.map(({ href, title, description, icon: Icon, extra }) => (
           <Link
             key={href}
             href={href}
@@ -61,9 +79,10 @@ function Admin() {
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Icon className="h-5 w-5" />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <h2 className="text-lg font-semibold">{title}</h2>
               <p className="text-sm text-muted-foreground">{description}</p>
+              {extra}
               <span className="inline-flex items-center gap-1 pt-1 text-sm font-medium transition-all group-hover:gap-2">
                 Abrir
                 <ArrowRight className="h-4 w-4" />

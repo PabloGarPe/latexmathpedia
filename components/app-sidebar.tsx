@@ -9,6 +9,7 @@ import {
   LifeBuoy,
   ListChecks,
   Megaphone,
+  MessageSquare,
   Newspaper,
   Send,
 } from "lucide-react"
@@ -26,6 +27,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/contexts/auth-context"
+import { useModerationStatus } from "@/hooks/api/use-comments"
+import { formatCompactCount } from "@/lib/utils"
 import { useSearch } from "@/contexts/search-context"
 import Link from "next/link"
 import logo from '@/public/icon.png'
@@ -105,6 +108,12 @@ const dataAdminPanel = {
       isActive: false,
     },
     {
+      title: "Comentarios",
+      url: "/dashboard/admin/comments",
+      icon: MessageSquare,
+      isActive: false,
+    },
+    {
       title: "Avisos",
       url: "/dashboard/admin/announcements",
       icon: Megaphone,
@@ -116,6 +125,32 @@ const dataAdminPanel = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { isAdmin, email, displayName, isAuthenticated } = useAuth();
   const { setSearchQuery } = useSearch();
+  const showAdmin = isAuthenticated && isAdmin;
+  const { data: moderation } = useModerationStatus(showAdmin);
+
+  // Comentarios por revisar y, si la IA no responde, un punto ámbar (los nuevos esperan a un admin).
+  const reviewCount = moderation?.reviewCount ?? 0;
+  const aiDown = moderation?.aiAvailable === false;
+  const commentsBadge =
+    reviewCount > 0 || aiDown ? (
+      <span className="flex items-center gap-1">
+        {aiDown && (
+          <>
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber-500" />
+            <span className="sr-only">Moderación automática caída. </span>
+          </>
+        )}
+        {reviewCount > 0 && (
+          <>
+            {formatCompactCount(reviewCount)}
+            <span className="sr-only"> por revisar</span>
+          </>
+        )}
+      </span>
+    ) : null;
+  const adminItems = dataAdminPanel.adminPanel.map((item) =>
+    item.url === "/dashboard/admin/comments" ? { ...item, badge: commentsBadge } : item,
+  );
 
   const dataUser = {
     name: displayName || (email ? email.split('@')[0] : 'Usuario'),
@@ -156,9 +191,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={dataQuizzes.quizzes} title="Cuestionarios" />
         <NavMain items={dataBlog.blog} title="Blog" />
         {/* Solo mostrar admin panel si está autenticado y es admin */}
-        {isAuthenticated && isAdmin && (
-          <NavMain items={dataAdminPanel.adminPanel} title="Admin Panel" />
-        )}
+        {showAdmin && <NavMain items={adminItems} title="Admin Panel" />}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={dataUser} />

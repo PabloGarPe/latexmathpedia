@@ -321,13 +321,14 @@ export function useInvalidateComments() {
 }
 
 /**
- * Borra un comentario (autor o admin). Variables: `{ commentId, pdfId }`. Idempotente. Refresca
- * las listas del PDF (una raíz con respuestas pasa a `available=false`) y la cola de admin.
+ * Borra un comentario (autor o admin). Variables: `{ commentId, pdfId? }` (sin `pdfId` se
+ * refrescan las listas de todos los PDFs). Idempotente. Refresca las listas del PDF (una raíz con
+ * respuestas pasa a `available=false`) y la cola de admin.
  */
 export function useDeleteComment() {
   const invalidate = useInvalidateComments();
   return useMutation({
-    mutationFn: ({ commentId }: { commentId: number; pdfId: number }) => deleteComment(commentId),
+    mutationFn: ({ commentId }: { commentId: number; pdfId?: number }) => deleteComment(commentId),
     onSettled: (_data, _error, { pdfId }) => invalidate(pdfId),
   });
 }
