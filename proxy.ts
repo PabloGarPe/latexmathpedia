@@ -18,24 +18,11 @@ export default async function proxy(request: NextRequest) {
     return handler(request, { params: Promise.resolve({}) })
   }
 
-  const response = NextResponse.next()
-
-  // Headers para mejorar el manejo de cookies en Safari
-  response.headers.set('Access-Control-Allow-Credentials', 'true')
-
-  return response
+  return NextResponse.next()
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes, incluidas las de Auth.js)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files (public folder)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.).*)',
-  ],
+  // Solo las rutas que protege `protectRoutes`. Un matcher por exclusión (todo menos
+  // ficheros con punto) dejaba sin proteger rutas como /dashboard/admin/quizzes/1.0.
+  matcher: ['/dashboard/:path*', '/auth/:path*'],
 }

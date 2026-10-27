@@ -1,10 +1,12 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { type LucideIcon } from "lucide-react"
 import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
@@ -17,6 +19,8 @@ export function NavMain({
     title: string
     url: string
     icon: LucideIcon
+    // Contador o indicador a la derecha del ítem (se oculta con la barra colapsada a iconos).
+    badge?: ReactNode
   }[],
   title: string
 }) {
@@ -32,6 +36,7 @@ export function NavMain({
                 <span>{item.title}</span>
               </a>
             </SidebarMenuButton>
+            {item.badge != null && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
           </SidebarMenuItem>
         ))}
       </SidebarMenu>

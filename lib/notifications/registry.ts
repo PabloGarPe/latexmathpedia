@@ -1,5 +1,7 @@
-import { Bell, BookOpen, Megaphone, UserRound, type LucideIcon } from "lucide-react"
+import { Bell, BookOpen, Megaphone, MessageSquare, UserRound, type LucideIcon } from "lucide-react"
 import type { NotificationDto } from "@/lib/api/notifications"
+import { commentHref } from "@/lib/comments"
+import { isInternalPath } from "@/lib/utils"
 
 // Todo lo que varía por tipo de notificación vive aquí. El catálogo del backend puede crecer, así
 // que los lookups son `Record<string, …>` con fallback: un tipo/categoría/canal nuevo nunca rompe.
@@ -52,6 +54,20 @@ export function compareCategories(a: string, b: string) {
   return rank(a) - rank(b)
 }
 
+// Icono propio por tipo, que pisa al de la categoría (los comentarios son PERSONAL o SYSTEM
+// según el tipo, pero conviene que se reconozcan de un vistazo). Los tipos sin entrada usan el
+// de su categoría.
+const TYPE_VISUALS: Record<string, Pick<CategoryMeta, "icon" | "toneClass">> = {
+  COMMENT_REPLY: { icon: MessageSquare, toneClass: "bg-violet-500/15 text-violet-700 dark:text-violet-300" },
+  COMMENT_ON_PDF: { icon: MessageSquare, toneClass: "bg-violet-500/15 text-violet-700 dark:text-violet-300" },
+  COMMENT_REJECTED: { icon: MessageSquare, toneClass: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
+  COMMENT_REVIEW_PENDING: { icon: MessageSquare, toneClass: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+}
+
+export function notificationVisual(type?: string | null, category?: string | null) {
+  return (type && TYPE_VISUALS[type]) || categoryMeta(category)
+}
+
 const CHANNELS: Record<string, { label: string; description: string }> = {
   IN_APP: { label: "En la web", description: "Campanita de la plataforma" },
   EMAIL: { label: "Correo", description: "Mensaje a tu email" },
@@ -70,14 +86,22 @@ export function scopeLabel(scope: string) {
   return SCOPES[scope] ?? scope
 }
 
-// Ruta interna segura: empieza por "/" y no por "//", sin "\". Defensa en profundidad: el
-// backend ya lo valida, pero nunca se navega a algo que no sea una ruta del propio front.
-export function isInternalPath(link?: string | null): link is string {
-  return typeof link === "string" && link.startsWith("/") && !link.startsWith("//") && !link.includes("\\")
-}
-
 // Destino de una notificación, o null si solo hay que marcarla como leída.
 export function notificationHref(n: NotificationDto): string | null {
+  switch (n.type) {
+    // resourceId es el PDF; el comentario va aparte en `commentId`.
+    case "COMMENT_REPLY":
+    case "COMMENT_ON_PDF":
+      if (n.resourceId != null) return commentHref(n.resourceId, n.commentId)
+      break
+    // Sin id: el comentario rechazado no se puede ver en el hilo, el autor lo tiene en «Tus comentarios».
+    case "COMMENT_REJECTED":
+      if (n.resourceId != null) return commentHref(n.resourceId)
+      break
+    // La cola no filtra por comentario.
+    case "COMMENT_REVIEW_PENDING":
+      return "/dashboard/admin/comments"
+  }
   switch (n.resourceType) {
     case "PDF":
       if (n.resourceId != null) return `/dashboard/pdfs/${n.resourceId}`

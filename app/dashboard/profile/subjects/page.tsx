@@ -1,16 +1,16 @@
 "use client"
 
 import Link from "next/link"
-import { BookOpen, GraduationCap, RefreshCw } from "lucide-react"
+import { BookOpen, GraduationCap, Layers, RefreshCw } from "lucide-react"
 import { CourseSubscribeButton } from "@/components/subscriptions/course-subscribe-button"
 import { SettingsRow, SettingsSection } from "@/components/settings/settings-section"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/contexts/auth-context"
 import { useMe } from "@/hooks/api/use-profile"
-import { useMySubscriptions, useToggleSubscription } from "@/hooks/api/use-subscriptions"
+import { useMyCourseSubscriptions, useMySubscriptions, useToggleSubscription } from "@/hooks/api/use-subscriptions"
 import { useToast } from "@/hooks/use-toast"
-import { curriculumHref, formatYear } from "@/lib/degrees"
+import { curriculumHref, formatDegree, formatSemesterLong, formatYear, formatYearLong } from "@/lib/degrees"
 import { formatDate } from "@/lib/utils"
 
 // Atajo al curso del perfil: suscribirse (o darse de baja) de todas sus asignaturas de una vez.
@@ -68,6 +68,46 @@ function CurrentCourseSection() {
   )
 }
 
+// Cursos a los que está suscrito (los que recibirán solos las asignaturas que se coloquen en
+// ellos). Sin ninguno, o si la lista falla (modo mock, 401), no se pinta nada.
+function CourseSubscriptionsSection() {
+  const { data } = useMyCourseSubscriptions()
+  if (!data || data.length === 0) return null
+
+  return (
+    <SettingsSection
+      title="Mis cursos"
+      icon={Layers}
+      description="Las asignaturas que se añadan a estos cursos te suscribirán automáticamente."
+    >
+      {data.map((course) => {
+        const degree = course.degree
+        if (degree?.id == null || course.year == null) return null
+        // semester null = año entero (cualquier cuatrimestre y las anuales).
+        const when = course.semester == null ? formatYearLong(course.year) : `${formatYearLong(course.year)} · ${formatSemesterLong(course.semester)}`
+        return (
+          <SettingsRow
+            key={`${degree.id}-${course.year}-${course.semester ?? "all"}`}
+            label={
+              <Link href={curriculumHref(degree.id, course.year)} className="hover:underline">
+                {when}
+              </Link>
+            }
+            description={`${formatDegree(degree)} · Suscrito desde ${formatDate(course.subscribedAt)}`}
+          >
+            <CourseSubscribeButton
+              degreeId={degree.id}
+              year={course.year}
+              semester={course.semester ?? undefined}
+              variant="outline"
+            />
+          </SettingsRow>
+        )
+      })}
+    </SettingsSection>
+  )
+}
+
 export default function ProfileSubjectsPage() {
   const toast = useToast()
   const { data, isLoading, isError, refetch, isRefetching } = useMySubscriptions()
@@ -87,6 +127,7 @@ export default function ProfileSubjectsPage() {
   return (
     <>
       <CurrentCourseSection />
+      <CourseSubscriptionsSection />
       <SettingsSection
         title="Mis asignaturas"
         icon={BookOpen}

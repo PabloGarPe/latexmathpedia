@@ -14,25 +14,28 @@ import { useDeleteNotification, useMarkRead, useMarkUnread } from "@/hooks/api/u
 import { useToast } from "@/hooks/use-toast"
 import { ApiError } from "@/lib/api/errors"
 import type { NotificationDto } from "@/lib/api/notifications"
-import { categoryMeta, notificationHref } from "@/lib/notifications/registry"
+import { notificationHref, notificationVisual } from "@/lib/notifications/registry"
 import { cn, formatRelativeTime } from "@/lib/utils"
 
-// Lo que se ve de una notificación (icono por categoría, texto y punto de no leída). Lo comparte
+// Lo que se ve de una notificación (icono por tipo o categoría, texto y punto de no leída). Lo comparte
 // la lista y la vista previa del formulario de avisos de admin, para que se vean idénticas.
 export function NotificationBody({
+  type,
   category,
   title,
   message,
   createdAt,
   read,
 }: {
+  // Si el tipo tiene icono propio (p. ej. los comentarios), pisa al de la categoría.
+  type?: string | null
   category?: string | null
   title?: string
   message?: string
   createdAt?: string | null
   read: boolean
 }) {
-  const { icon: Icon, toneClass } = categoryMeta(category)
+  const { icon: Icon, toneClass } = notificationVisual(type, category)
   return (
     <>
       <span
@@ -105,6 +108,7 @@ export function NotificationItem({
         )}
       >
         <NotificationBody
+          type={notification.type}
           category={notification.category}
           title={title}
           message={message}

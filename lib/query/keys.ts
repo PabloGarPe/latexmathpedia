@@ -70,6 +70,8 @@ export const queryKeys = {
   // Asignaturas suscritas del usuario de la sesión (se vacía con queryClient.clear() al salir).
   subscriptions: {
     all: () => ["me", "subscriptions"] as const,
+    // Cuelga de `all()`: invalidar las suscripciones a asignaturas refresca también las de curso.
+    courses: () => ["me", "subscriptions", "courses"] as const,
   },
   // Por usuario: al cerrar sesión se vacía la caché (queryClient.clear()).
   notifications: {
@@ -81,6 +83,33 @@ export const queryKeys = {
     // Página completa (scroll infinito).
     infinite: (unreadOnly: boolean) => ["notifications", "list", "infinite", unreadOnly] as const,
     preferences: () => ["notifications", "preferences"] as const,
+  },
+  // Comentarios de PDFs. Todo lo público de un PDF cuelga de pdf(pdfId): invalidarlo refresca
+  // raíces, respuestas y "mis comentarios" de ese PDF a la vez (pdfs() = el de todos los PDFs).
+  // Fuera de esa rama: contexto (por comentario), likes (por usuario), config y admin (cola +
+  // estado de moderación). Las de usuario llevan su email (como topMe) para no mezclar sesiones.
+  comments: {
+    all: () => ["comments"] as const,
+    pdfs: () => ["comments", "pdf"] as const,
+    pdf: (pdfId: number) => ["comments", "pdf", pdfId] as const,
+    // Raíces paginadas (infinita).
+    roots: (pdfId: number) => ["comments", "pdf", pdfId, "roots"] as const,
+    // Respuestas de una raíz (infinita). Prefijo: replies(pdfId) cubre todas las del PDF.
+    replies: (pdfId: number) => ["comments", "pdf", pdfId, "replies"] as const,
+    repliesOf: (pdfId: number, rootId: number) => ["comments", "pdf", pdfId, "replies", rootId] as const,
+    mine: (userKey: string, pdfId: number) => ["comments", "pdf", pdfId, "mine", userKey] as const,
+    // Comentario destacado ({ root, target }); público.
+    context: (commentId: number) => ["comments", "context", commentId] as const,
+    config: () => ["comments", "config"] as const,
+    // Ids que le gustan al usuario. Prefijo likes(userKey) cubre todas las consultas del usuario;
+    // `idsKey` son los ids pedidos, ordenados y unidos por comas.
+    likes: (userKey: string) => ["comments", "likes", userKey] as const,
+    likesFor: (userKey: string, idsKey: string) => ["comments", "likes", userKey, idsKey] as const,
+    // Prefijo de la cola y del estado de moderación (invalidarlo refresca ambos).
+    admin: () => ["comments", "admin"] as const,
+    // `statusesKey`: estados ordenados y unidos por comas.
+    adminQueue: (statusesKey: string) => ["comments", "admin", "queue", statusesKey] as const,
+    moderationStatus: () => ["comments", "admin", "moderation-status"] as const,
   },
   users: {
     search: (term: string) => ["users", "search", term] as const,

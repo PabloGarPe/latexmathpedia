@@ -35,7 +35,7 @@ import {
   type DraftIssue,
   type QuizDraft,
 } from "@/lib/quiz-import"
-import { cn } from "@/lib/utils"
+import { cn, isInternalPath } from "@/lib/utils"
 
 const QUIZZES_HREF = "/dashboard/admin/quizzes"
 
@@ -46,7 +46,7 @@ const positiveInt = (value: string | null) => {
 
 // Solo rutas internas del dashboard: evita que `?returnTo=` sirva de redirección abierta.
 const safeReturnTo = (value: string | null) =>
-  value && value.startsWith("/dashboard") && !value.startsWith("//") && !value.includes("\\") ? value : null
+  isInternalPath(value) && value.startsWith("/dashboard") ? value : null
 
 // Elemento de la lista "qué falta": o un problema del borrador, o la asignatura sin elegir.
 type Pending = { kind: "issue"; issue: DraftIssue } | { kind: "subject" }
