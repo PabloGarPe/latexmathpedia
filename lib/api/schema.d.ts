@@ -292,6 +292,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/comments/{commentId}/like": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Doy like a un comentario
+         * @description Idempotente: repetirlo no suma más likes. Solo comentarios publicados y que no sean del propio usuario. Devuelve el número de likes actualizado
+         */
+        put: operations["like"];
+        post?: never;
+        /**
+         * Quito mi like de un comentario
+         * @description Idempotente: también devuelve 200 si no había like. Siempre permitido, aunque el comentario ya no esté publicado
+         */
+        delete: operations["unlike"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/subject/{subjectId}/unit/create": {
         parameters: {
             query?: never;
@@ -432,6 +456,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pdf/{pdfId}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Comento un PDF o respondo a un comentario
+         * @description Devuelve 202 con el comentario en PENDING: aún no es público, solo lo ve su autor (GET /pdf/{pdfId}/comments/me). Para responder se indica 'replyToId' (una raíz o una respuesta); la respuesta cuelga siempre de la raíz
+         */
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pdf/create": {
         parameters: {
             query?: never;
@@ -532,6 +576,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/comments/{commentId}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Denuncio un comentario
+         * @description Idempotente por usuario. Cuando lo denuncian 3 usuarios distintos el comentario se oculta a la espera de un administrador. Nunca se revela quién denuncia
+         */
+        post: operations["report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/chatbot/chat": {
         parameters: {
             query?: never;
@@ -546,6 +610,46 @@ export interface paths {
          * @description Acepta tanto peticiones anónimas como autenticadas; si se envía un JWT válido, la respuesta puede tener en cuenta el contexto del usuario
          */
         post: operations["chat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/comments/{commentId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rechazo un comentario
+         * @description Lo rechaza con una categoría, cierra sus denuncias y avisa a su autor con un motivo genérico
+         */
+        post: operations["reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/comments/{commentId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apruebo un comentario
+         * @description Lo publica (también restaura uno oculto o un rechazo erróneo) y cierra sus denuncias. Solo avisa de 'comentario nuevo' si es la primera vez que se publica
+         */
+        post: operations["approve"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1074,6 +1178,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/pdf/{pdfId}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Comentarios raíz de un PDF
+         * @description Del más reciente al más antiguo por fecha de publicación. Cada raíz incluye 'replyCount'. Una raíz borrada, oculta o rechazada que conserva respuestas publicadas se devuelve con 'available' a false y sin texto ni autor
+         */
+        get: operations["getRoots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/pdf/top": {
         parameters: {
             query?: never;
@@ -1154,6 +1278,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/pdf/comments/{commentId}/replies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Respuestas de un comentario raíz
+         * @description Solo las publicadas, de la más antigua a la más reciente. Cada una indica 'replyToId' y 'replyToUsername' para pintar 'en respuesta a @usuario'
+         */
+        get: operations["getReplies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/pdf/comments/{commentId}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Un comentario junto a la raíz de su hilo
+         * @description Para enlazar a un comentario concreto (por ejemplo desde una notificación) sin paginar hasta encontrarlo. 'root' es la raíz del hilo con 'replyCount' (con 'available' a false si ya no está publicada pero conserva respuestas) y 'target' el comentario pedido, que es el mismo que 'root' si es una raíz
+         */
+        get: operations["getContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/degree": {
         parameters: {
             query?: never;
@@ -1211,6 +1375,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/comments/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Límites de los comentarios
+         * @description Longitud máxima de un comentario y comentarios pendientes de revisión permitidos por usuario. Son configurables en el servidor, así que el front debe leerlos de aquí en vez de fijarlos
+         */
+        get: operations["getConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile": {
         parameters: {
             query?: never;
@@ -1243,6 +1427,26 @@ export interface paths {
          * @description Devuelve el binario (application/pdf) servido desde el back, pensado para renderizarlo con pdf.js. Nunca se expone la URL de S3.
          */
         get: operations["getPDF"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pdf/{pdfId}/comments/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mis comentarios en un PDF
+         * @description Todos los del usuario salvo los borrados, con su estado: PENDING y REVIEW ('en revisión'), PUBLISHED, REJECTED (con 'moderationCategory') u HIDDEN. Pensado para pintar los propios y sondear mientras haya PENDING
+         */
+        get: operations["getMine"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1411,6 +1615,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/comment-likes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mis likes en un lote de comentarios
+         * @description Pensado para marcar los comentarios que ya me gustan en un listado (que es público y no sabe quién mira). Devuelve solo los ids que le gustan al usuario, en el orden pedido. Máximo 100 ids
+         */
+        get: operations["getMyLikes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attempts": {
         parameters: {
             query?: never;
@@ -1443,6 +1667,46 @@ export interface paths {
          * @description Estadísticas agregadas de todos los intentos del usuario autenticado
          */
         get: operations["getMyStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cola de moderación
+         * @description Comentarios en los estados pedidos, del más antiguo al más reciente, con sus denuncias abiertas. Por defecto REVIEW (dudosos para la IA) y HIDDEN (ocultos por denuncias). También se pueden pedir PENDING (esperando a la IA) y REJECTED (para restaurar falsos positivos)
+         */
+        get: operations["getQueue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/comments/moderation-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado de la moderación automática
+         * @description Si la IA está respondiendo, desde cuándo y cuándo se volverá a comprobar, más el número de comentarios esperando a la IA (PENDING) y a un administrador (REVIEW). Con la IA caída, los comentarios nuevos esperan en PENDING y un administrador puede aprobarlos o rechazarlos a mano
+         */
+        get: operations["getModerationStatus"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1606,6 +1870,26 @@ export interface paths {
          * @description Requiere rol ADMIN. Los usuarios que lo tenían en su perfil se quedan sin grado ni curso
          */
         delete: operations["deleteDegree"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/comments/{commentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Borro un comentario
+         * @description Idempotente. Lo puede borrar su autor o un administrador. Si una raíz con respuestas se borra, en el listado público queda como no disponible
+         */
+        delete: operations["delete_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2030,7 +2314,7 @@ export interface components {
              * @example PDF_CREATED
              * @enum {string}
              */
-            type: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "SUBJECT_UNIT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
+            type: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "SUBJECT_UNIT_CREATED" | "PDF_AUTHOR_ADDED" | "COMMENT_REPLY" | "COMMENT_ON_PDF" | "COMMENT_REJECTED" | "COMMENT_REVIEW_PENDING" | "WELCOME" | "ANNOUNCEMENT";
             /**
              * @description Canal
              * @example IN_APP
@@ -2056,7 +2340,7 @@ export interface components {
              * @example PDF_CREATED
              * @enum {string}
              */
-            type?: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "SUBJECT_UNIT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
+            type?: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "SUBJECT_UNIT_CREATED" | "PDF_AUTHOR_ADDED" | "COMMENT_REPLY" | "COMMENT_ON_PDF" | "COMMENT_REJECTED" | "COMMENT_REVIEW_PENDING" | "WELCOME" | "ANNOUNCEMENT";
             /**
              * @description Categoría, para agrupar en la pantalla de preferencias
              * @example CONTENT
@@ -2258,6 +2542,25 @@ export interface components {
              * @example 4
              */
             years: number;
+        };
+        CommentLikeDto: {
+            /**
+             * Format: int64
+             * @description Id del comentario
+             * @example 12
+             */
+            commentId?: number;
+            /**
+             * Format: int64
+             * @description Likes del comentario tras la operación
+             * @example 5
+             */
+            likeCount?: number;
+            /**
+             * @description Si al usuario autenticado le gusta el comentario
+             * @example true
+             */
+            liked?: boolean;
         };
         /** @description Datos del tema a crear */
         CreateSubjectUnitDto: {
@@ -2478,6 +2781,71 @@ export interface components {
              */
             quizId: number;
         };
+        CreateCommentDto: {
+            /**
+             * @description Texto en Markdown con fórmulas LaTeX ($...$). Sin enlaces, imágenes ni HTML. Máximo 2000 caracteres (por defecto; propiedad comments.max-length)
+             * @example ¿Alguien sabe por qué en la página 12 se puede intercambiar el límite con la integral?
+             */
+            body: string;
+            /**
+             * Format: int64
+             * @description Id del comentario al que se responde (una raíz o una respuesta, ya publicado y del mismo PDF). Nulo para un comentario nuevo
+             */
+            replyToId?: number | null;
+        };
+        CommentDto: {
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            pdfId?: number;
+            /**
+             * Format: int64
+             * @description Raíz del hilo; nulo si este comentario es una raíz
+             */
+            parentId?: number | null;
+            /**
+             * Format: int64
+             * @description Comentario concreto al que se contesta (para pintar 'en respuesta a @usuario'). Nulo en las raíces
+             */
+            replyToId?: number | null;
+            /** @description Usuario del comentario al que se contesta. Nulo si no se contesta a nadie o ese comentario ya no está publicado */
+            replyToUsername?: string | null;
+            /** @description Autor del comentario. Nulo si 'available' es false */
+            author?: components["schemas"]["AuthorDto"] | null;
+            /** @description Si el autor del comentario es también autor del PDF (para una insignia) */
+            byPdfAuthor?: boolean;
+            /** @description Texto. Nulo si 'available' es false */
+            body?: string | null;
+            /**
+             * @description Estado. En los listados públicos es siempre PUBLISHED, o nulo si 'available' es false
+             * @enum {string|null}
+             */
+            status?: "PENDING" | "REVIEW" | "PUBLISHED" | "HIDDEN" | "DELETED" | "REJECTED" | null;
+            /**
+             * @description Motivo del rechazo; solo aparece en los comentarios propios (GET /pdf/{pdfId}/comments/me)
+             * @enum {string|null}
+             */
+            moderationCategory?: "HATE_SPEECH" | "HARASSMENT" | "SEXUAL_CONTENT" | "VIOLENCE_OR_THREATS" | "ILLEGAL_ACTIVITY" | "SPAM" | "PERSONAL_DATA" | "OTHER" | null;
+            /** @description False si es una raíz que ya no está disponible (borrada, oculta o rechazada) pero conserva respuestas publicadas: mostrar 'comentario no disponible' */
+            available?: boolean;
+            /**
+             * Format: int64
+             * @description Respuestas publicadas. Solo en las raíces de los listados públicos
+             */
+            replyCount?: number | null;
+            /**
+             * Format: int64
+             * @description Likes del comentario. 0 si 'available' es false. Qué comentarios le gustan al usuario: GET /me/comment-likes
+             */
+            likeCount?: number;
+            /** Format: date-time */
+            createdAt?: string;
+            /**
+             * Format: date-time
+             * @description Cuándo se aprobó; es el que ordena los listados. Nulo si todavía no se ha publicado
+             */
+            publishedAt?: string | null;
+        };
         /** @description Datos del PDF a crear */
         CreatePDFDto: {
             /**
@@ -2568,6 +2936,10 @@ export interface components {
              */
             years: number;
         };
+        ReportCommentDto: {
+            /** @enum {string} */
+            reason: "HATE" | "HARASSMENT" | "ILLEGAL" | "SEXUAL" | "SPAM" | "OTHER";
+        };
         ChatMessage: {
             /**
              * @description Quién emitió el mensaje
@@ -2607,6 +2979,10 @@ export interface components {
              * @enum {string}
              */
             status?: "SUCCESS" | "ERROR";
+        };
+        RejectCommentDto: {
+            /** @enum {string} */
+            category: "HATE_SPEECH" | "HARASSMENT" | "SEXUAL_CONTENT" | "VIOLENCE_OR_THREATS" | "ILLEGAL_ACTIVITY" | "SPAM" | "PERSONAL_DATA" | "OTHER";
         };
         UpdateQuizVisibilityDto: {
             /**
@@ -2822,6 +3198,22 @@ export interface components {
             difficulty?: "EASY" | "MEDIUM" | "HARD";
             questions?: components["schemas"]["QuestionForAttemptDto"][];
         };
+        CommentPageDto: {
+            items?: components["schemas"]["CommentDto"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            total?: number;
+            hasNext?: boolean;
+        };
+        CommentContextDto: {
+            /** @description Raíz del hilo, con 'replyCount'. Con 'available' a false si ya no está publicada pero conserva respuestas */
+            root?: components["schemas"]["CommentDto"];
+            /** @description El comentario pedido. Es el mismo que 'root' si el comentario es una raíz */
+            target?: components["schemas"]["CommentDto"];
+        };
         CurriculumDto: {
             /** @description Grado al que pertenece el plan de estudios */
             degree?: components["schemas"]["DegreeDto"];
@@ -2848,6 +3240,20 @@ export interface components {
             /** @description Asignaturas de ese año ordenadas por cuatrimestre (las anuales al final) y nombre. Vacía si no hay ninguna */
             subjects?: components["schemas"]["CurriculumSubjectDto"][];
         };
+        CommentConfigDto: {
+            /**
+             * Format: int32
+             * @description Longitud máxima de un comentario, en puntos de código Unicode
+             * @example 2000
+             */
+            maxLength?: number;
+            /**
+             * Format: int32
+             * @description Comentarios pendientes de revisión que un usuario puede tener a la vez
+             * @example 3
+             */
+            maxPendingPerUser?: number;
+        };
         UserProfile: {
             /** @description Email del usuario, extraído del JWT */
             email?: string;
@@ -2869,7 +3275,7 @@ export interface components {
              * @example PDF_CREATED
              * @enum {string}
              */
-            type?: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "SUBJECT_UNIT_CREATED" | "PDF_AUTHOR_ADDED" | "WELCOME" | "ANNOUNCEMENT";
+            type?: "PDF_CREATED" | "PDF_FILE_UPDATED" | "QUIZ_PUBLISHED" | "SUBJECT_CREATED" | "SUBJECT_UNIT_CREATED" | "PDF_AUTHOR_ADDED" | "COMMENT_REPLY" | "COMMENT_ON_PDF" | "COMMENT_REJECTED" | "COMMENT_REVIEW_PENDING" | "WELCOME" | "ANNOUNCEMENT";
             /**
              * @description Categoría de la notificación, útil para elegir el icono
              * @example CONTENT
@@ -2909,6 +3315,12 @@ export interface components {
              * @example 3
              */
             subjectId?: number | null;
+            /**
+             * Format: int64
+             * @description Id del comentario al que apunta. Solo en las notificaciones de comentarios (COMMENT_REPLY, COMMENT_ON_PDF, COMMENT_REJECTED y COMMENT_REVIEW_PENDING); nulo en el resto
+             * @example 42
+             */
+            commentId?: number | null;
             /** @description Si el usuario ya la ha leído */
             read?: boolean;
             /**
@@ -2999,6 +3411,88 @@ export interface components {
             first?: boolean;
             last?: boolean;
             empty?: boolean;
+        };
+        AdminCommentDto: {
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            pdfId?: number;
+            pdfName?: string;
+            /**
+             * Format: int64
+             * @description Raíz del hilo; nulo si es una raíz
+             */
+            parentId?: number | null;
+            /**
+             * Format: int64
+             * @description Comentario al que contesta; nulo en las raíces
+             */
+            replyToId?: number | null;
+            author?: components["schemas"]["AuthorDto"];
+            authorEmail?: string;
+            body?: string;
+            /** @enum {string} */
+            status?: "PENDING" | "REVIEW" | "PUBLISHED" | "HIDDEN" | "DELETED" | "REJECTED";
+            /**
+             * @description Categoría que propuso la IA (REVIEW) o con la que se rechazó
+             * @enum {string|null}
+             */
+            moderationCategory?: "HATE_SPEECH" | "HARASSMENT" | "SEXUAL_CONTENT" | "VIOLENCE_OR_THREATS" | "ILLEGAL_ACTIVITY" | "SPAM" | "PERSONAL_DATA" | "OTHER" | null;
+            /**
+             * Format: int64
+             * @description Denuncias abiertas (de usuarios distintos)
+             */
+            reportCount?: number;
+            /** @description Denuncias abiertas agrupadas por motivo */
+            reportReasons?: {
+                [key: string]: number;
+            };
+            /** Format: date-time */
+            createdAt?: string;
+            /**
+             * Format: date-time
+             * @description Cuándo se publicó; nulo si todavía no se ha publicado
+             */
+            publishedAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Cuándo lo evaluó la IA o un admin; nulo si todavía no ha pasado por moderación
+             */
+            moderatedAt?: string | null;
+        };
+        AdminCommentPageDto: {
+            items?: components["schemas"]["AdminCommentDto"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            total?: number;
+            hasNext?: boolean;
+        };
+        ModerationStatusDto: {
+            /** @description Si la moderación automática (IA) está respondiendo. Si no, los comentarios nuevos esperan en PENDING */
+            aiAvailable?: boolean;
+            /**
+             * Format: date-time
+             * @description Desde cuándo está en este estado (disponible o caída) en esta instancia del servidor
+             */
+            since?: string;
+            /**
+             * Format: date-time
+             * @description Cuándo se volverá a comprobar. Nulo si está disponible
+             */
+            nextCheckAt?: string | null;
+            /**
+             * Format: int64
+             * @description Comentarios esperando a la IA
+             */
+            pendingCount?: number;
+            /**
+             * Format: int64
+             * @description Comentarios dudosos esperando a un administrador
+             */
+            reviewCount?: number;
         };
     };
     responses: never;
@@ -3995,6 +4489,106 @@ export interface operations {
             };
         };
     };
+    like: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del comentario */
+                commentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Like guardado; likes actualizados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentLikeDto"];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentLikeDto"];
+                };
+            };
+            /** @description Es un comentario del propio usuario */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentLikeDto"];
+                };
+            };
+            /** @description No existe ningún comentario con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentLikeDto"];
+                };
+            };
+            /** @description El comentario no está publicado */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentLikeDto"];
+                };
+            };
+        };
+    };
+    unlike: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del comentario */
+                commentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description El usuario ya no tiene like en el comentario; likes actualizados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentLikeDto"];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentLikeDto"];
+                };
+            };
+            /** @description No existe ningún comentario con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentLikeDto"];
+                };
+            };
+        };
+    };
     createSubjectUnit: {
         parameters: {
             query?: never;
@@ -4395,6 +4989,87 @@ export interface operations {
             };
         };
     };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del PDF */
+                pdfId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCommentDto"];
+            };
+        };
+        responses: {
+            /** @description Comentario recibido; queda pendiente de revisión */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentDto"];
+                };
+            };
+            /** @description Texto inválido (cuerpo con 'code': EMPTY, TOO_LONG, LINKS_NOT_ALLOWED, IMAGES_NOT_ALLOWED, HTML_NOT_ALLOWED), o 'replyToId' de otro PDF */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentDto"];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentDto"];
+                };
+            };
+            /** @description El usuario todavía no ha completado su perfil (nombre de usuario) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentDto"];
+                };
+            };
+            /** @description No existe el PDF o el comentario al que se responde */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentDto"];
+                };
+            };
+            /** @description El comentario al que se responde no está publicado */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentDto"];
+                };
+            };
+            /** @description El usuario ya tiene el máximo de comentarios pendientes de revisión */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentDto"];
+                };
+            };
+        };
+    };
     createPDF: {
         parameters: {
             query?: never;
@@ -4636,6 +5311,66 @@ export interface operations {
             };
         };
     };
+    report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del comentario */
+                commentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportCommentDto"];
+            };
+        };
+        responses: {
+            /** @description Denuncia registrada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cuerpo inválido (motivo ausente o desconocido) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Es un comentario del propio usuario */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe ningún comentario con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El comentario no está publicado */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     chat: {
         parameters: {
             query?: never;
@@ -4657,6 +5392,101 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["ChatResponse"];
                 };
+            };
+        };
+    };
+    reject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del comentario */
+                commentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectCommentDto"];
+            };
+        };
+        responses: {
+            /** @description Comentario rechazado */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cuerpo inválido (categoría ausente o desconocida) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sin token válido o el usuario no es administrador */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe ningún comentario con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El comentario ya está rechazado o borrado */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    approve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del comentario */
+                commentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comentario publicado */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sin token válido o el usuario no es administrador */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe ningún comentario con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El comentario ya está publicado o borrado */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -5644,6 +6474,43 @@ export interface operations {
             };
         };
     };
+    getRoots: {
+        parameters: {
+            query?: {
+                /** @description Número de página, desde 0 */
+                page?: number;
+                /** @description Tamaño de página (por defecto 20, máximo 50) */
+                size?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Id del PDF */
+                pdfId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de comentarios (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentPageDto"];
+                };
+            };
+            /** @description No existe ningún PDF con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentPageDto"];
+                };
+            };
+        };
+    };
     getTopViewedPDFs: {
         parameters: {
             query?: {
@@ -5732,6 +6599,75 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PDFDto"][];
+                };
+            };
+        };
+    };
+    getReplies: {
+        parameters: {
+            query?: {
+                /** @description Número de página, desde 0 */
+                page?: number;
+                /** @description Tamaño de página (por defecto 20, máximo 50) */
+                size?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Id del comentario raíz */
+                commentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de respuestas (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentPageDto"];
+                };
+            };
+            /** @description No existe ningún comentario raíz con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentPageDto"];
+                };
+            };
+        };
+    };
+    getContext: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del comentario */
+                commentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comentario y raíz de su hilo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentContextDto"];
+                };
+            };
+            /** @description No existe ningún comentario con ese id o no está publicado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentContextDto"];
                 };
             };
         };
@@ -5834,6 +6770,26 @@ export interface operations {
             };
         };
     };
+    getConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Límites vigentes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentConfigDto"];
+                };
+            };
+        };
+    };
     getProfile: {
         parameters: {
             query?: never;
@@ -5882,6 +6838,47 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+        };
+    };
+    getMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del PDF */
+                pdfId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comentarios del usuario (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentDto"][];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentDto"][];
+                };
+            };
+            /** @description No existe ningún PDF con ese id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommentDto"][];
                 };
             };
         };
@@ -6158,6 +7155,50 @@ export interface operations {
             };
         };
     };
+    getMyLikes: {
+        parameters: {
+            query: {
+                /**
+                 * @description Ids de los comentarios separados por comas
+                 * @example 1,2,3
+                 */
+                commentIds: number[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ids de comentarios que le gustan al usuario (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": number[];
+                };
+            };
+            /** @description Más de 100 ids o ids mal formados */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": number[];
+                };
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": number[];
+                };
+            };
+        };
+    };
     getMyAttempts: {
         parameters: {
             query: {
@@ -6214,6 +7255,83 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["QuizAttemptStatsDto"];
+                };
+            };
+        };
+    };
+    getQueue: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Estados separados por comas: PENDING, REVIEW, HIDDEN, REJECTED
+                 * @example REVIEW,HIDDEN
+                 */
+                status?: ("PENDING" | "REVIEW" | "PUBLISHED" | "HIDDEN" | "DELETED" | "REJECTED")[];
+                /** @description Número de página, desde 0 */
+                page?: number;
+                /** @description Tamaño de página (por defecto 20, máximo 50) */
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de comentarios (puede estar vacía) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCommentPageDto"];
+                };
+            };
+            /** @description Algún estado no es consultable */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCommentPageDto"];
+                };
+            };
+            /** @description Sin token válido o el usuario no es administrador */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCommentPageDto"];
+                };
+            };
+        };
+    };
+    getModerationStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado de la moderación */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ModerationStatusDto"];
+                };
+            };
+            /** @description Sin token válido o el usuario no es administrador */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ModerationStatusDto"];
                 };
             };
         };
@@ -6512,6 +7630,48 @@ export interface operations {
             };
             /** @description No se puede eliminar el grado porque tiene asignaturas colocadas */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id del comentario */
+                commentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description El comentario está borrado */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sin token válido o cuenta de usuario inactiva */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No es el autor del comentario ni administrador */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe ningún comentario con ese id */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -31,6 +31,10 @@
       "description": "Notificaciones in-app del usuario autenticado (la campanita) y sus preferencias. Requiere JWT; enviar avisos requiere rol ADMIN"
     },
     {
+      "name": "Comentarios públicos",
+      "description": "Lectura de los comentarios publicados de un PDF, sin autenticación. Los comentarios tienen dos niveles: raíces y sus respuestas"
+    },
+    {
       "name": "Quiz Attempts",
       "description": "Historial de intentos de cuestionarios del usuario autenticado"
     },
@@ -52,6 +56,10 @@
     },
     { "name": "Perfil", "description": "Datos del usuario autenticado" },
     {
+      "name": "Moderación de comentarios",
+      "description": "Cola de revisión de comentarios. Requiere JWT con rol ADMIN. Para borrar se usa DELETE /comments/{commentId}"
+    },
+    {
       "name": "Degrees",
       "description": "Gestión de grados (crear/borrar/actualizar requiere rol ADMIN)"
     },
@@ -64,6 +72,10 @@
       "description": "Fotos de perfil de los usuarios. Requiere JWT, no requiere rol ADMIN"
     },
     {
+      "name": "Likes de comentarios",
+      "description": "Me gusta en los comentarios. Requiere JWT, no requiere rol ADMIN. Un usuario cuenta una sola vez por comentario; nunca se expone quién ha dado like"
+    },
+    {
       "name": "Valoraciones de PDFs",
       "description": "Votos 👍/👎 a los PDFs. Requiere JWT, no requiere rol ADMIN. Solo puede votar quien haya abierto el PDF y no sea su autor; nunca se expone quién votó qué"
     },
@@ -74,6 +86,10 @@
     {
       "name": "Quiz",
       "description": "Gestión de cuestionarios y preguntas; crear/borrar/actualizar requiere rol ADMIN"
+    },
+    {
+      "name": "Comentarios de PDFs",
+      "description": "Comentar, responder, borrar y denunciar. Requiere JWT, no requiere rol ADMIN. Los comentarios nuevos se revisan antes de publicarse: nacen en PENDING y pasan a PUBLISHED, REJECTED o REVIEW"
     },
     {
       "name": "Chatbot",
@@ -1096,6 +1112,106 @@
         }
       }
     },
+    "/comments/{commentId}/like": {
+      "put": {
+        "tags": ["Likes de comentarios"],
+        "summary": "Doy like a un comentario",
+        "description": "Idempotente: repetirlo no suma más likes. Solo comentarios publicados y que no sean del propio usuario. Devuelve el número de likes actualizado",
+        "operationId": "like",
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "description": "Id del comentario",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Like guardado; likes actualizados",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentLikeDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentLikeDto" }
+              }
+            }
+          },
+          "403": {
+            "description": "Es un comentario del propio usuario",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentLikeDto" }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún comentario con ese id",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentLikeDto" }
+              }
+            }
+          },
+          "409": {
+            "description": "El comentario no está publicado",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentLikeDto" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Likes de comentarios"],
+        "summary": "Quito mi like de un comentario",
+        "description": "Idempotente: también devuelve 200 si no había like. Siempre permitido, aunque el comentario ya no esté publicado",
+        "operationId": "unlike",
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "description": "Id del comentario",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El usuario ya no tiene like en el comentario; likes actualizados",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentLikeDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentLikeDto" }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún comentario con ese id",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentLikeDto" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/subject/{subjectId}/unit/create": {
       "post": {
         "tags": ["Subjects"],
@@ -1520,6 +1636,75 @@
         }
       }
     },
+    "/pdf/{pdfId}/comments": {
+      "post": {
+        "tags": ["Comentarios de PDFs"],
+        "summary": "Comento un PDF o respondo a un comentario",
+        "description": "Devuelve 202 con el comentario en PENDING: aún no es público, solo lo ve su autor (GET /pdf/{pdfId}/comments/me). Para responder se indica 'replyToId' (una raíz o una respuesta); la respuesta cuelga siempre de la raíz",
+        "operationId": "create",
+        "parameters": [
+          {
+            "name": "pdfId",
+            "in": "path",
+            "description": "Id del PDF",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCommentDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Comentario recibido; queda pendiente de revisión",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/CommentDto" } }
+            }
+          },
+          "400": {
+            "description": "Texto inválido (cuerpo con 'code': EMPTY, TOO_LONG, LINKS_NOT_ALLOWED, IMAGES_NOT_ALLOWED, HTML_NOT_ALLOWED), o 'replyToId' de otro PDF",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/CommentDto" } }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/CommentDto" } }
+            }
+          },
+          "403": {
+            "description": "El usuario todavía no ha completado su perfil (nombre de usuario)",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/CommentDto" } }
+            }
+          },
+          "404": {
+            "description": "No existe el PDF o el comentario al que se responde",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/CommentDto" } }
+            }
+          },
+          "409": {
+            "description": "El comentario al que se responde no está publicado",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/CommentDto" } }
+            }
+          },
+          "429": {
+            "description": "El usuario ya tiene el máximo de comentarios pendientes de revisión",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/CommentDto" } }
+            }
+          }
+        }
+      }
+    },
     "/pdf/create": {
       "post": {
         "tags": ["PDFs"],
@@ -1710,6 +1895,43 @@
         }
       }
     },
+    "/comments/{commentId}/report": {
+      "post": {
+        "tags": ["Comentarios de PDFs"],
+        "summary": "Denuncio un comentario",
+        "description": "Idempotente por usuario. Cuando lo denuncian 3 usuarios distintos el comentario se oculta a la espera de un administrador. Nunca se revela quién denuncia",
+        "operationId": "report",
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "description": "Id del comentario",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReportCommentDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": { "description": "Denuncia registrada" },
+          "400": {
+            "description": "Cuerpo inválido (motivo ausente o desconocido)"
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva"
+          },
+          "403": { "description": "Es un comentario del propio usuario" },
+          "404": { "description": "No existe ningún comentario con ese id" },
+          "409": { "description": "El comentario no está publicado" }
+        }
+      }
+    },
     "/chatbot/chat": {
       "post": {
         "tags": ["Chatbot"],
@@ -1733,6 +1955,67 @@
               }
             }
           }
+        }
+      }
+    },
+    "/admin/comments/{commentId}/reject": {
+      "post": {
+        "tags": ["Moderación de comentarios"],
+        "summary": "Rechazo un comentario",
+        "description": "Lo rechaza con una categoría, cierra sus denuncias y avisa a su autor con un motivo genérico",
+        "operationId": "reject",
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "description": "Id del comentario",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RejectCommentDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": { "description": "Comentario rechazado" },
+          "400": {
+            "description": "Cuerpo inválido (categoría ausente o desconocida)"
+          },
+          "401": {
+            "description": "Sin token válido o el usuario no es administrador"
+          },
+          "404": { "description": "No existe ningún comentario con ese id" },
+          "409": { "description": "El comentario ya está rechazado o borrado" }
+        }
+      }
+    },
+    "/admin/comments/{commentId}/approve": {
+      "post": {
+        "tags": ["Moderación de comentarios"],
+        "summary": "Apruebo un comentario",
+        "description": "Lo publica (también restaura uno oculto o un rechazo erróneo) y cierra sus denuncias. Solo avisa de 'comentario nuevo' si es la primera vez que se publica",
+        "operationId": "approve",
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "description": "Id del comentario",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Comentario publicado" },
+          "401": {
+            "description": "Sin token válido o el usuario no es administrador"
+          },
+          "404": { "description": "No existe ningún comentario con ese id" },
+          "409": { "description": "El comentario ya está publicado o borrado" }
         }
       }
     },
@@ -2853,6 +3136,55 @@
         }
       }
     },
+    "/public/pdf/{pdfId}/comments": {
+      "get": {
+        "tags": ["Comentarios públicos"],
+        "summary": "Comentarios raíz de un PDF",
+        "description": "Del más reciente al más antiguo por fecha de publicación. Cada raíz incluye 'replyCount'. Una raíz borrada, oculta o rechazada que conserva respuestas publicadas se devuelve con 'available' a false y sin texto ni autor",
+        "operationId": "getRoots",
+        "parameters": [
+          {
+            "name": "pdfId",
+            "in": "path",
+            "description": "Id del PDF",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Número de página, desde 0",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "default": 0 }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Tamaño de página (por defecto 20, máximo 50)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de comentarios (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentPageDto" }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún PDF con ese id",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentPageDto" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/public/pdf/top": {
       "get": {
         "tags": ["PDFs públicos"],
@@ -2976,6 +3308,90 @@
         }
       }
     },
+    "/public/pdf/comments/{commentId}/replies": {
+      "get": {
+        "tags": ["Comentarios públicos"],
+        "summary": "Respuestas de un comentario raíz",
+        "description": "Solo las publicadas, de la más antigua a la más reciente. Cada una indica 'replyToId' y 'replyToUsername' para pintar 'en respuesta a @usuario'",
+        "operationId": "getReplies",
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "description": "Id del comentario raíz",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Número de página, desde 0",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "default": 0 }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Tamaño de página (por defecto 20, máximo 50)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de respuestas (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentPageDto" }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún comentario raíz con ese id",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentPageDto" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/pdf/comments/{commentId}/context": {
+      "get": {
+        "tags": ["Comentarios públicos"],
+        "summary": "Un comentario junto a la raíz de su hilo",
+        "description": "Para enlazar a un comentario concreto (por ejemplo desde una notificación) sin paginar hasta encontrarlo. 'root' es la raíz del hilo con 'replyCount' (con 'available' a false si ya no está publicada pero conserva respuestas) y 'target' el comentario pedido, que es el mismo que 'root' si es una raíz",
+        "operationId": "getContext",
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "description": "Id del comentario",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comentario y raíz de su hilo",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentContextDto" }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún comentario con ese id o no está publicado",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentContextDto" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/public/degree": {
       "get": {
         "tags": ["Grados públicos"],
@@ -3084,6 +3500,24 @@
         }
       }
     },
+    "/public/comments/config": {
+      "get": {
+        "tags": ["Comentarios públicos"],
+        "summary": "Límites de los comentarios",
+        "description": "Longitud máxima de un comentario y comentarios pendientes de revisión permitidos por usuario. Son configurables en el servidor, así que el front debe leerlos de aquí en vez de fijarlos",
+        "operationId": "getConfig",
+        "responses": {
+          "200": {
+            "description": "Límites vigentes",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/CommentConfigDto" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/profile": {
       "get": {
         "tags": ["Perfil"],
@@ -3128,6 +3562,58 @@
             "description": "No existe ningún PDF con ese id",
             "content": {
               "*/*": { "schema": { "type": "string", "format": "binary" } }
+            }
+          }
+        }
+      }
+    },
+    "/pdf/{pdfId}/comments/me": {
+      "get": {
+        "tags": ["Comentarios de PDFs"],
+        "summary": "Mis comentarios en un PDF",
+        "description": "Todos los del usuario salvo los borrados, con su estado: PENDING y REVIEW ('en revisión'), PUBLISHED, REJECTED (con 'moderationCategory') u HIDDEN. Pensado para pintar los propios y sondear mientras haya PENDING",
+        "operationId": "getMine",
+        "parameters": [
+          {
+            "name": "pdfId",
+            "in": "path",
+            "description": "Id del PDF",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comentarios del usuario (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/CommentDto" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/CommentDto" }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ningún PDF con ese id",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/CommentDto" }
+                }
+              }
             }
           }
         }
@@ -3455,6 +3941,62 @@
         }
       }
     },
+    "/me/comment-likes": {
+      "get": {
+        "tags": ["Likes de comentarios"],
+        "summary": "Mis likes en un lote de comentarios",
+        "description": "Pensado para marcar los comentarios que ya me gustan en un listado (que es público y no sabe quién mira). Devuelve solo los ids que le gustan al usuario, en el orden pedido. Máximo 100 ids",
+        "operationId": "getMyLikes",
+        "parameters": [
+          {
+            "name": "commentIds",
+            "in": "query",
+            "description": "Ids de los comentarios separados por comas",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": { "type": "integer", "format": "int64" }
+            },
+            "example": "1,2,3"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ids de comentarios que le gustan al usuario (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "type": "integer", "format": "int64" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Más de 100 ids o ids mal formados",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "type": "integer", "format": "int64" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "type": "integer", "format": "int64" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/attempts": {
       "get": {
         "tags": ["Quiz Attempts"],
@@ -3509,6 +4051,104 @@
             "content": {
               "*/*": {
                 "schema": { "$ref": "#/components/schemas/QuizAttemptStatsDto" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/comments": {
+      "get": {
+        "tags": ["Moderación de comentarios"],
+        "summary": "Cola de moderación",
+        "description": "Comentarios en los estados pedidos, del más antiguo al más reciente, con sus denuncias abiertas. Por defecto REVIEW (dudosos para la IA) y HIDDEN (ocultos por denuncias). También se pueden pedir PENDING (esperando a la IA) y REJECTED (para restaurar falsos positivos)",
+        "operationId": "getQueue",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Estados separados por comas: PENDING, REVIEW, HIDDEN, REJECTED",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "REVIEW",
+                  "PUBLISHED",
+                  "HIDDEN",
+                  "DELETED",
+                  "REJECTED"
+                ]
+              },
+              "uniqueItems": true
+            },
+            "example": "REVIEW,HIDDEN"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Número de página, desde 0",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "default": 0 }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Tamaño de página (por defecto 20, máximo 50)",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de comentarios (puede estar vacía)",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/AdminCommentPageDto" }
+              }
+            }
+          },
+          "400": {
+            "description": "Algún estado no es consultable",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/AdminCommentPageDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o el usuario no es administrador",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/AdminCommentPageDto" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/comments/moderation-status": {
+      "get": {
+        "tags": ["Moderación de comentarios"],
+        "summary": "Estado de la moderación automática",
+        "description": "Si la IA está respondiendo, desde cuándo y cuándo se volverá a comprobar, más el número de comentarios esperando a la IA (PENDING) y a un administrador (REVIEW). Con la IA caída, los comentarios nuevos esperan en PENDING y un administrador puede aprobarlos o rechazarlos a mano",
+        "operationId": "getModerationStatus",
+        "responses": {
+          "200": {
+            "description": "Estado de la moderación",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/ModerationStatusDto" }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token válido o el usuario no es administrador",
+            "content": {
+              "*/*": {
+                "schema": { "$ref": "#/components/schemas/ModerationStatusDto" }
               }
             }
           }
@@ -3701,6 +4341,33 @@
             "description": "No se puede eliminar el grado porque tiene asignaturas colocadas"
           },
           "401": { "description": "El usuario autenticado no tiene rol ADMIN" }
+        }
+      }
+    },
+    "/comments/{commentId}": {
+      "delete": {
+        "tags": ["Comentarios de PDFs"],
+        "summary": "Borro un comentario",
+        "description": "Idempotente. Lo puede borrar su autor o un administrador. Si una raíz con respuestas se borra, en el listado público queda como no disponible",
+        "operationId": "delete_1",
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "description": "Id del comentario",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "El comentario está borrado" },
+          "401": {
+            "description": "Sin token válido o cuenta de usuario inactiva"
+          },
+          "403": {
+            "description": "No es el autor del comentario ni administrador"
+          },
+          "404": { "description": "No existe ningún comentario con ese id" }
         }
       }
     }
@@ -4253,6 +4920,10 @@
               "SUBJECT_CREATED",
               "SUBJECT_UNIT_CREATED",
               "PDF_AUTHOR_ADDED",
+              "COMMENT_REPLY",
+              "COMMENT_ON_PDF",
+              "COMMENT_REJECTED",
+              "COMMENT_REVIEW_PENDING",
               "WELCOME",
               "ANNOUNCEMENT"
             ],
@@ -4302,6 +4973,10 @@
               "SUBJECT_CREATED",
               "SUBJECT_UNIT_CREATED",
               "PDF_AUTHOR_ADDED",
+              "COMMENT_REPLY",
+              "COMMENT_ON_PDF",
+              "COMMENT_REJECTED",
+              "COMMENT_REVIEW_PENDING",
               "WELCOME",
               "ANNOUNCEMENT"
             ],
@@ -4567,6 +5242,28 @@
           }
         },
         "required": ["name", "years"]
+      },
+      "CommentLikeDto": {
+        "type": "object",
+        "properties": {
+          "commentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Id del comentario",
+            "example": 12
+          },
+          "likeCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Likes del comentario tras la operación",
+            "example": 5
+          },
+          "liked": {
+            "type": "boolean",
+            "description": "Si al usuario autenticado le gusta el comentario",
+            "example": true
+          }
+        }
       },
       "CreateSubjectUnitDto": {
         "type": "object",
@@ -4866,6 +5563,104 @@
         },
         "required": ["quizId", "text", "type"]
       },
+      "CreateCommentDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "Texto en Markdown con fórmulas LaTeX ($...$). Sin enlaces, imágenes ni HTML. Máximo 2000 caracteres (por defecto; propiedad comments.max-length)",
+            "example": "¿Alguien sabe por qué en la página 12 se puede intercambiar el límite con la integral?"
+          },
+          "replyToId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "Id del comentario al que se responde (una raíz o una respuesta, ya publicado y del mismo PDF). Nulo para un comentario nuevo"
+          }
+        },
+        "required": ["body"]
+      },
+      "CommentDto": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "pdfId": { "type": "integer", "format": "int64" },
+          "parentId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "Raíz del hilo; nulo si este comentario es una raíz"
+          },
+          "replyToId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "Comentario concreto al que se contesta (para pintar 'en respuesta a @usuario'). Nulo en las raíces"
+          },
+          "replyToUsername": {
+            "type": ["string", "null"],
+            "description": "Usuario del comentario al que se contesta. Nulo si no se contesta a nadie o ese comentario ya no está publicado"
+          },
+          "author": {
+            "description": "Autor del comentario. Nulo si 'available' es false",
+            "oneOf": [
+              { "$ref": "#/components/schemas/AuthorDto" },
+              { "type": "null" }
+            ]
+          },
+          "byPdfAuthor": {
+            "type": "boolean",
+            "description": "Si el autor del comentario es también autor del PDF (para una insignia)"
+          },
+          "body": {
+            "type": ["string", "null"],
+            "description": "Texto. Nulo si 'available' es false"
+          },
+          "status": {
+            "type": ["string", "null"],
+            "description": "Estado. En los listados públicos es siempre PUBLISHED, o nulo si 'available' es false",
+            "enum": [
+              "PENDING",
+              "REVIEW",
+              "PUBLISHED",
+              "HIDDEN",
+              "DELETED",
+              "REJECTED"
+            ]
+          },
+          "moderationCategory": {
+            "type": ["string", "null"],
+            "description": "Motivo del rechazo; solo aparece en los comentarios propios (GET /pdf/{pdfId}/comments/me)",
+            "enum": [
+              "HATE_SPEECH",
+              "HARASSMENT",
+              "SEXUAL_CONTENT",
+              "VIOLENCE_OR_THREATS",
+              "ILLEGAL_ACTIVITY",
+              "SPAM",
+              "PERSONAL_DATA",
+              "OTHER"
+            ]
+          },
+          "available": {
+            "type": "boolean",
+            "description": "False si es una raíz que ya no está disponible (borrada, oculta o rechazada) pero conserva respuestas publicadas: mostrar 'comentario no disponible'"
+          },
+          "replyCount": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "Respuestas publicadas. Solo en las raíces de los listados públicos"
+          },
+          "likeCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Likes del comentario. 0 si 'available' es false. Qué comentarios le gustan al usuario: GET /me/comment-likes"
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "publishedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Cuándo se aprobó; es el que ordena los listados. Nulo si todavía no se ha publicado"
+          }
+        }
+      },
       "CreatePDFDto": {
         "type": "object",
         "description": "Datos del PDF a crear",
@@ -5004,6 +5799,16 @@
         },
         "required": ["name", "years"]
       },
+      "ReportCommentDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": ["HATE", "HARASSMENT", "ILLEGAL", "SEXUAL", "SPAM", "OTHER"]
+          }
+        },
+        "required": ["reason"]
+      },
       "ChatMessage": {
         "type": "object",
         "properties": {
@@ -5072,6 +5877,25 @@
             "enum": ["SUCCESS", "ERROR"]
           }
         }
+      },
+      "RejectCommentDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "HATE_SPEECH",
+              "HARASSMENT",
+              "SEXUAL_CONTENT",
+              "VIOLENCE_OR_THREATS",
+              "ILLEGAL_ACTIVITY",
+              "SPAM",
+              "PERSONAL_DATA",
+              "OTHER"
+            ]
+          }
+        },
+        "required": ["category"]
       },
       "UpdateQuizVisibilityDto": {
         "type": "object",
@@ -5330,6 +6154,32 @@
           }
         }
       },
+      "CommentPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CommentDto" }
+          },
+          "page": { "type": "integer", "format": "int32" },
+          "size": { "type": "integer", "format": "int32" },
+          "total": { "type": "integer", "format": "int64" },
+          "hasNext": { "type": "boolean" }
+        }
+      },
+      "CommentContextDto": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "$ref": "#/components/schemas/CommentDto",
+            "description": "Raíz del hilo, con 'replyCount'. Con 'available' a false si ya no está publicada pero conserva respuestas"
+          },
+          "target": {
+            "$ref": "#/components/schemas/CommentDto",
+            "description": "El comentario pedido. Es el mismo que 'root' si el comentario es una raíz"
+          }
+        }
+      },
       "CurriculumDto": {
         "type": "object",
         "properties": {
@@ -5375,6 +6225,23 @@
           }
         }
       },
+      "CommentConfigDto": {
+        "type": "object",
+        "properties": {
+          "maxLength": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Longitud máxima de un comentario, en puntos de código Unicode",
+            "example": 2000
+          },
+          "maxPendingPerUser": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Comentarios pendientes de revisión que un usuario puede tener a la vez",
+            "example": 3
+          }
+        }
+      },
       "UserProfile": {
         "type": "object",
         "properties": {
@@ -5409,6 +6276,10 @@
               "SUBJECT_CREATED",
               "SUBJECT_UNIT_CREATED",
               "PDF_AUTHOR_ADDED",
+              "COMMENT_REPLY",
+              "COMMENT_ON_PDF",
+              "COMMENT_REJECTED",
+              "COMMENT_REVIEW_PENDING",
               "WELCOME",
               "ANNOUNCEMENT"
             ],
@@ -5452,6 +6323,12 @@
             "format": "int64",
             "description": "Id de la asignatura relacionada",
             "example": 3
+          },
+          "commentId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "Id del comentario al que apunta. Solo en las notificaciones de comentarios (COMMENT_REPLY, COMMENT_ON_PDF, COMMENT_REJECTED y COMMENT_REVIEW_PENDING); nulo en el resto",
+            "example": 42
           },
           "read": {
             "type": "boolean",
@@ -5558,6 +6435,115 @@
           "first": { "type": "boolean" },
           "last": { "type": "boolean" },
           "empty": { "type": "boolean" }
+        }
+      },
+      "AdminCommentDto": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "pdfId": { "type": "integer", "format": "int64" },
+          "pdfName": { "type": "string" },
+          "parentId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "Raíz del hilo; nulo si es una raíz"
+          },
+          "replyToId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "Comentario al que contesta; nulo en las raíces"
+          },
+          "author": { "$ref": "#/components/schemas/AuthorDto" },
+          "authorEmail": { "type": "string" },
+          "body": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "REVIEW",
+              "PUBLISHED",
+              "HIDDEN",
+              "DELETED",
+              "REJECTED"
+            ]
+          },
+          "moderationCategory": {
+            "type": ["string", "null"],
+            "description": "Categoría que propuso la IA (REVIEW) o con la que se rechazó",
+            "enum": [
+              "HATE_SPEECH",
+              "HARASSMENT",
+              "SEXUAL_CONTENT",
+              "VIOLENCE_OR_THREATS",
+              "ILLEGAL_ACTIVITY",
+              "SPAM",
+              "PERSONAL_DATA",
+              "OTHER"
+            ]
+          },
+          "reportCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Denuncias abiertas (de usuarios distintos)"
+          },
+          "reportReasons": {
+            "type": "object",
+            "additionalProperties": { "type": "integer", "format": "int64" },
+            "description": "Denuncias abiertas agrupadas por motivo"
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "publishedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Cuándo se publicó; nulo si todavía no se ha publicado"
+          },
+          "moderatedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Cuándo lo evaluó la IA o un admin; nulo si todavía no ha pasado por moderación"
+          }
+        }
+      },
+      "AdminCommentPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AdminCommentDto" }
+          },
+          "page": { "type": "integer", "format": "int32" },
+          "size": { "type": "integer", "format": "int32" },
+          "total": { "type": "integer", "format": "int64" },
+          "hasNext": { "type": "boolean" }
+        }
+      },
+      "ModerationStatusDto": {
+        "type": "object",
+        "properties": {
+          "aiAvailable": {
+            "type": "boolean",
+            "description": "Si la moderación automática (IA) está respondiendo. Si no, los comentarios nuevos esperan en PENDING"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Desde cuándo está en este estado (disponible o caída) en esta instancia del servidor"
+          },
+          "nextCheckAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Cuándo se volverá a comprobar. Nulo si está disponible"
+          },
+          "pendingCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Comentarios esperando a la IA"
+          },
+          "reviewCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Comentarios dudosos esperando a un administrador"
+          }
         }
       }
     },
