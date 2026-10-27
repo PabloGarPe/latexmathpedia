@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect } from "react"
+import { Suspense, useEffect } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import PdfViewer from "@/components/pdf-viewer"
 import { PdfRatingButtons } from "@/components/pdf-rating-buttons"
+import { CommentsLink } from "@/components/comments/comments-link"
+import { PdfComments, PdfCommentsFallback } from "@/components/comments/pdf-comments"
 import { ContentUnavailable } from "@/components/content-unavailable"
 import { ApiError } from "@/lib/api/errors"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
@@ -74,7 +76,10 @@ export default function PdfViewerPage() {
           <h1 className="min-w-0 text-2xl font-bold tracking-tight">{pdf?.name ?? "Documento"}</h1>
           {/* La valoración solo se pide con el binario ya recibido: GET /pdf/{id} registra la vista
               y, antes, el back respondería NOT_VIEWED. Mientras carga, el componente reserva el hueco. */}
-          {!isError && <PdfRatingButtons pdfId={pdfId} enabled={hasContent} />}
+          <div className="flex shrink-0 items-center gap-2">
+            <CommentsLink pdfId={pdfId} />
+            {!isError && <PdfRatingButtons pdfId={pdfId} enabled={hasContent} />}
+          </div>
         </div>
         {authors.length > 0 && (
           // Principal primero. Los nombres no son enlaces: no hay perfil público de otros usuarios.
@@ -96,7 +101,9 @@ export default function PdfViewerPage() {
           No se pudo cargar el PDF. Puede que ya no exista.
         </p>
       ) : isLoading || !content ? (
-        <div className="h-[70vh] animate-pulse rounded-md bg-muted" />
+        // Misma altura que el visor: si no, al llegar el binario la página se movería y el scroll
+        // de llegada a los comentarios (?comment, #comments) quedaría desfasado.
+        <div className="h-[calc(100dvh-var(--header-height)-14rem)] animate-pulse rounded-md bg-muted" />
       ) : (
         <PdfViewer
           data={content}
@@ -105,6 +112,12 @@ export default function PdfViewerPage() {
           className="h-[calc(100dvh-var(--header-height)-14rem)]"
         />
       )}
+
+      {/* Los comentarios no dependen del binario: se ven aunque el visor falle o esté cargando.
+          useSearchParams (?comment=ID) exige el límite de Suspense. */}
+      <Suspense fallback={<PdfCommentsFallback />}>
+        <PdfComments pdfId={pdfId} settled={hasContent || isError} />
+      </Suspense>
     </div>
   )
 }
